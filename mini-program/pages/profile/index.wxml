@@ -1,0 +1,23 @@
+<view class="page">
+  <view class="page-title">本人资料</view>
+  <view wx:if="{{loading}}" class="form-hint">正在读取本人资料…</view>
+  <form wx:else bindsubmit="save">
+    <view class="section">
+      <label class="input-row">姓名<input name="full_name" value="{{profile.full_name}}" maxlength="100" /></label>
+      <view class="input-row">
+        <view>出生日期</view>
+        <picker mode="date" value="{{profile.birth_date}}" bindchange="birthDate">
+          <view class="picker-value">{{profile.birth_date || '选择出生日期'}}</view>
+        </picker>
+      </view>
+      <label class="input-row">联系号码<input name="phone" value="{{profile.phone}}" maxlength="40" /></label>
+      <label class="input-row">账单地址<input name="billing_address" value="{{profile.billing_address}}" /></label>
+      <label class="input-row">电子邮箱（选填）<input name="email" value="{{profile.email}}" maxlength="120" /></label>
+      <label class="input-row">紧急联系人<input name="emergency_name" value="{{profile.emergency_name}}" maxlength="100" /></label>
+      <label class="input-row">紧急联系号码<input name="emergency_phone" value="{{profile.emergency_phone}}" maxlength="40" /></label>
+    </view>
+    <view wx:if="{{error}}" class="error-message">{{error}}</view>
+    <button class="primary-action" form-type="submit" disabled="{{pending}}">保存本人资料</button>
+    <button wx:if="{{!firstTime}}" class="text-action" type="default" bindtap="leave">退出登录</button>
+  </form>
+</view>

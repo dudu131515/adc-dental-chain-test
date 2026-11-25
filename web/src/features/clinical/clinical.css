@@ -1,0 +1,60 @@
+.allergy-section {
+  display: grid;
+  gap: 10px;
+  border-block: 1px solid var(--border);
+  padding: 14px 0;
+}
+.allergy-section h3, .allergy-section p { margin: 0; }
+.allergy-section > .button { justify-self: start; }
+.allergy-status { border-radius: 4px; padding: 3px 8px; }
+.allergy-status[data-status="UNVERIFIED"] { color: var(--pending); background: var(--pending-soft); }
+.allergy-status[data-status="NONE_KNOWN"] { color: var(--success); background: var(--success-soft); }
+.allergy-status[data-status="KNOWN"] { color: var(--error); background: var(--error-soft); }
+.allergen-list, .allergy-history ol { margin: 0; padding-left: 24px; }
+.allergen-list li, .allergy-history li { margin: 5px 0; overflow-wrap: anywhere; }
+.allergen-list span, .allergy-history li span { display: block; white-space: pre-wrap; }
+.allergy-history summary { cursor: pointer; color: var(--primary); width: fit-content; padding: 4px 0; }
+.allergy-editor fieldset {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  min-width: 0;
+}
+.allergy-editor legend { padding: 0 5px; font-weight: 600; }
+.allergy-editor label { display: grid; gap: 4px; min-width: 0; }
+.allergy-editor :is(textarea, input, select) {
+  font: inherit;
+  color: var(--text);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  border-radius: 5px;
+  padding: 7px;
+  min-width: 0;
+}
+.allergy-editor fieldset > .button { justify-self: start; }
+.allergy-row { display: grid; gap: 8px; grid-template-columns: 1fr 2fr auto; align-items: end; }
+@media (max-width: 660px) {
+  .allergy-row { grid-template-columns: 1fr; }
+  .allergy-row > .button { justify-self: start; }
+}
+
+.treatment-materials {
+  flex-basis: 100%;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  margin: 0;
+  padding: 12px;
+  min-width: 0;
+}
+.treatment-materials .record-fields { margin: 8px 0; }
+.treatment-ending textarea {
+  font: inherit;
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 6px;
+  padding: 8px;
+  min-height: 68px;
+}

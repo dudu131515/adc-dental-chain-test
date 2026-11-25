@@ -1,0 +1,16 @@
+<view class="page">
+  <view class="page-heading"><view><view class="page-title">我的</view><view class="subtitle">管理本人资料与就诊记录</view></view></view>
+  <view wx:if="{{loading}}" class="state"><view class="loading-dot"></view><text>正在读取本人资料…</text></view>
+    <view wx:elif="{{error}}" class="state state-error"><view class="state-title">暂时无法读取</view><text>{{error}}</text><button class="mini-button" bindtap="onShow">重新加载</button></view>
+    <view wx:elif="{{profileRequired}}" class="state"><view class="state-title">请先完善就诊资料</view><text>建立本人档案后，门店可以通过预约信息与您联系。</text><button class="mini-button" bindtap="profile">填写本人资料</button></view>
+  <button wx:else class="identity-card" bindtap="profile">
+    <view class="avatar">{{avatar}}</view><view class="identity-text"><view class="identity-name">{{person.full_name}}</view><view class="identity-number">患者编号 {{person.patient_no}}</view></view><view class="chevron light"></view>
+  </button>
+  <view class="section-heading"><view class="section-title">我的服务</view></view>
+  <view class="panel flush">
+    <button class="menu-row" bindtap="profile"><view class="icon-box slate"><image src="/assets/user.png" /></view><view class="menu-text"><view class="menu-name">本人资料</view><view class="muted">就诊人、电话与紧急联系人</view></view><view class="chevron"></view></button>
+    <button class="menu-row" bindtap="history"><view class="icon-box blue"><image src="/assets/calendar.png" /></view><view class="menu-text"><view class="menu-name">历史预约</view><view class="muted">查看历次预约详情</view></view><view class="chevron"></view></button>
+    <button class="menu-row" bindtap="receipts"><view class="icon-box sand"><image src="/assets/receipt.png" /></view><view class="menu-text"><view class="menu-name">预约金记录</view><view class="muted">核对预约金支付与退款</view></view><view class="chevron"></view></button>
+    <button class="menu-row" bindtap="clinics"><view class="icon-box "><image src="/assets/clinic.png" /></view><view class="menu-text"><view class="menu-name">门店地址</view></view><view class="chevron"></view></button>
+  </view>
+</view>

@@ -1,0 +1,27 @@
+# 安德鲁牙科连锁管理系统 ADC
+
+本项目包含一个员工管理网站和一个患者微信原生小程序。两端通过同一套 Django API 使用 PostgreSQL 业务数据。课程演示使用合成数据和模拟资金。
+
+## 课程验收入口
+
+1. [课程最终提交版 Word（工作台补充）](usecase/安德鲁牙科连锁系统分析与设计_最终提交版（工作台补充）.docx)  第 3.3 节是七个系统用例，附录 D 说明工作台、患者档案、过敏核对和患者小程序。
+2. [提交版与系统对应关系](docs/verification/adc-submission-mapping.md)  按用例找到两端页面，再通过截图和预约示例核对。
+3. [运行与验证指南](specs/001-adc-system/quickstart.md)  提供 PostgreSQL 初始化、网站启动、微信开发者工具导入和样例验收步骤。
+4. [小程序备案中](小程序备案中/README.md)  查看当前备案状态和验收方式。
+
+## 项目目录
+
+| 目录 | 内容 |
+| --- | --- |
+| [web](web) | React 管理网站，包含工作台、排班预约、患者档案、诊疗、结算、项目价格和经营 |
+| [mini-program](mini-program) | 微信原生患者端，包含首页、预约、本人资料和预约金记录 |
+| [backend](backend) | Django API、权限、业务事务和自动化测试 |
+| [usecase](usecase) | 课程提交版、业务母本、图源和同源 PostgreSQL 脚本 |
+| [specs](specs/001-adc-system) | 系统需求规约、技术方案、API 契约和任务追踪 |
+| [deploy](deploy/README.md) | 体验环境配置与 Linux 部署说明 |
+
+### 教师演示
+
+从网站前台进入 **工作台 → 排班与预约 → 患者档案**，再用负责牙医查看 **诊疗 → 接诊队列 → 过敏核对**。微信开发者工具导入 `mini-program/` 后，从 **首页 → 下一次就诊 → 预约详情** 查看本人预约。两端可用合成预约 `ADC-DEMO-011` 核对预约号、确认状态和 50 元预约金。其他角色入口见[对应关系](docs/verification/adc-submission-mapping.md)。
+
+需要在本地验证时，使用 [Quickstart 的工作台与患者小程序演示段落](specs/001-adc-system/quickstart.md) 初始化独立合成库。证据中的微信画面来自开发者工具原生模拟器。

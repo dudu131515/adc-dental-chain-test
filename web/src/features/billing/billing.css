@@ -1,0 +1,7 @@
+.invoice-issue-receipt { display: none; }
+@media print {
+  body:has(.invoice-issue-receipt) * { visibility: hidden; }
+  .invoice-issue-receipt { display: block; position: absolute; inset: 0 0 auto; padding: 12mm; }
+  .invoice-issue-receipt, .invoice-issue-receipt * { visibility: visible !important; }
+  .invoice-issue-receipt .report-table th, .invoice-issue-receipt .report-table td { white-space: normal; }
+}

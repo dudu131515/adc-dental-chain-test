@@ -1,0 +1,14 @@
+<view class="page">
+  <view class="page-heading"><view><view class="page-title">门店地址</view><view class="subtitle">查找门店，或选择离您方便的地点预约</view></view></view>
+  <view wx:if="{{loading}}" class="state"><view class="loading-dot"></view><text>正在读取门店信息…</text></view>
+    <view wx:elif="{{error}}" class="state state-error"><view class="state-title">暂时无法读取</view><text>{{error}}</text><button class="mini-button" bindtap="onShow">重新加载</button></view>
+    <view wx:elif="{{profileRequired}}" class="state"><view class="state-title">请先完善就诊资料</view><text>完善本人资料后，即可查看预约开放的门店。</text><button class="mini-button" bindtap="profile">填写本人资料</button></view>
+  <block wx:else>
+    <view wx:if="{{!entries.length}}" class="state"><view class="state-title">暂无开放门店</view><text>稍后可重新查看预约开放情况。</text></view>
+    <view wx:for="{{entries}}" wx:key="clinic_id" class="section">
+      <view class="inline"><view class="icon-box"><image src="/assets/clinic.png" /></view><view class="section-title">{{item.name}}</view></view>
+      <view class="info-line" wx:if="{{item.address}}"><image src="/assets/pin.png" /><text selectable="true">{{item.address}}</text></view>
+      <view class="button-pair"><button wx:if="{{item.address}}" class="secondary-action" data-address="{{item.address}}" bindtap="copy">复制地址</button><button class="primary-action" bindtap="book" data-id="{{item.clinic_id}}">预约此门店</button></view>
+    </view>
+  </block>
+</view>

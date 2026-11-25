@@ -1,0 +1,17 @@
+<view class="page">
+  <view class="page-heading"><view><view class="page-title">我的预约</view><view class="subtitle">查看就诊安排与预约进度</view></view><button class="mini-button" bindtap="book">＋ 新预约</button></view>
+  <view wx:if="{{loading}}" class="state"><view class="loading-dot"></view><text>正在读取您的预约…</text></view>
+    <view wx:elif="{{error}}" class="state state-error"><view class="state-title">暂时无法读取</view><text>{{error}}</text><button class="mini-button" bindtap="onShow">重新加载</button></view>
+    <view wx:elif="{{profileRequired}}" class="state"><view class="state-title">请先完善就诊资料</view><text>填写本人资料后，即可查看与您关联的记录。</text><button class="mini-button" bindtap="profile">填写本人资料</button></view>
+  <block wx:else>
+    <view class="segmented"><button class="{{section === 'upcoming' ? 'active' : ''}}" bindtap="chooseSection" data-section="upcoming">待就诊 {{upcoming.length}}</button><button class="{{section === 'history' ? 'active' : ''}}" bindtap="chooseSection" data-section="history">历史预约 {{history.length}}</button></view>
+    <block wx:if="{{section === 'upcoming'}}">
+      <button class="appointment-row" wx:for="{{upcoming}}" wx:key="id" bindtap="open" data-id="{{item.id}}"><appointment-summary appointment="{{item}}" compact="{{true}}" /></button>
+      <view wx:if="{{!upcoming.length}}" class="state"><view class="icon-box"><image src="/assets/calendar.png" /></view><view class="state-title">暂无待就诊预约</view><text>请选择门店和项目，安排下一次就诊。</text><button class="mini-button" bindtap="book">预约就诊</button></view>
+    </block>
+    <block wx:else>
+      <button class="appointment-row" wx:for="{{history}}" wx:key="id" bindtap="open" data-id="{{item.id}}"><appointment-summary appointment="{{item}}" compact="{{true}}" /></button>
+      <view wx:if="{{!history.length}}" class="state"><view class="icon-box"><image src="/assets/calendar.png" /></view><view class="state-title">暂无历史预约</view><text>已结束或已取消的预约将显示在这里。</text></view>
+    </block>
+  </block>
+</view>

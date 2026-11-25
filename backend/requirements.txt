@@ -1,0 +1,9 @@
+# Python 3.12. Install this lock in a fresh virtual environment.
+asgiref==3.13.0
+Django==5.2.19
+djangorestframework==3.18.3
+psycopg==3.3.9
+psycopg-binary==3.3.9
+sqlparse==0.6.1
+typing-extensions==4.16.0
+tzdata==2026.6

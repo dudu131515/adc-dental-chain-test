@@ -1,0 +1,733 @@
+<title>ADC 建设成果</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;600;700&family=Noto+Serif+SC:wght@600;700&family=Space+Grotesk:wght@500;600;700&display=swap">
+<style>
+  /* Design plan: clinical teal on warm paper, serif display + sans body, report-like sections with device evidence. */
+  :root {
+    --bg: #f3f6f4;
+    --surface: #ffffff;
+    --surface-2: #e8f0ed;
+    --surface-3: #f7fbf9;
+    --ink: #142b2f;
+    --muted: #5b7278;
+    --line: #d4e1de;
+    --teal: #0d6b70;
+    --teal-deep: #0b3d43;
+    --mint: #ddf1ea;
+    --sand: #b98c4d;
+    --sand-soft: #f4ead8;
+    --danger: #9a4a3b;
+    --danger-soft: #f8e9e4;
+    --shadow: 0 18px 50px rgba(12, 55, 58, .12);
+    --radius: 18px;
+    --display: "Noto Serif SC", "Songti SC", "SimSun", serif;
+    --sans: "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
+    --mono: "Space Grotesk", "SFMono-Regular", Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0b1618;
+      --surface: #112225;
+      --surface-2: #173033;
+      --surface-3: #142a2d;
+      --ink: #e8f2ef;
+      --muted: #9ab1af;
+      --line: #244245;
+      --teal: #5fc3bd;
+      --teal-deep: #082c31;
+      --mint: #183c39;
+      --sand: #d2b07a;
+      --sand-soft: #3a3020;
+      --danger: #e29b87;
+      --danger-soft: #3b211d;
+      --shadow: 0 18px 50px rgba(0, 0, 0, .38);
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0b1618;
+    --surface: #112225;
+    --surface-2: #173033;
+    --surface-3: #142a2d;
+    --ink: #e8f2ef;
+    --muted: #9ab1af;
+    --line: #244245;
+    --teal: #5fc3bd;
+    --teal-deep: #082c31;
+    --mint: #183c39;
+    --sand: #d2b07a;
+    --sand-soft: #3a3020;
+    --danger: #e29b87;
+    --danger-soft: #3b211d;
+    --shadow: 0 18px 50px rgba(0, 0, 0, .38);
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 15px;
+    line-height: 1.75;
+    padding-left: max(18px, env(safe-area-inset-left, 0px));
+    padding-right: max(18px, env(safe-area-inset-right, 0px));
+  }
+  a { color: var(--teal); }
+  img { display: block; max-width: 100%; }
+  .wrap { max-width: 1180px; margin: 0 auto; }
+  .mast {
+    display: flex; align-items: center; justify-content: space-between; gap: 16px;
+    padding-block: 22px 14px;
+  }
+  .brand { display: flex; align-items: center; gap: 12px; font-weight: 700; letter-spacing: -.02em; }
+  .brand-mark {
+    display: grid; place-items: center; width: 42px; height: 42px; border-radius: 13px;
+    background: var(--teal); color: #fff; font-family: var(--mono); font-size: 13px; letter-spacing: .04em;
+    box-shadow: inset 0 -10px 18px rgba(0,0,0,.14);
+  }
+  .brand small { display: block; color: var(--muted); font-size: 11px; font-weight: 500; letter-spacing: .12em; }
+  .mast-meta { color: var(--muted); font-size: 12px; text-align: right; }
+  .hero {
+    display: grid; grid-template-columns: minmax(0, .92fr) minmax(0, 1.08fr);
+    gap: clamp(26px, 4vw, 60px); align-items: center;
+    padding-block: clamp(28px, 5vw, 64px) clamp(34px, 6vw, 76px);
+  }
+  .eyebrow {
+    display: inline-flex; align-items: center; gap: 8px;
+    color: var(--teal); font-size: 11px; font-weight: 700; letter-spacing: .16em; text-transform: uppercase;
+  }
+  .eyebrow::before { content: ""; width: 22px; height: 2px; background: var(--sand); }
+  h1, h2, h3 { text-wrap: balance; }
+  h1 {
+    margin: 14px 0 16px; font-family: var(--display); font-weight: 700;
+    font-size: clamp(2.15rem, 5.3vw, 4.15rem); line-height: 1.14; letter-spacing: -.045em;
+  }
+  h1 em { color: var(--teal); font-style: normal; }
+  .lede { max-width: 37ch; color: var(--muted); font-size: clamp(15px, 1.6vw, 17px); line-height: 1.8; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 22px; }
+  .chip {
+    display: inline-flex; align-items: center; gap: 7px; padding: 7px 11px;
+    border: 1px solid var(--line); border-radius: 999px; background: var(--surface);
+    color: var(--muted); font-size: 12px; font-weight: 500;
+  }
+  .chip i { width: 7px; height: 7px; border-radius: 50%; background: var(--teal); }
+  .hero-visual { position: relative; min-width: 0; }
+  .browser {
+    overflow: hidden; border: 1px solid var(--line); border-radius: var(--radius);
+    background: var(--surface); box-shadow: var(--shadow);
+  }
+  .browser-bar {
+    display: flex; align-items: center; gap: 6px; padding: 9px 12px;
+    border-bottom: 1px solid var(--line); background: var(--surface-2);
+  }
+  .browser-bar i { width: 8px; height: 8px; border-radius: 50%; background: var(--line); }
+  .browser-bar span {
+    margin-left: 8px; padding: 3px 10px; border-radius: 6px; background: var(--surface);
+    color: var(--muted); font-family: var(--mono); font-size: 10px; letter-spacing: .02em;
+  }
+  .browser img { width: 100%; }
+  .hero-note {
+    margin-top: 12px; color: var(--muted); font-size: 11px; text-align: right;
+  }
+  .stats {
+    display: grid; grid-template-columns: repeat(4, minmax(0, 1fr));
+    border-top: 1px solid var(--line); border-bottom: 1px solid var(--line);
+  }
+  .stat { padding: 22px 18px 24px; border-right: 1px solid var(--line); }
+  .stat:last-child { border-right: 0; }
+  .stat strong {
+    display: block; font-family: var(--mono); font-size: clamp(1.5rem, 3vw, 2.2rem);
+    line-height: 1; letter-spacing: -.04em;
+  }
+  .stat span { display: block; margin-top: 8px; color: var(--muted); font-size: 12px; }
+  section { padding-block: clamp(44px, 7vw, 84px); }
+  .section-head { display: flex; align-items: end; justify-content: space-between; gap: 24px; margin-bottom: 26px; }
+  .section-head h2 {
+    margin: 0; font-family: var(--display); font-size: clamp(1.55rem, 3vw, 2.2rem); line-height: 1.25; letter-spacing: -.03em;
+  }
+  .section-head p { max-width: 46ch; margin: 0; color: var(--muted); font-size: 13px; text-align: right; }
+  .kicker { margin-bottom: 8px; color: var(--sand); font-size: 11px; font-weight: 700; letter-spacing: .16em; }
+  .gallery { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+  .shot {
+    display: flex; flex-direction: column; overflow: hidden;
+    border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface);
+  }
+  .shot.wide { grid-column: span 2; }
+  .shot button {
+    display: block; width: 100%; padding: 0; border: 0; background: transparent; cursor: zoom-in; text-align: left;
+  }
+  .shot button:focus-visible { outline: 3px solid var(--teal); outline-offset: -3px; }
+  .shot img { width: 100%; border-bottom: 1px solid var(--line); }
+  .shot figcaption { display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: start; padding: 16px 18px 18px; }
+  .shot h3 { margin: 0; font-size: 15px; font-weight: 650; letter-spacing: -.01em; }
+  .shot p { margin: 4px 0 0; color: var(--muted); font-size: 12.5px; line-height: 1.65; }
+  .role {
+    align-self: start; padding: 4px 8px; border-radius: 6px; background: var(--mint);
+    color: var(--teal-deep); font-size: 10px; font-weight: 700; letter-spacing: .06em; white-space: nowrap;
+  }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .role { color: var(--ink); } }
+  :root[data-theme="dark"] .role { color: var(--ink); }
+  .split { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, .85fr); gap: clamp(24px, 4vw, 46px); align-items: start; }
+  .mini-stage {
+    display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px;
+    padding: 22px; border: 1px solid var(--line); border-radius: var(--radius);
+    background:
+      radial-gradient(circle at 12% 8%, color-mix(in srgb, var(--mint) 70%, transparent), transparent 34%),
+      radial-gradient(circle at 92% 96%, color-mix(in srgb, var(--sand-soft) 80%, transparent), transparent 36%),
+      var(--surface-3);
+  }
+  .phone {
+    min-width: 0; padding: 7px; border: 1px solid var(--line); border-radius: 28px;
+    background: var(--ink); box-shadow: 0 12px 28px rgba(9, 40, 42, .18);
+  }
+  .phone-screen {
+    position: relative; overflow: hidden; min-height: 438px; border-radius: 22px;
+    background: #f4f8f8; color: #173b47; font-size: 10px; line-height: 1.5;
+  }
+  .statusbar { display: flex; justify-content: space-between; padding: 8px 14px 4px; font-size: 8px; font-weight: 700; color: #173b47; }
+  .mini-nav { padding: 6px 14px 10px; text-align: center; font-size: 11px; font-weight: 650; color: #173b47; }
+  .mini-page { display: flex; flex-direction: column; gap: 9px; padding: 0 10px 44px; }
+  .mini-title { font-size: 17px; font-weight: 750; letter-spacing: -.4px; line-height: 1.3; }
+  .mini-sub { color: #526e78; font-size: 8px; }
+  .mini-hero {
+    position: relative; overflow: hidden; padding: 12px; border-radius: 13px; color: #fff;
+    background: linear-gradient(120deg, #0f5867 0%, #117881 54%, #83bfb4 100%);
+  }
+  .mini-hero b { display: block; margin: 5px 0 2px; font-size: 17px; line-height: 1.3; }
+  .mini-hero span { color: #d7f2ed; font-size: 8px; }
+  .mini-hero em {
+    display: inline-flex; margin-top: 8px; padding: 5px 8px; border-radius: 5px;
+    background: #effff9; color: #125d64; font-size: 8px; font-style: normal; font-weight: 650;
+  }
+  .mini-label { display: flex; justify-content: space-between; align-items: center; font-size: 11px; font-weight: 700; }
+  .mini-label span { color: #12747b; font-size: 8px; font-weight: 550; }
+  .mini-card {
+    display: flex; gap: 8px; align-items: center; padding: 9px;
+    border: 1px solid #dce7e8; border-radius: 11px; background: #fff; box-shadow: 0 2px 8px rgba(22,64,68,.035);
+  }
+  .date-tile {
+    display: grid; place-items: center; align-content: center; flex: 0 0 42px; align-self: stretch;
+    border-radius: 8px; background: #e7f3ef; color: #27695e; font-size: 7px; font-weight: 600; line-height: 1.3;
+  }
+  .date-tile b { font-size: 18px; line-height: 1; color: #27695e; }
+  .mini-card-body { flex: 1; min-width: 0; }
+  .mini-badge { display: inline-block; padding: 1px 5px; border-radius: 4px; background: #e1f2e9; color: #197365; font-size: 7px; font-weight: 700; }
+  .mini-time { margin: 3px 0 1px; font-size: 13px; font-weight: 700; }
+  .mini-clinic { font-size: 9px; font-weight: 650; }
+  .mini-muted { color: #526e78; font-size: 7.5px; }
+  .mini-grid { display: flex; padding: 8px 2px; border: 1px solid #dce7e8; border-radius: 11px; background: #fff; }
+  .mini-grid div { flex: 1; display: grid; place-items: center; gap: 3px; font-size: 7px; font-weight: 550; color: #173b47; }
+  .mini-grid i { display: grid; place-items: center; width: 22px; height: 22px; border-radius: 7px; background: #e5f4ed; font-style: normal; font-size: 10px; }
+  .mini-grid div:nth-child(2) i { background: #e4f2f9; }
+  .mini-grid div:nth-child(3) i { background: #f6f0e0; }
+  .mini-grid div:nth-child(4) i { background: #e9f0f5; }
+  .mini-tab {
+    position: absolute; inset: auto 0 0; display: flex; justify-content: space-around; padding: 8px 6px 9px;
+    border-top: 1px solid #e1eaea; background: rgba(255,255,255,.96); color: #697d88; font-size: 7px;
+  }
+  .mini-tab b { color: #087c86; }
+  .mini-tab div { display: grid; place-items: center; gap: 2px; }
+  .mini-tab i { width: 10px; height: 10px; border: 1.2px solid currentColor; border-radius: 3px; font-style: normal; }
+  .mini-seg { display: flex; gap: 2px; padding: 3px; border-radius: 7px; background: #e6efef; }
+  .mini-seg span { flex: 1; padding: 4px; border-radius: 5px; text-align: center; font-size: 7px; color: #517079; }
+  .mini-seg b { flex: 1; padding: 4px; border-radius: 5px; background: #fff; box-shadow: 0 1px 4px rgba(19,65,72,.1); text-align: center; font-size: 7px; color: #176d74; }
+  .mini-row { display: flex; justify-content: space-between; gap: 8px; padding: 7px 9px; border: 1px solid #dce7e8; border-radius: 9px; background: #fff; }
+  .mini-row b { display: block; font-size: 9px; }
+  .mini-row span { display: block; color: #526e78; font-size: 7px; }
+  .mini-row em { align-self: center; color: #197365; font-size: 7px; font-style: normal; font-weight: 700; }
+  .mini-cta { display: flex; justify-content: center; align-items: center; min-height: 29px; border-radius: 7px; background: #087b80; color: #fff; font-size: 8px; font-weight: 650; }
+  .mini-progress { display: flex; align-items: center; justify-content: center; gap: 5px; color: #657a81; font-size: 7px; }
+  .mini-progress b { color: #176e73; }
+  .mini-progress i { width: 11px; height: 1px; background: #cbdfdd; }
+  .mini-info { padding: 8px 9px; border: 1px solid #dce7e8; border-radius: 9px; background: #fff; }
+  .mini-info div { display: flex; justify-content: space-between; gap: 8px; padding: 3px 0; font-size: 7.5px; }
+  .mini-info span { color: #526e78; }
+  .mini-info b { text-align: right; }
+  .mini-fund { padding: 8px 9px; border-radius: 9px; background: #e6f2f1; color: #3c6870; font-size: 7.5px; }
+  .mini-fund strong { color: #b98c4d; }
+  .stage-caption { margin: 10px 2px 0; color: var(--muted); font-size: 11px; }
+  .page-map { border-top: 1px solid var(--line); }
+  .page-map details { border-bottom: 1px solid var(--line); }
+  .page-map summary {
+    display: flex; align-items: center; justify-content: space-between; gap: 14px;
+    padding: 14px 2px; cursor: pointer; list-style: none; font-size: 14px; font-weight: 650;
+  }
+  .page-map summary::-webkit-details-marker { display: none; }
+  .page-map summary::after { content: "＋"; color: var(--teal); font-size: 16px; font-weight: 400; }
+  .page-map details[open] summary::after { content: "−"; }
+  .page-map .flow { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 0 16px; }
+  .page-map .flow span {
+    padding: 4px 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface);
+    color: var(--muted); font-size: 11px;
+  }
+  .page-map p { margin: 0 0 12px; color: var(--muted); font-size: 12px; }
+  .arch {
+    display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1.1fr); gap: 18px; align-items: stretch;
+    padding: 22px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface);
+  }
+  .arch-col { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+  .arch-box { padding: 14px 16px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface-3); }
+  .arch-box strong { display: block; font-size: 13px; }
+  .arch-box span { display: block; margin-top: 2px; color: var(--muted); font-size: 11px; }
+  .arch-arrow { display: grid; place-items: center; color: var(--teal); font-size: 22px; }
+  .loop { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; margin-top: 14px; }
+  .loop div { padding: 12px 10px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); text-align: center; }
+  .loop b { display: block; font-size: 12px; }
+  .loop span { display: block; margin-top: 2px; color: var(--muted); font-size: 10px; }
+  .status-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+  .status-card { padding: 20px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); }
+  .status-card h3 { margin: 0 0 8px; font-size: 14px; }
+  .status-card p { margin: 0; color: var(--muted); font-size: 12.5px; }
+  .status-card.pass { border-left: 3px solid var(--teal); }
+  .status-card.gap { border-left: 3px solid var(--sand); }
+  .status-card.risk { border-left: 3px solid var(--danger); }
+  .table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); }
+  table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  th, td { padding: 11px 14px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+  th { color: var(--muted); font-size: 10px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; background: var(--surface-2); }
+  tr:last-child td { border-bottom: 0; }
+  td.num { font-family: var(--mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .tag { display: inline-block; padding: 2px 7px; border-radius: 5px; font-size: 10px; font-weight: 700; white-space: nowrap; }
+  .tag.ok { background: var(--mint); color: var(--teal-deep); }
+  .tag.wip { background: var(--sand-soft); color: #7a5a2a; }
+  .tag.bad { background: var(--danger-soft); color: var(--danger); }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) .tag.ok { color: var(--ink); }
+    :root:not([data-theme="light"]) .tag.wip { color: var(--sand); }
+  }
+  :root[data-theme="dark"] .tag.ok { color: var(--ink); }
+  :root[data-theme="dark"] .tag.wip { color: var(--sand); }
+  .gap-shot { display: flex; gap: 16px; align-items: center; padding: 16px; border: 1px dashed var(--line); border-radius: 14px; background: var(--surface-3); }
+  .gap-shot img { width: 220px; border: 1px solid var(--line); border-radius: 8px; }
+  .gap-shot p { margin: 0; color: var(--muted); font-size: 12px; }
+  .footer {
+    display: flex; flex-wrap: wrap; justify-content: space-between; gap: 16px;
+    padding-block: 28px 40px; border-top: 1px solid var(--line); color: var(--muted); font-size: 11.5px;
+  }
+  .footer strong { color: var(--ink); }
+  .lightbox {
+    position: fixed; inset: 0; z-index: 50; display: grid; place-items: center;
+    padding: max(20px, env(safe-area-inset-top, 0px)) max(18px, env(safe-area-inset-right, 0px)) max(20px, env(safe-area-inset-bottom, 0px)) max(18px, env(safe-area-inset-left, 0px));
+    background: rgba(4, 18, 20, .86); backdrop-filter: blur(6px);
+  }
+  .lightbox img { max-height: 86vh; width: auto; max-width: 100%; border-radius: 10px; box-shadow: 0 20px 60px rgba(0,0,0,.4); }
+  .lightbox button {
+    position: absolute; top: max(18px, env(safe-area-inset-top, 0px)); right: max(18px, env(safe-area-inset-right, 0px));
+    width: 40px; height: 40px; border: 1px solid rgba(255,255,255,.3); border-radius: 50%;
+    background: rgba(0,0,0,.3); color: #fff; font-size: 20px; cursor: pointer;
+  }
+  @media (max-width: 900px) {
+    .hero, .split, .status-grid { grid-template-columns: 1fr; }
+    .hero { padding-block: 26px 40px; }
+    .hero-visual { order: -1; }
+    .section-head { align-items: start; flex-direction: column; gap: 8px; }
+    .section-head p { text-align: left; }
+    .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .stat:nth-child(2) { border-right: 0; }
+    .stat:nth-child(-n+2) { border-bottom: 1px solid var(--line); }
+    .gallery { grid-template-columns: 1fr; }
+    .shot.wide { grid-column: auto; }
+    .mini-stage { grid-template-columns: 1fr; }
+    .phone { max-width: 300px; margin-inline: auto; }
+    .mini-screen-wrap { display: flex; justify-content: center; }
+    .arch { grid-template-columns: 1fr; }
+    .arch-arrow { transform: rotate(90deg); }
+    .loop { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .gap-shot { flex-direction: column; align-items: start; }
+  }
+  @media (max-width: 520px) {
+    .mast { align-items: flex-start; }
+    .mast-meta { display: none; }
+    .stats { grid-template-columns: 1fr; }
+    .stat { border-right: 0; border-bottom: 1px solid var(--line); }
+    .stat:last-child { border-bottom: 0; }
+    .shot figcaption { grid-template-columns: 1fr; }
+    .role { justify-self: start; }
+    .loop { grid-template-columns: 1fr; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    * { animation: none !important; transition: none !important; }
+  }
+</style>
+
+<div class="wrap">
+  <header class="mast">
+    <div class="brand">
+      <span class="brand-mark">ADC</span>
+      <span>安德鲁牙科连锁系统<small>ANDREW DENTAL CLINICS · 系统建设成果</small></span>
+    </div>
+    <div class="mast-meta">2026 年 11 月 23 日<br>课程项目 · 合成数据 · 本地可复现</div>
+  </header>
+
+  <main>
+    <section class="hero" aria-labelledby="hero-title">
+      <div>
+        <span class="eyebrow">双端一库 · 业务贯通</span>
+        <h1 id="hero-title">一个管理网站，<br>一个小程序，<em>一套牙科业务</em>。</h1>
+        <p class="lede">员工在管理网站完成排班、预约、签到、诊疗、结算与经营核对；患者在微信小程序里完成预约、改期、取消和预约金查询。两端围绕同一预约号衔接，共用 Django 接口与 PostgreSQL 事实记录。</p>
+        <div class="chips">
+          <span class="chip"><i></i>React + Vite 管理端</span>
+          <span class="chip"><i></i>原生微信小程序</span>
+          <span class="chip"><i></i>Django REST + PostgreSQL 17</span>
+        </div>
+      </div>
+      <div class="hero-visual">
+        <div class="browser">
+          <div class="browser-bar"><i></i><i></i><i></i><span>127.0.0.1:5173/schedule</span></div>
+          <img src="images/schedule.png" alt="管理网站预约日历：按医生和时段显示当日预约，包含已核实爽约、已签到待分椅、履约结束等状态。" width="1440" height="1000" fetchpriority="high">
+        </div>
+        <div class="hero-note">管理网站 · 前台账号 · 2026-11-23 的真实本地运行画面</div>
+      </div>
+    </section>
+
+    <div class="stats" aria-label="建设概览">
+      <div class="stat"><strong>2</strong><span>管理网站 + 微信小程序</span></div>
+      <div class="stat"><strong>5</strong><span>排班 / 诊疗 / 结算 / 项目 / 经营</span></div>
+      <div class="stat"><strong>12</strong><span>小程序原生页面</span></div>
+      <div class="stat"><strong>67</strong><span>后端自动化测试通过</span></div>
+    </div>
+
+    <section aria-labelledby="web-title">
+      <div class="section-head">
+        <div>
+          <div class="kicker">管理网站</div>
+          <h2 id="web-title">从预约日历接手一天的工作</h2>
+        </div>
+        <p>同一登录入口、导航框架和详情布局，按岗位权限显示业务。以下画面来自本地合成库的真实接口驱动，不是设计稿。</p>
+      </div>
+      <div class="gallery">
+        <figure class="shot wide">
+          <button data-full="images/schedule.png" aria-label="放大查看预约日历">
+            <img src="images/schedule.png" alt="预约日历，医生为列、时间为行，卡片展示患者、项目、门店与履约状态。" loading="eager">
+          </button>
+          <figcaption>
+            <div><h3>预约日历 · 当天队列一眼看完</h3>
+            <p>按医生与时间排布，覆盖已确认、已签到待分椅、履约结束和已核实爽约。顶部可切换日期、门店、医生与状态，前台可直接代办预约。</p></div>
+            <span class="role">前台</span>
+          </figcaption>
+        </figure>
+        <figure class="shot">
+          <button data-full="images/appointment.png" aria-label="放大查看预约详情">
+            <img src="images/appointment.png" alt="预约详情侧栏：预约号、患者、门店、牙医、主诊项目、时段和预约金状态。" loading="eager">
+          </button>
+          <figcaption>
+            <div><h3>预约详情 · 签到与后续动作</h3>
+            <p>首屏固定预约号、患者、门店、医生与时段，预约金独立显示。签到、改期、人工核实爽约等动作只在该角色与门店范围内出现。</p></div>
+            <span class="role">前台</span>
+          </figcaption>
+        </figure>
+        <figure class="shot">
+          <button data-full="images/visit-progress.png" aria-label="放大查看诊疗详情">
+            <img src="images/visit-progress.png" alt="诊疗详情：患者、责任牙医、牙椅、实际开始时间、过敏史与本次治疗项目。">
+          </button>
+          <figcaption>
+            <div><h3>诊疗详情 · 过敏核对与本次治疗</h3>
+            <p>责任牙医可见病史与过敏提示，前台投影不返回临床正文。本次治疗按项目、数量、单位与冻结单价记录，结束后交前台开单。</p></div>
+            <span class="role">牙医</span>
+          </figcaption>
+        </figure>
+        <figure class="shot">
+          <button data-full="images/clinical-queue.png" aria-label="放大查看接诊队列">
+            <img src="images/clinical-queue.png" alt="接诊队列：已签到或已分椅的患者等待责任牙医开始诊疗。">
+          </button>
+          <figcaption>
+            <div><h3>接诊队列 · 从签到交到牙医</h3>
+            <p>前台签到并分椅后，负责牙医在队列里接手；开始接诊时记录实际开始时间，并生成该次就诊与预约金退款义务。</p></div>
+            <span class="role">牙医</span>
+          </figcaption>
+        </figure>
+        <figure class="shot">
+          <button data-full="images/billing-queue.png" aria-label="放大查看结算队列">
+            <img src="images/billing-queue.png" alt="结算队列：已结束就诊对应已开单主单号，按结束时间排列。">
+          </button>
+          <figcaption>
+            <div><h3>结算队列 · 从就诊交接到主单</h3>
+            <p>已结束或中止的就诊进入队列，待开单与已开单分开查看。每次就诊最多一张主单，重复开单返回原号与原单。</p></div>
+            <span class="role">前台</span>
+          </figcaption>
+        </figure>
+        <figure class="shot">
+          <button data-full="images/invoice-part.png" aria-label="放大查看主单详情">
+            <img src="images/invoice-part.png" alt="主单详情：原单金额 200 元、当前应计 200 元、净实收 100 元、欠款 100 元，原始明细与收退流水。">
+          </button>
+          <figcaption>
+            <div><h3>主单 · 部分收款与收退流水</h3>
+            <p>应计、净实收、欠款、应退余额并列；原始收费明细与每笔成功收款可回查。预约金作为关联信息单独显示，不与诊疗收款混算。</p></div>
+            <span class="role">前台</span>
+          </figcaption>
+        </figure>
+        <figure class="shot">
+          <button data-full="images/catalog.png" aria-label="放大查看项目与价格">
+            <img src="images/catalog.png" alt="项目与价格页面，展示项目编码、单位、预计占时、椅型与当前生效价格。">
+          </button>
+          <figcaption>
+            <div><h3>项目与价格 · 版本化标准</h3>
+            <p>项目单位、资格、预计占时与适配椅型统一维护；价格按生效区间版本化，既有预约、诊疗与主单保留各自快照。</p></div>
+            <span class="role">总部项目</span>
+          </figcaption>
+        </figure>
+        <figure class="shot">
+          <button data-full="images/operations.png" aria-label="放大查看经营报告">
+            <img src="images/operations.png" alt="经营报告：期间、门店与查询截止，实际就诊率、患者主动取消率、爽约与到期未处置。">
+          </button>
+          <figcaption>
+            <div><h3>经营报告 · 指标能回到原预约</h3>
+            <p>实际就诊率与取消率同时显示原值和分子／分母，爽约与到期未处置单列。下钻只携带业务编号，不返回患者联系方式或病史。</p></div>
+            <span class="role">总部经营</span>
+          </figcaption>
+        </figure>
+        <figure class="shot">
+          <button data-full="images/quarters.png" aria-label="放大查看季度核算">
+            <img src="images/quarters.png" alt="季度核算页面，展示核算期间、确认版本与可复核的应计、费用和基金。">
+          </button>
+          <figcaption>
+            <div><h3>季度核算 · 先正式版，再修订</h3>
+            <p>正式确认版本优先展示，试算与修订分开呈现。基金按批准顺序复核，未确认版本不进入正式报告，越序不能发布。</p></div>
+            <span class="role">绩效核算</span>
+          </figcaption>
+        </figure>
+      </div>
+    </section>
+
+    <section aria-labelledby="mini-title">
+      <div class="section-head">
+        <div>
+          <div class="kicker">微信小程序</div>
+          <h2 id="mini-title">患者从同一个预约号找到下一次就诊</h2>
+        </div>
+        <p>原生 WXML / WXSS / JS，底部三个入口：首页、预约、我的。预约成功、改期与取消后都回到同一条预约记录。</p>
+      </div>
+      <div class="split">
+        <div>
+          <div class="mini-stage" aria-label="小程序关键页面结构示意">
+            <div class="phone">
+              <div class="phone-screen">
+                <div class="statusbar"><span>9:41</span><span>● ● ▰</span></div>
+                <div class="mini-nav">ADC 口腔</div>
+                <div class="mini-page">
+                  <div class="mini-hero">
+                    <span>11月23日 周日</span>
+                    <b>预约口腔就诊</b>
+                    <span>选择门店、医生与就诊时间</span>
+                    <em>立即预约 →</em>
+                  </div>
+                  <div class="mini-label">下一次就诊 <span>全部预约 ›</span></div>
+                  <div class="mini-card">
+                    <div class="date-tile">11月<b>23</b>周日</div>
+                    <div class="mini-card-body">
+                      <span class="mini-badge">已确认</span>
+                      <div class="mini-time">16:30–17:00</div>
+                      <div class="mini-clinic">合成甲店</div>
+                      <div class="mini-muted">口腔初诊检查 · 合成责任牙医</div>
+                    </div>
+                  </div>
+                  <div class="mini-label">就诊服务</div>
+                  <div class="mini-grid">
+                    <div><i>▦</i>历史预约</div><div><i>¥</i>预约金</div><div><i>⌖</i>门店地址</div><div><i>◯</i>本人资料</div>
+                  </div>
+                </div>
+                <div class="mini-tab"><div><b><i></i>首页</b></div><div><i></i>预约</div><div><i></i>我的</div></div>
+              </div>
+            </div>
+            <div class="phone">
+              <div class="phone-screen">
+                <div class="statusbar"><span>9:41</span><span>● ● ▰</span></div>
+                <div class="mini-nav">我的预约</div>
+                <div class="mini-page">
+                  <div class="mini-title">我的预约</div>
+                  <div class="mini-sub">查看就诊安排与预约进度</div>
+                  <div class="mini-seg"><b>待就诊 2</b><span>历史预约 1</span></div>
+                  <div class="mini-row"><div><b>11月23日 16:30</b><span>口腔初诊检查 · 合成甲店</span></div><em>已确认</em></div>
+                  <div class="mini-row"><div><b>11月24日 10:00</b><span>超声波洁牙 · 合成甲店</span></div><em>已确认</em></div>
+                  <div class="mini-label">历史预约</div>
+                  <div class="mini-row"><div><b>11月26日 10:00</b><span>口腔初诊检查 · 已取消</span></div><em>已取消</em></div>
+                </div>
+                <div class="mini-tab"><div><i></i>首页</div><div><b><i></i>预约</b></div><div><i></i>我的</div></div>
+              </div>
+            </div>
+            <div class="phone">
+              <div class="phone-screen">
+                <div class="statusbar"><span>9:41</span><span>● ● ▰</span></div>
+                <div class="mini-nav">确认预约</div>
+                <div class="mini-page">
+                  <div class="mini-progress"><span>门店</span><i></i><span>时段</span><i></i><b>确认</b></div>
+                  <div class="mini-title">确认预约</div>
+                  <div class="mini-sub">合成甲店 · 2026年11月24日 10:00–11:00</div>
+                  <div class="mini-info">
+                    <div><span>就诊项目</span><b>超声波洁牙</b></div>
+                    <div><span>责任牙医</span><b>合成责任牙医</b></div>
+                    <div><span>就诊人</span><b>合成患者1</b></div>
+                    <div><span>联系电话</span><b>000 0000 0001</b></div>
+                  </div>
+                  <div class="mini-fund">预约金 <strong>¥50.00</strong> · 取消与改期规则见下</div>
+                  <div class="mini-row"><div><b>占位剩余 09:48</b><span>付款成功后生成正式预约号</span></div></div>
+                  <div class="mini-cta">模拟支付 ¥50.00</div>
+                </div>
+                <div class="mini-tab"><div><i></i>首页</div><div><b><i></i>预约</b></div><div><i></i>我的</div></div>
+              </div>
+            </div>
+          </div>
+          <p class="stage-caption">页面结构示意：依据小程序 WXML / WXSS 与实际合成数据绘制，用于展示信息层级，不是运行截图。</p>
+        </div>
+        <div>
+          <div class="page-map">
+            <details open>
+              <summary>预约主流程</summary>
+              <p>从门店、项目、日期逐步收窄到医生时段，确认本人信息后进入 10 分钟占位与 50 元模拟预约金。</p>
+              <div class="flow"><span>首页</span><span>预约入口</span><span>医生与时段</span><span>确认与预约金</span><span>预约详情</span></div>
+            </details>
+            <details>
+              <summary>预约后服务</summary>
+              <p>查看下一次就诊、历史预约和预约金记录；改期失败保留原安排，取消前先显示按时点计算的退款。</p>
+              <div class="flow"><span>我的预约</span><span>预约详情</span><span>改期</span><span>取消</span><span>预约金记录</span></div>
+            </details>
+            <details>
+              <summary>本人资料与门店</summary>
+              <p>首次预约前完善就诊人、电话与紧急联系人；门店页显示全称、地址和可预约门店。</p>
+              <div class="flow"><span>我的</span><span>本人资料</span><span>门店地址</span></div>
+            </details>
+            <details>
+              <summary>异常与恢复</summary>
+              <p>占位响应丢失时按原动作键回查，进入同一条正式预约；时段被占用时保留已选门店、项目与日期，只刷新可选时段。</p>
+              <div class="flow"><span>动作键回查</span><span>断线重试</span><span>资源冲突</span><span>占位到期</span></div>
+            </details>
+          </div>
+          <div class="chips" style="margin-top:18px">
+            <span class="chip"><i></i>12 个原生页面</span>
+            <span class="chip"><i></i>3 个底部入口</span>
+            <span class="chip"><i></i>10 分钟占位</span>
+            <span class="chip"><i></i>50 元模拟预约金</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section aria-labelledby="arch-title">
+      <div class="section-head">
+        <div>
+          <div class="kicker">系统底座</div>
+          <h2 id="arch-title">两端不是两套系统</h2>
+        </div>
+        <p>同一个 Django `/api/v1`、同一套角色校验和同一个 PostgreSQL 业务库。网页与小程序只是两个入口。</p>
+      </div>
+      <div class="arch">
+        <div class="arch-col">
+          <div class="arch-box"><strong>管理网站</strong><span>React 19 · TypeScript · Vite · 同源会话 + CSRF</span></div>
+          <div class="arch-box"><strong>微信小程序</strong><span>原生 WXML / WXSS / JS · Bearer 会话 · 合成身份开发入口</span></div>
+        </div>
+        <div class="arch-arrow" aria-hidden="true">→</div>
+        <div class="arch-col">
+          <div class="arch-box"><strong>Django REST API</strong><span>身份与角色 · 预约与占位 · 签到分椅 · 诊疗 · 结算 · 经营报表 · 幂等动作键</span></div>
+          <div class="arch-box"><strong>PostgreSQL 17 业务库</strong><span>40 张业务表 · 4 个视图 · 70 条外键 · 资金与状态事实同库</span></div>
+        </div>
+      </div>
+      <div class="loop" aria-label="业务闭环">
+        <div><b>排班与发布</b><span>班次 · 资格 · 路线</span></div>
+        <div><b>预约与占位</b><span>候选 · 50 元 · 10 分钟</span></div>
+        <div><b>签到与诊疗</b><span>分椅 · 过敏 · 实做项目</span></div>
+        <div><b>开单与收退</b><span>主单 · 收款 · 更正</span></div>
+        <div><b>经营与季度</b><span>指标 · 基金 · 版本</span></div>
+      </div>
+    </section>
+
+    <section aria-labelledby="verify-title">
+      <div class="section-head">
+        <div>
+          <div class="kicker">验证与当前状态</div>
+          <h2 id="verify-title">能跑通的部分有证据，没收口的部分也在这里</h2>
+        </div>
+        <p>以下结果来自 2026-11-23 的本机运行：后端全量测试、前端测试、小程序逻辑测试与真实接口截图。合成数据，不代表生产。</p>
+      </div>
+      <div class="status-grid">
+        <div class="status-card pass">
+          <h3>后端业务链 · 已通过</h3>
+          <p>Django 全量 <strong>67 / 67</strong> 测试通过，覆盖 UC01–UC07 生命周期、预约并发争抢、跨店授权、签到分椅、过敏核对、主单收退、更正审批、季度版本、备份恢复与最小字段投影。</p>
+        </div>
+        <div class="status-card pass">
+          <h3>真实接口驱动 · 已取得画面</h3>
+          <p>本地合成库含 10 笔预约，覆盖已确认、已签到待分椅、诊疗中、正常结束、爽约、取消与跨日预约；网页截图均由真实接口与角色会话生成。</p>
+        </div>
+        <div class="status-card gap">
+          <h3>网站工作台与患者档案 · 待接线</h3>
+          <p><code>/dashboard</code> 与 <code>/patients</code> 的组件和 API 已实现，但当前 <code>main.tsx</code> 尚未挂载，导航可进入而工作区为空。前端测试因此有 <strong>1 项失败</strong>（期望登录后落在 <code>/schedule</code>，实际落在 <code>/dashboard</code>）。</p>
+        </div>
+        <div class="status-card gap">
+          <h3>小程序逻辑测试 · 8 / 10</h3>
+          <p>2 项失败：切换预约日期时旧请求仍可能覆盖新时段；确认页尚未解码 URL 编码的时段参数与医生名。页面模板与本地夹具其余 <strong>8 项通过</strong>。</p>
+        </div>
+        <div class="status-card gap">
+          <h3>开发者工具 · 待真机验收</h3>
+          <p>原生 WXML / WXSS 编译成功，Node 夹具可运行页面逻辑；开发者工具服务端口当前关闭，预览交互、触控尺寸与真机安全区尚未完成验收。</p>
+        </div>
+        <div class="status-card risk">
+          <h3>体验部署 · 待环境</h3>
+          <p>Linux HTTPS 体验部署仍需要可用主机、证书、受邀 AppID 与合法请求域名；当前以本机回环 API 与合成身份验证业务链。</p>
+        </div>
+      </div>
+
+      <div class="table-wrap" style="margin-top:20px">
+        <table>
+          <thead><tr><th>验证项</th><th>结果</th><th>证据 / 备注</th></tr></thead>
+          <tbody>
+            <tr><td>后端 Django 测试</td><td class="num">67 / 67 通过</td><td>生命周期、并发、权限、资金、报表、恢复</td></tr>
+            <tr><td>网站前端测试</td><td class="num">8 / 9 通过</td><td>1 项失败：工作台挂载与登录落点</td></tr>
+            <tr><td>小程序逻辑测试</td><td class="num">8 / 10 通过</td><td>2 项失败：日期竞态、确认页参数解码</td></tr>
+            <tr><td>业务闭环截图</td><td><span class="tag ok">已生成</span></td><td>预约、诊疗、结算、经营、季度</td></tr>
+            <tr><td>性能基线</td><td class="num">26.6 ms / 17.7 ms</td><td>候选查询 / 最后一把椅锁等待（记录值）</td></tr>
+            <tr><td>备份恢复演练</td><td><span class="tag ok">已核对</span></td><td>恢复点差异按已知回执保留，资金暂停</td></tr>
+            <tr><td>微信真机与体验部署</td><td><span class="tag wip">待验收</span></td><td>服务端口关闭、HTTPS 域名与 AppID 待配置</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="gap-shot" style="margin-top:18px">
+        <img src="images/patients-gap.png" alt="患者档案页面当前显示为空白工作区，导航已选中患者档案。">
+        <p><strong>当前版本的一处可见缺口：</strong>“患者档案”已在导航中，页面组件也已写好，但还没有接入 <code>main.tsx</code> 的渲染分支，所以进入后只有空白工作区。工作台 <code>/dashboard</code> 同样如此。这是当前展示里最需要先收口的两处接线，而不是缺少页面本身。</p>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div><strong>ADC 安德鲁牙科连锁系统</strong> · 系统分析与设计课程项目</div>
+    <div>本轮展示使用本机合成库与合成账号；页面与数字为开发环境实况，不是生产数据。</div>
+  </footer>
+</div>
+
+<div class="lightbox" id="lightbox" role="dialog" aria-modal="true" aria-label="查看大图" hidden>
+  <button type="button" id="lightbox-close" aria-label="关闭大图">×</button>
+  <img id="lightbox-image" alt="">
+</div>
+
+<script>
+  (() => {
+    const box = document.getElementById("lightbox");
+    const image = document.getElementById("lightbox-image");
+    const close = document.getElementById("lightbox-close");
+    let opener = null;
+    function hide() {
+      box.hidden = true;
+      image.removeAttribute("src");
+      if (opener) opener.focus();
+    }
+    document.querySelectorAll("[data-full]").forEach(button => {
+      button.addEventListener("click", () => {
+        opener = button;
+        image.src = button.dataset.full;
+        image.alt = button.querySelector("img")?.alt || "";
+        box.hidden = false;
+        close.focus();
+      });
+    });
+    close.addEventListener("click", hide);
+    box.addEventListener("click", event => { if (event.target === box) hide(); });
+    document.addEventListener("keydown", event => {
+      if (event.key === "Escape" && !box.hidden) hide();
+    });
+  })();
+</script>

@@ -1,0 +1,35 @@
+<view class="page home-page">
+  <view class="hero">
+    <image class="hero-tooth" mode="aspectFit" src="/assets/tooth.png" />
+    <view class="hero-copy">
+      <view class="hero-date">{{today}}</view>
+      <view class="hero-title">预约口腔就诊</view>
+      <view class="hero-sub">选择门店、医生与就诊时间</view>
+      <button class="hero-button" bindtap="book">立即预约 <text>→</text></button>
+    </view>
+  </view>
+  <view class="section-heading"><view class="section-title">下一次就诊</view><button class="link" bindtap="all">全部预约 <text>›</text></button></view>
+  <view wx:if="{{loading}}" class="state"><view class="loading-dot"></view><text>正在读取您的预约…</text></view>
+    <view wx:elif="{{error}}" class="state state-error"><view class="state-title">暂时无法读取</view><text>{{error}}</text><button class="mini-button" bindtap="onShow">重新加载</button></view>
+    <view wx:elif="{{profileRequired}}" class="state"><view class="state-title">请先完善就诊资料</view><text>首次预约前，请先填写就诊人和联系方式。</text><button class="mini-button" bindtap="profile">填写本人资料</button></view>
+  <view wx:elif="{{next}}" class="next-card" hover-class="next-card-pressed" bindtap="open" aria-role="button" aria-label="查看下一次就诊">
+    <view class="date-tile"><text class="tile-month">{{next.month}}月</text><text class="tile-day">{{next.day}}</text><text>{{next.weekday}}</text></view>
+    <view class="next-body"><view class="next-top"><text class="badge">{{next.statusLabel}}</text></view><view class="next-time">{{next.time}}</view><view class="next-clinic">{{next.clinicName}}</view><view class="muted">{{next.treatmentName}} · {{next.dentistName}}</view></view>
+    <view class="chevron"></view>
+  </view>
+  <view wx:else class="empty-card"><view class="icon-box"><image src="/assets/calendar.png" /></view><view><view class="state-title">暂无待就诊预约</view><view class="muted">预约成功后，可在这里查看时间和门店。</view></view></view>
+  <view class="section-heading"><view class="section-title">就诊服务</view></view>
+  <view class="quick-grid">
+    <button class="quick-item" bindtap="history"><view class="icon-box blue"><image src="/assets/calendar.png" /></view><text>历史预约</text></button>
+    <button class="quick-item" bindtap="receipts"><view class="icon-box sand"><image src="/assets/receipt.png" /></view><text>预约金记录</text></button>
+    <button class="quick-item" bindtap="clinics"><view class="icon-box "><image src="/assets/clinic.png" /></view><text>门店地址</text></button>
+    <button class="quick-item" bindtap="profile"><view class="icon-box slate"><image src="/assets/user.png" /></view><text>本人资料</text></button>
+  </view>
+  <view class="section-heading"><view class="section-title">就诊指南</view></view>
+  <view class="panel flush">
+    <button class="faq-row" bindtap="toggleGuide" data-key="arrival">到店后如何签到？<text>{{expanded === 'arrival' ? '−' : '+'}}</text></button>
+    <view wx:if="{{expanded === 'arrival'}}" class="answer">在「预约」中打开本次预约，向门店前台出示预约号，核对医生和时段后办理签到。</view>
+    <button class="faq-row ruled" bindtap="toggleGuide" data-key="change">怎样改期或取消预约？<text>{{expanded === 'change' ? '−' : '+'}}</text></button>
+    <view wx:if="{{expanded === 'change'}}" class="answer">打开预约详情，可查看改期截止时间。允许取消时，提交前会显示本次预计退还的预约金。</view>
+  </view>
+</view>

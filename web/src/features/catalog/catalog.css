@@ -1,0 +1,14 @@
+.catalog-page { display: grid; gap: 16px; }
+.catalog-panel, .catalog-detail { border: 1px solid var(--border); border-radius: 8px; background: var(--surface); padding: 16px; }
+.catalog-toolbar { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px; padding-bottom: 12px; }
+.catalog-scroll { overflow-x: auto; }
+.catalog-table { border-collapse: collapse; width: 100%; text-align: left; }
+.catalog-table th, .catalog-table td { border-bottom: 1px solid var(--border); padding: 12px 8px; white-space: nowrap; }
+.catalog-table th { color: var(--secondary); font-size: 13px; background: var(--page); }
+.catalog-link { border: 0; padding: 0; color: var(--primary); background: transparent; cursor: pointer; }
+.catalog-detail { position: fixed; right: 0; top: 64px; bottom: 0; z-index: 3; width: min(560px, 100%); overflow: auto; }
+.catalog-detail h2 { margin: 0; font-size: 19px; }
+.catalog-form { display: flex; flex-wrap: wrap; align-items: end; gap: 8px; padding: 16px 0; }
+.catalog-form label { display: grid; gap: 4px; font-size: 14px; }
+.catalog-form .catalog-check { display: inline-flex; padding: 8px 0; align-items: center; }
+@media (max-width: 760px) { .catalog-detail { top: 0; } }

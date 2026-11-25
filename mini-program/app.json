@@ -1,0 +1,49 @@
+{
+  "pages": [
+    "pages/home/index",
+    "pages/appointments/index",
+    "pages/account/index",
+    "pages/booking/index",
+    "pages/time-selection/index",
+    "pages/booking-confirm/index",
+    "pages/appointment-detail/index",
+    "pages/profile/index",
+    "pages/reschedule/index",
+    "pages/cancel/index",
+    "pages/receipts/index",
+    "pages/clinics/index"
+  ],
+  "window": {
+    "navigationBarTitleText": "ADC 口腔",
+    "navigationBarBackgroundColor": "#f4f8f8",
+    "navigationBarTextStyle": "black",
+    "backgroundColor": "#f4f8f8"
+  },
+  "tabBar": {
+    "color": "#697d88",
+    "selectedColor": "#087c86",
+    "borderStyle": "white",
+    "backgroundColor": "#ffffff",
+    "list": [
+      {
+        "pagePath": "pages/home/index",
+        "text": "首页",
+        "iconPath": "assets/tab-home.png",
+        "selectedIconPath": "assets/tab-home-on.png"
+      },
+      {
+        "pagePath": "pages/appointments/index",
+        "text": "预约",
+        "iconPath": "assets/tab-calendar.png",
+        "selectedIconPath": "assets/tab-calendar-on.png"
+      },
+      {
+        "pagePath": "pages/account/index",
+        "text": "我的",
+        "iconPath": "assets/tab-user.png",
+        "selectedIconPath": "assets/tab-user-on.png"
+      }
+    ]
+  },
+  "style": "v2"
+}

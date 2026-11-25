@@ -1,0 +1,19 @@
+<view class="page">
+  <view class="page-title">预约详情</view>
+  <view class="form-hint" wx:if="{{loading}}">正在读取预约结果…</view>
+  <view class="error-message" wx:if="{{error}}">{{error}}</view>
+  <block wx:if="{{appointment}}">
+    <appointment-summary appointment="{{appointment}}" />
+    <view class="section">
+      <view class="field-label">预约金</view>
+      <view wx:if="{{deposit}}">¥{{deposit.amount}} · {{depositLabel}}</view>
+      <view wx:if="{{refund}}">退金 ¥{{refund.amount}} · {{refundLabel}}</view>
+      <view wx:if="{{changeDeadline}}" class="form-hint">患者原因改期最晚 {{changeDeadline}}</view>
+      <view wx:if="{{calendarIssue}}" class="form-hint">请联系门店核对患者原因改期截止。</view>
+      <view wx:if="{{contactClinic}}" class="form-hint">如需取消，请先由门店核实。</view>
+    </view>
+    <button wx:if="{{canReschedule}}" class="secondary-action" bindtap="reschedule">改期</button>
+    <button wx:if="{{canCancel}}" class="text-action" bindtap="cancel">取消预约</button>
+    <button class="primary-action" bindtap="all">查看我的预约</button>
+  </block>
+</view>

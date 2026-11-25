@@ -1,0 +1,10 @@
+/.adc-local/
+/.venv/
+**/__pycache__/
+*.py[cod]
+/web/node_modules/
+/web/dist/
+.env
+.env.local
+*.log
+/mini-program/project.private.config.json

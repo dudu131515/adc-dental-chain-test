@@ -1,0 +1,8 @@
+<view class="summary" wx:if="{{appointment}}">
+  <view class="first-line"><text class="project">{{appointment.treatmentName}}</text><text class="status s-{{appointment.status}}">{{appointment.statusLabel}}</text></view>
+  <view class="when"><text class="date">{{appointment.date}}</text><text>{{appointment.weekday}}　{{appointment.time}}</text></view>
+  <view class="row"><image src="/assets/pin.png" /><text>{{appointment.clinicName}}</text></view>
+  <view wx:if="{{!compact && appointment.address}}" class="address" selectable="true">{{appointment.address}}</view>
+  <view class="row"><image src="/assets/doctor.png" /><text>{{appointment.dentistName}}</text></view>
+  <view class="foot"><text selectable="{{!compact}}">预约号 {{appointment.number}}</text><text wx:if="{{compact}}" class="more">›</text></view>
+</view>

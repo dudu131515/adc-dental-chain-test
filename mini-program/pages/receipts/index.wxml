@@ -1,0 +1,17 @@
+<view class="page">
+  <view class="page-heading"><view><view class="page-title">预约金记录</view><view class="subtitle">查看预约金支付与退还情况</view></view></view>
+  <view wx:if="{{loading}}" class="state"><view class="loading-dot"></view><text>正在核对预约金记录…</text></view>
+  <view wx:elif="{{error}}" class="state state-error"><view class="state-title">暂时无法读取</view><text>{{error}}</text><button class="mini-button" bindtap="onShow">重新加载</button></view>
+  <view wx:elif="{{profileRequired}}" class="state"><view class="state-title">请先完善就诊资料</view><text>填写本人资料后，即可查看与您关联的记录。</text><button class="mini-button" bindtap="profile">填写本人资料</button></view>
+  <block wx:else>
+    <view wx:if="{{!entries.length}}" class="state"><view class="icon-box sand"><image src="/assets/receipt.png" /></view><view class="state-title">暂无预约金记录</view><text>预约金收退明细会显示在这里。</text></view>
+    <button wx:for="{{entries}}" wx:key="depositId" class="receipt-card" bindtap="open" data-id="{{item.appointmentId}}" data-resume="{{item.resumeKey}}">
+      <view class="between"><view class="field-label">{{item.treatmentName}}</view><text class="badge">{{item.paymentLabel}}</text></view>
+      <view wx:if="{{item.amount}}" class="receipt-amount">¥{{item.amount}}</view>
+      <view wx:if="{{item.date}}" class="muted">{{item.date}}<text wx:if="{{item.clinicName}}"> · {{item.clinicName}}</text></view>
+      <view wx:if="{{item.refundLabel}}" class="fund-line"><text>退款 ¥{{item.refundAmount}}</text><text>{{item.refundLabel}}</text></view>
+      <view class="receipt-link">{{item.appointmentId ? '查看关联预约' : item.resumeKey ? '继续核对原预约' : '核对原付款和退款'}} <text>›</text></view>
+    </button>
+  </block>
+  <view class="notice">诊疗费用请凭门店前台提供的结算凭据核对。</view>
+</view>

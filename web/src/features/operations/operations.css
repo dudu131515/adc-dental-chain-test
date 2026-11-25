@@ -1,0 +1,33 @@
+.operations-sections { display: grid; gap: 16px; }
+.report-scope { margin-bottom: 0; color: var(--secondary); font-size: 14px; }
+.report-metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; }
+.report-metric {
+  display: grid;
+  gap: 6px;
+  text-align: left;
+  background: var(--page);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 14px;
+  cursor: pointer;
+}
+.report-metric strong { font-size: 22px; }
+.report-metric small { color: var(--secondary); }
+.status-distribution { display: flex; gap: 2px; height: 10px; margin: 16px 0; border-radius: 4px; overflow: hidden; }
+.status-distribution span { flex-basis: 0; background: var(--primary); }
+.status-distribution [data-group="attended"] { background: var(--success); }
+.status-distribution [data-group="patient_cancelled"] { background: #adc7e6; }
+.status-distribution [data-group="no_show"] { background: var(--error); }
+.status-distribution [data-group="unprocessed"] { background: #ca8b40; }
+.report-table { width: 100%; border-collapse: collapse; }
+.report-table th, .report-table td { border-block-end: 1px solid var(--border); text-align: left; padding: 10px; white-space: nowrap; }
+.report-table thead { background: var(--page); color: var(--secondary); }
+.text-action { border: 0; padding: 4px; background: transparent; color: var(--primary); cursor: pointer; text-align: left; }
+.text-action:hover { text-decoration: underline; }
+.report-detail-list, .evidence-list { list-style: none; padding: 0; }
+.report-detail-list li, .evidence-list li { padding: 10px 0; border-top: 1px solid var(--border); }
+.report-detail-list dl, .inline-facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(128px, 1fr)); gap: 8px 12px; }
+.report-detail-list dt, .inline-facts dt { color: var(--secondary); font-size: 13px; }
+.report-detail-list dd, .inline-facts dd { margin: 4px 0 0; overflow-wrap: anywhere; }
+.record-fields { display: flex; gap: 8px; flex-wrap: wrap; align-items: end; border: 0; margin: 0; padding: 0; min-inline-size: 0; }

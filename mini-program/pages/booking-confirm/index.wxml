@@ -1,0 +1,37 @@
+<view class="page">
+  <view class="page-title">确认与预约金</view>
+  <view class="section" wx:if="{{clinic}}">
+    <view class="field-label">{{clinic.name}} · {{treatment.treatment_name}}</view>
+    <view>{{when}}<text wx:if="{{dentistName}}"> · {{dentistName}}</text></view><view class="form-hint">{{clinic.address}}</view>
+  </view>
+  <view class="section" wx:if="{{profile}}">
+    <view class="field-label">本人信息</view>
+    <view>{{profile.full_name}} · {{profile.phone}}</view>
+    <button class="text-action" bindtap="profile">更新资料</button>
+  </view>
+  <view class="section">
+    <view class="field-label">模拟预约金 ¥50.00</view>
+    <view class="form-hint">开始接诊后原路退回。患者原因取消按距开始的时间全退、退半或留存。</view>
+    <view class="form-hint">患者原因改期最晚为原门店前一工作日 20:00。</view>
+    <view wx:if="{{hold && payment.claim_status == 'HOLD' && seconds > 0}}">占位剩余 {{countdown}}</view>
+    <view wx:if="{{hold && !seconds && !payment.refund && payment.claim_status != 'RELEASED'}}" class="error-message">占位已到期 · 预约未确认</view>
+    <view wx:if="{{payment.claim_status == 'RELEASED' && !payment.refund}}">占位已释放 · 预约未确认</view>
+    <view wx:if="{{payment}}">原预约金 {{paymentLabel}}</view>
+    <view wx:if="{{payment.refund}}">预约未确认 · 全额原路退款 {{refundLabel}}</view>
+    <view wx:if="{{paymentUnknown}}" class="form-hint">付款或释放结果待核对，请先查询原操作。</view>
+    <view wx:if="{{error}}" class="error-message">{{error}}</view>
+  </view>
+  <view class="bottom-action">
+    <button wx:if="{{!hold}}" class="primary-action" bindtap="reserve" disabled="{{loading || pending || invalid || !profile}}">
+      {{unknown ? '核对占位结果' : '确认并占位'}}
+    </button>
+    <block wx:else>
+      <button wx:if="{{payment.status == 'NOT_STARTED' && payment.claim_status == 'HOLD' && seconds}}"
+        class="primary-action" bindtap="pay" disabled="{{loading || pending || checkingPayment || paymentUnknown}}">模拟支付 ¥50.00</button>
+      <button class="secondary-action" bindtap="checkPayment" disabled="{{pending || checkingPayment}}">查询办理结果</button>
+      <button wx:if="{{payment.claim_status == 'HOLD' && seconds}}" class="text-action" bindtap="abandon"
+        disabled="{{pending || checkingPayment || paymentUnknown}}">放弃占位并重新选时</button>
+      <button wx:elif="{{!payment.appointment_id}}" class="text-action" bindtap="reselect" disabled="{{pending || checkingPayment}}">重新选时</button>
+    </block>
+  </view>
+</view>

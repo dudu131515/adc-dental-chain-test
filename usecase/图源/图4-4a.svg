@@ -1,0 +1,63 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1692" height="1080" viewBox="-56 0 1692 1080">
+  <rect x="0" y="0" width="1580" height="1080" fill="white" stroke="none" stroke-width="1.7"/>
+  <path d="M4 3h2v1h-2z M8 3h2v1h-2z M3 4h1v1h-1z M10 4h1v1h-1z M3 5h1v1h-1z M10 5h1v1h-1z M3 8h1v1h-1z M10 8h1v1h-1z M4 9h1v1h-1z M9 9h1v1h-1z M5 10h1v1h-1z M7 10h2v1h-2z M7 11h1v1h-1z M7 12h1v1h-1z M7 13h1v1h-1z M7 14h1v1h-1z M3 15h9v1h-9z M7 16h1v1h-1z M7 17h1v1h-1z M7 18h1v1h-1z M7 19h1v1h-1z M7 20h1v1h-1z M6 21h1v1h-1z M8 21h1v1h-1z M5 23h1v1h-1z M9 23h1v1h-1z M4 24h1v1h-1z M9 24h1v1h-1z M4 25h1v1h-1z M10 25h1v1h-1z" fill="#202020" transform="translate(76.85 35.00) scale(2.4193548)"/>
+  <text x="95.0" y="139" fill="#202020" font-family="SimSun,宋体,serif" font-size="27" font-weight="bold" text-anchor="middle" dominant-baseline="central">:患者或前台</text>
+  <polyline points="95.00,177.00 95.00,1018.00" fill="none" stroke="#555555" stroke-width="1.65" stroke-dasharray="6 5"/>
+  <path d="M27 4h2v1h-2z M21 5h13v1h-13z M18 6h3v1h-3z M33 6h3v1h-3z M16 7h3v1h-3z M35 7h3v1h-3z M2 8h1v1h-1z M14 8h3v1h-3z M37 8h2v1h-2z M2 9h1v1h-1z M13 9h2v1h-2z M39 9h2v1h-2z M2 10h1v1h-1z M12 10h2v1h-2z M40 10h2v1h-2z M2 11h1v1h-1z M11 11h2v1h-2z M41 11h2v1h-2z M2 12h1v1h-1z M10 12h2v1h-2z M42 12h2v1h-2z M2 13h1v1h-1z M10 13h1v1h-1z M43 13h2v1h-2z M2 14h1v1h-1z M9 14h1v1h-1z M44 14h1v1h-1z M2 15h1v1h-1z M8 15h2v1h-2z M44 15h2v1h-2z M2 16h1v1h-1z M8 16h1v1h-1z M45 16h2v1h-2z M2 17h1v1h-1z M7 17h2v1h-2z M45 17h2v1h-2z M2 18h1v1h-1z M7 18h1v1h-1z M46 18h1v1h-1z M2 19h1v1h-1z M6 19h2v1h-2z M46 19h2v1h-2z M2 20h1v1h-1z M6 20h1v1h-1z M47 20h1v1h-1z M2 21h1v1h-1z M6 21h1v1h-1z M47 21h1v1h-1z M2 22h1v1h-1z M6 22h1v1h-1z M47 22h1v1h-1z M2 23h1v1h-1z M6 23h1v1h-1z M47 23h2v1h-2z M2 24h1v1h-1z M6 24h1v1h-1z M47 24h2v1h-2z M2 25h1v1h-1z M6 25h1v1h-1z M47 25h2v1h-2z M2 26h5v1h-5z M47 26h2v1h-2z M2 27h1v1h-1z M6 27h1v1h-1z M47 27h2v1h-2z M2 28h1v1h-1z M6 28h1v1h-1z M47 28h2v1h-2z M2 29h1v1h-1z M6 29h1v1h-1z M47 29h1v1h-1z M2 30h1v1h-1z M6 30h1v1h-1z M47 30h1v1h-1z M2 31h1v1h-1z M6 31h1v1h-1z M47 31h1v1h-1z M2 32h1v1h-1z M6 32h2v1h-2z M46 32h2v1h-2z M2 33h1v1h-1z M7 33h1v1h-1z M46 33h1v1h-1z M2 34h1v1h-1z M7 34h2v1h-2z M45 34h2v1h-2z M2 35h1v1h-1z M8 35h1v1h-1z M45 35h2v1h-2z M2 36h1v1h-1z M8 36h2v1h-2z M44 36h2v1h-2z M2 37h1v1h-1z M9 37h1v1h-1z M44 37h1v1h-1z M2 38h1v1h-1z M10 38h1v1h-1z M43 38h2v1h-2z M2 39h1v1h-1z M10 39h2v1h-2z M42 39h2v1h-2z M2 40h1v1h-1z M11 40h2v1h-2z M41 40h2v1h-2z M2 41h1v1h-1z M12 41h2v1h-2z M40 41h2v1h-2z M2 42h1v1h-1z M13 42h2v1h-2z M39 42h2v1h-2z M2 43h1v1h-1z M14 43h3v1h-3z M37 43h2v1h-2z M2 44h1v1h-1z M16 44h3v1h-3z M35 44h3v1h-3z M18 45h3v1h-3z M33 45h4v1h-4z M20 46h14v1h-14z M24 47h6v1h-6z" fill="#202020" transform="translate(334.76 35.00) scale(1.4705882)"/>
+  <text x="373.0" y="139" fill="#202020" font-family="SimSun,宋体,serif" font-size="27" font-weight="bold" text-anchor="middle" dominant-baseline="central">:预约边界</text>
+  <polyline points="373.00,177.00 373.00,1018.00" fill="none" stroke="#555555" stroke-width="1.65" stroke-dasharray="6 5"/>
+  <path d="M29 0h1v1h-1z M27 1h2v1h-2z M26 2h2v1h-2z M25 3h1v1h-1z M23 4h2v1h-2z M21 5h4v1h-4z M17 6h13v1h-13z M14 7h3v1h-3z M22 7h2v1h-2z M29 7h3v1h-3z M12 8h3v1h-3z M23 8h2v1h-2z M31 8h3v1h-3z M10 9h3v1h-3z M25 9h1v1h-1z M33 9h2v1h-2z M9 10h2v1h-2z M26 10h2v1h-2z M35 10h2v1h-2z M8 11h2v1h-2z M27 11h2v1h-2z M36 11h2v1h-2z M7 12h2v1h-2z M29 12h1v1h-1z M37 12h2v1h-2z M6 13h2v1h-2z M38 13h2v1h-2z M6 14h1v1h-1z M39 14h2v1h-2z M5 15h1v1h-1z M40 15h1v1h-1z M4 16h2v1h-2z M40 16h2v1h-2z M4 17h1v1h-1z M41 17h2v1h-2z M3 18h2v1h-2z M41 18h2v1h-2z M3 19h1v1h-1z M42 19h1v1h-1z M2 20h2v1h-2z M42 20h2v1h-2z M2 21h1v1h-1z M43 21h1v1h-1z M2 22h1v1h-1z M43 22h1v1h-1z M2 23h1v1h-1z M43 23h1v1h-1z M2 24h1v1h-1z M43 24h2v1h-2z M2 25h1v1h-1z M43 25h2v1h-2z M2 26h1v1h-1z M43 26h2v1h-2z M2 27h1v1h-1z M43 27h2v1h-2z M2 28h1v1h-1z M43 28h2v1h-2z M2 29h1v1h-1z M43 29h2v1h-2z M2 30h1v1h-1z M43 30h1v1h-1z M2 31h1v1h-1z M43 31h1v1h-1z M2 32h1v1h-1z M43 32h1v1h-1z M2 33h2v1h-2z M42 33h2v1h-2z M3 34h1v1h-1z M42 34h1v1h-1z M3 35h2v1h-2z M41 35h2v1h-2z M4 36h1v1h-1z M41 36h2v1h-2z M4 37h2v1h-2z M40 37h2v1h-2z M5 38h1v1h-1z M40 38h1v1h-1z M6 39h1v1h-1z M39 39h2v1h-2z M6 40h2v1h-2z M38 40h2v1h-2z M7 41h2v1h-2z M37 41h2v1h-2z M8 42h2v1h-2z M36 42h2v1h-2z M9 43h2v1h-2z M35 43h2v1h-2z M10 44h3v1h-3z M33 44h2v1h-2z M12 45h3v1h-3z M31 45h3v1h-3z M14 46h3v1h-3z M29 46h4v1h-4z M16 47h14v1h-14z M20 48h6v1h-6z" fill="#202020" transform="translate(617.11 35.00) scale(1.4423077)"/>
+  <text x="651.0" y="139" fill="#202020" font-family="SimSun,宋体,serif" font-size="27" font-weight="bold" text-anchor="middle" dominant-baseline="central">:预约控制</text>
+  <polyline points="651.00,177.00 651.00,1018.00" fill="none" stroke="#555555" stroke-width="1.65" stroke-dasharray="6 5"/>
+  <rect x="857.0" y="41" width="144.0" height="65" fill="white" stroke="#202020" stroke-width="1.7"/>
+  <text x="929.0" y="74" fill="#202020" font-family="SimSun,宋体,serif" font-size="28" font-weight="normal" text-anchor="middle" dominant-baseline="central">:资源占用</text>
+  <polyline points="929.00,177.00 929.00,1018.00" fill="none" stroke="#555555" stroke-width="1.65" stroke-dasharray="6 5"/>
+  <rect x="1155.0" y="41" width="104" height="65" fill="white" stroke="#202020" stroke-width="1.7"/>
+  <text x="1207.0" y="74" fill="#202020" font-family="SimSun,宋体,serif" font-size="28" font-weight="normal" text-anchor="middle" dominant-baseline="central">:预约</text>
+  <polyline points="1207.00,177.00 1207.00,1018.00" fill="none" stroke="#555555" stroke-width="1.65" stroke-dasharray="6 5"/>
+  <rect x="1413.0" y="41" width="144.0" height="65" fill="white" stroke="#202020" stroke-width="1.7"/>
+  <text x="1485.0" y="74" fill="#202020" font-family="SimSun,宋体,serif" font-size="28" font-weight="normal" text-anchor="middle" dominant-baseline="central">:预约变更</text>
+  <polyline points="1485.00,177.00 1485.00,1018.00" fill="none" stroke="#555555" stroke-width="1.65" stroke-dasharray="6 5"/>
+  <rect x="91.0" y="228.0" width="8" height="778.0" fill="white" stroke="#202020" stroke-width="1.7"/>
+  <rect x="369.0" y="228.0" width="8" height="778.0" fill="white" stroke="#202020" stroke-width="1.7"/>
+  <rect x="647.0" y="322.75" width="8" height="588.5" fill="white" stroke="#202020" stroke-width="1.7"/>
+  <rect x="1203.0" y="417.5" width="8" height="209.5" fill="white" stroke="#202020" stroke-width="1.7"/>
+  <rect x="925.0" y="512.25" width="8" height="304.25" fill="white" stroke="#202020" stroke-width="1.7"/>
+  <rect x="1481.0" y="701.75" width="8" height="20.0" fill="white" stroke="#202020" stroke-width="1.7"/>
+  <polyline points="100.00,232.00 368.00,232.00" fill="none" stroke="#202020" stroke-width="1.65"/>
+  <polygon points="368.00,232.00 357.25,237.33 357.25,226.67" fill="#202020"/>
+  <rect x="17.0" y="199.0" width="454.0" height="28" fill="white" stroke="none" stroke-width="1.7"/>
+  <text x="244.0" y="213.0" fill="#202020" font-family="SimSun,宋体,serif" font-size="28" font-weight="normal" text-anchor="middle" dominant-baseline="central">提交已接受的新医生、诊所和时段()</text>
+  <polyline points="378.00,326.75 646.00,326.75" fill="none" stroke="#202020" stroke-width="1.65"/>
+  <polygon points="646.00,326.75 635.25,332.08 635.25,321.42" fill="#202020"/>
+  <rect x="283.0" y="293.75" width="458.0" height="30" fill="white" stroke="none" stroke-width="1.7"/>
+  <text x="512.0" y="307.75" fill="#202020" font-family="SimSun,宋体,serif" font-size="28" font-weight="normal" text-anchor="middle" dominant-baseline="central">校验改期原因、发起方与截止时点()</text>
+  <polyline points="656.00,421.50 1202.00,421.50" fill="none" stroke="#202020" stroke-width="1.65"/>
+  <polygon points="1202.00,421.50 1191.25,426.83 1191.25,416.17" fill="#202020"/>
+  <rect x="730.0" y="388.5" width="398.0" height="28" fill="white" stroke="none" stroke-width="1.7"/>
+  <text x="929.0" y="402.5" fill="#202020" font-family="SimSun,宋体,serif" font-size="28" font-weight="normal" text-anchor="middle" dominant-baseline="central">锁定当前预约及原预约金引用()</text>
+  <polyline points="656.00,516.25 924.00,516.25" fill="none" stroke="#202020" stroke-width="1.65"/>
+  <polygon points="924.00,516.25 913.25,521.58 913.25,510.92" fill="#202020"/>
+  <rect x="575.0" y="483.25" width="430.0" height="30" fill="white" stroke="none" stroke-width="1.7"/>
+  <text x="790.0" y="497.25" fill="#202020" font-family="SimSun,宋体,serif" font-size="28" font-weight="normal" text-anchor="middle" dominant-baseline="central">按顺序锁诊所并取得有效新占位()</text>
+  <polyline points="656.00,611.00 1202.00,611.00" fill="none" stroke="#202020" stroke-width="1.65"/>
+  <polygon points="1202.00,611.00 1191.25,616.33 1191.25,605.67" fill="#202020"/>
+  <rect x="714.0" y="578.0" width="430.0" height="30" fill="white" stroke="none" stroke-width="1.7"/>
+  <text x="929.0" y="592.0" fill="#202020" font-family="SimSun,宋体,serif" font-size="28" font-weight="normal" text-anchor="middle" dominant-baseline="central">更新占位，保留原编号和预约金()</text>
+  <polyline points="656.00,705.75 1480.00,705.75" fill="none" stroke="#202020" stroke-width="1.65"/>
+  <polygon points="1480.00,705.75 1469.25,711.08 1469.25,700.42" fill="#202020"/>
+  <rect x="925.0" y="672.75" width="286.0" height="28" fill="white" stroke="none" stroke-width="1.7"/>
+  <text x="1068.0" y="686.75" fill="#202020" font-family="SimSun,宋体,serif" font-size="28" font-weight="normal" text-anchor="middle" dominant-baseline="central">写入旧与新占位历史()</text>
+  <polyline points="656.00,800.50 924.00,800.50" fill="none" stroke="#202020" stroke-width="1.65"/>
+  <polygon points="924.00,800.50 913.25,805.83 913.25,795.17" fill="#202020"/>
+  <rect x="703.0" y="767.5" width="174.0" height="28" fill="white" stroke="none" stroke-width="1.7"/>
+  <text x="790.0" y="781.5" fill="#202020" font-family="SimSun,宋体,serif" font-size="28" font-weight="normal" text-anchor="middle" dominant-baseline="central">释放旧占位()</text>
+  <polyline points="646.00,895.25 378.00,895.25" fill="none" stroke="#202020" stroke-width="1.65" stroke-dasharray="6 5"/>
+  <polyline points="388.75,889.92 378.00,895.25 388.75,900.58" fill="none" stroke="#202020" stroke-width="1.65"/>
+  <rect x="271.0" y="862.25" width="482.0" height="28" fill="white" stroke="none" stroke-width="1.7"/>
+  <text x="512.0" y="876.25" fill="#202020" font-family="SimSun,宋体,serif" font-size="28" font-weight="normal" text-anchor="middle" dominant-baseline="central">提交成功后返回结果，失败整体回滚()</text>
+  <polyline points="368.00,990.00 100.00,990.00" fill="none" stroke="#202020" stroke-width="1.65" stroke-dasharray="6 5"/>
+  <polyline points="110.75,984.67 100.00,990.00 110.75,995.33" fill="none" stroke="#202020" stroke-width="1.65"/>
+  <rect x="119.0" y="957.0" width="230.0" height="28" fill="white" stroke="none" stroke-width="1.7"/>
+  <text x="234.0" y="971.0" fill="#202020" font-family="SimSun,宋体,serif" font-size="28" font-weight="normal" text-anchor="middle" dominant-baseline="central">反馈最新有效安排</text>
+<text x="23" y="1035" fill="#202020" font-family="SimSun,宋体,serif" font-size="22" font-weight="normal" text-anchor="start" dominant-baseline="central">患者原因按原店前一工作日 20:00（含）。诊所原因须患者同意。员工跨店须有两店授权。</text></svg>

@@ -1,0 +1,14 @@
+<view class="page">
+  <view class="page-title">取消预约</view>
+  <view wx:if="{{loading}}" class="form-hint">正在核对预约与退金…</view>
+  <appointment-summary wx:if="{{initial}}" appointment="{{initial}}" />
+  <form wx:if="{{quote}}" bindsubmit="submit">
+    <view class="section">
+      <view class="field-label">本次原路退金 ¥{{quote.refund_amount}}</view>
+      <view class="form-hint">提交成功后原预约失效。时点变化时会重新核对金额。</view>
+      <label class="input-row">取消原因<input name="reason" disabled="{{unknown}}" placeholder="请填写原因" /></label>
+    </view>
+    <button class="primary-action" form-type="submit" disabled="{{pending}}">{{unknown ? '核对取消结果' : '确认取消'}}</button>
+  </form>
+  <view wx:if="{{error}}" class="error-message">{{error}}</view>
+</view>

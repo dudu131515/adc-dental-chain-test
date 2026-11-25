@@ -1,0 +1,144 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1800" height="782" viewBox="0 0 1800 782">
+  <rect x="0" y="0" width="1800" height="782" fill="white" stroke="none" stroke-width="1.7" />
+  <desc>表框和列区采用课件 PDF 第 400 页格式。每条 FK 与 PostgreSQL 设计脚本同源。</desc>
+  <rect x="29" y="22" width="423" height="181" fill="white" stroke="#202020" stroke-width="1.7" />
+  <polyline points="29.00,60.00 452.00,60.00" fill="none" stroke="#202020" stroke-width="1.65" />
+  <text x="240.5" y="40" fill="#202020" font-family="SimSun,宋体,serif" font-size="25" font-weight="bold" text-anchor="middle" dominant-baseline="central">invoice</text>
+  <text x="39" y="76" fill="#202020" font-family="SimSun,宋体,serif" font-size="17" font-weight="normal" text-anchor="start" dominant-baseline="central">«column»</text>
+  <text x="40" y="99" fill="#202020" font-family="SimSun,宋体,serif" font-size="20" font-weight="normal" text-anchor="start" dominant-baseline="central">«PK» invoice_id: bigint</text>
+  <text x="40" y="130" fill="#202020" font-family="SimSun,宋体,serif" font-size="20" font-weight="normal" text-anchor="start" dominant-baseline="central">«FK» visit_id: bigint</text>
+  <rect x="589" y="117" width="281" height="25" fill="white" stroke="#202020" stroke-width="1.7" />
+  <text x="729.5" y="130" fill="#202020" font-family="SimSun,宋体,serif" font-size="20" font-weight="normal" text-anchor="middle" dominant-baseline="central">visit.visit_id</text>
+  <polyline points="452.00,130.00 589.00,130.00" fill="none" stroke="#202020" stroke-width="1.65" />
+  <polyline points="568.26,137.34 589.00,130.00 568.26,122.66" fill="none" stroke="#202020" stroke-width="1.65" />
+  <text x="466" y="120" fill="#202020" font-family="SimSun,宋体,serif" font-size="15" font-weight="normal" text-anchor="middle" dominant-baseline="central">0..1</text>
+  <text x="569" y="120" fill="#202020" font-family="SimSun,宋体,serif" font-size="15" font-weight="normal" text-anchor="middle" dominant-baseline="central">1</text>
+  <desc data-child="invoice.visit_id" data-parent="visit.visit_id" data-child-multiplicity="0..1" data-parent-multiplicity="1">invoice.visit_id → visit.visit_id</desc>
+  <polyline points="29.00,174.00 452.00,174.00" fill="none" stroke="#202020" stroke-width="1.65" />
+  <text x="39" y="188" fill="#202020" font-family="SimSun,宋体,serif" font-size="17" font-weight="normal" text-anchor="start" dominant-baseline="central">«PK» (invoice_id)</text>
+  <rect x="919" y="22" width="423" height="216" fill="white" stroke="#202020" stroke-width="1.7" />
+  <polyline points="919.00,60.00 1342.00,60.00" fill="none" stroke="#202020" stroke-width="1.65" />
+  <text x="1130.5" y="40" fill="#202020" font-family="SimSun,宋体,serif" font-size="25" font-weight="bold" text-anchor="middle" dominant-baseline="central">invoice_line</text>
+  <text x="929" y="76" fill="#202020" font-family="SimSun,宋体,serif" font-size="17" font-weight="normal" text-anchor="start" dominant-baseline="central">«column»</text>
+  <text x="930" y="99" fill="#202020" font-family="SimSun,宋体,serif" font-size="20" font-weight="normal" text-anchor="start" dominant-baseline="central">«PK» line_id: bigint</text>
+  <text x="930" y="130" fill="#202020" font-family="SimSun,宋体,serif" font-size="20" font-weight="normal" text-anchor="start" dominant-baseline="central">«FK» invoice_id: bigint</text>
+  <rect x="1479" y="117" width="281" height="25" fill="white" stroke="#202020" stroke-width="1.7" />
+  <text x="1619.5" y="130" fill="#202020" font-family="SimSun,宋体,serif" font-size="20" font-weight="normal" text-anchor="middle" dominant-baseline="central">invoice.invoice_id</text>
+  <polyline points="1342.00,130.00 1479.00,130.00" fill="none" stroke="#202020" stroke-width="1.65" />
+  <polyline points="1458.26,137.34 1479.00,130.00 1458.26,122.66" fill="none" stroke="#202020" stroke-width="1.65" />
+  <text x="1356" y="120" fill="#202020" font-family="SimSun,宋体,serif" font-size="15" font-weight="normal" text-anchor="middle" dominant-baseline="central">*</text>
+  <text x="1459" y="120" fill="#202020" font-family="SimSun,宋体,serif" font-size="15" font-weight="normal" text-anchor="middle" dominant-baseline="central">1</text>
+  <desc data-child="invoice_line.invoice_id" data-parent="invoice.invoice_id" data-child-multiplicity="*" data-parent-multiplicity="1">invoice_line.invoice_id → invoice.invoice_id</desc>
+  <text x="930" y="165" fill="#202020" font-family="SimSun,宋体,serif" font-size="20" font-weight="normal" text-anchor="start" dominant-baseline="central">«FK» treatment_item_id: bigint</text>
+  <rect x="1479" y="152" width="281" height="25" fill="white" stroke="#202020" stroke-width="1.7" />
+  <text x="1619.5" y="165" fill="#202020" font-family="SimSun,宋体,serif" font-size="20" font-weight="normal" text-anchor="middle" dominant-baseline="central">treatment_item.item_id</text>
+  <polyline points="1342.00,165.00 1479.00,165.00" fill="none" stroke="#202020" stroke-width="1.65" />
+  <polyline points="1458.26,172.34 1479.00,165.00 1458.26,157.66" fill="none" stroke="#202020" stroke-width="1.65" />
+  <text x="1356" y="155" fill="#202020" font-family="SimSun,宋体,serif" font-size="15" font-weight="normal" text-anchor="middle" dominant-baseline="central">0..1</text>
+  <text x="1459" y="155" fill="#202020" font-family="SimSun,宋体,serif" font-size="15" font-weight="normal" text-anchor="middle" dominant-baseline="central">1</text>
+  <desc data-child="invoice_line.treatment_item_id" data-parent="treatment_item.item_id" data-child-multiplicity="0..1" data-parent-multiplicity="1">invoice_line.treatment_item_id → treatment_item.item_id</desc>
+  <polyline points="919.00,209.00 1342.00,209.00" fill="none" stroke="#202020" stroke-width="1.65" />
+  <text x="929" y="223" fill="#202020" font-family="SimSun,宋体,serif" font-size="17" font-weight="normal" text-anchor="start" dominant-baseline="central">«PK» (line_id)</text>
+  <rect x="29" y="232" width="423" height="238" fill="white" stroke="#202020" stroke-width="1.7" />
+  <polyline points="29.00,270.00 452.00,270.00" fill="none" stroke="#202020" stroke-width="1.65" />
+  <text x="240.5" y="250" fill="#202020" font-family="SimSun,宋体,serif" font-size="25" font-weight="bold" text-anchor="middle" dominant-baseline="central">invoice_payment</text>
+  <text x="39" y="286" fill="#202020" font-family="SimSun,宋体,serif" font-size="17" font-weight="normal" text-anchor="start" dominant-baseline="central">«column»</text>
+  <text x="40" y="309" fill="#202020" font-family="SimSun,宋体,serif" font-size="20" font-weight="normal" text-anchor="start" dominant-baseline="central">«PK» payment_id: bigint</text>
+  <text x="40" y="340" fill="#202020" font-family="SimSun,宋体,serif" font-size="20" font-weight="normal" text-anchor="start" dominant-baseline="central">«FK» invoice_id: bigint</text>
+  <rect x="589" y="327" width="281" height="25" fill="white" stroke="#202020" stroke-width="1.7" />
+  <text x="729.5" y="340" fill="#202020" font-family="SimSun,宋体,serif" font-size="20" font-weight="normal" text-anchor="middle" dominant-baseline="central">invoice.invoice_id</text>
+  <polyline points="452.00,340.00 589.00,340.00" fill="none" stroke="#202020" stroke-width="1.65" />
+  <polyline points="568.26,347.34 589.00,340.00 568.26,332.66" fill="none" stroke="#202020" stroke-width="1.65" />
+  <text x="466" y="330" fill="#202020" font-family="SimSun,宋体,serif" font-size="15" font-weight="normal" text-anchor="middle" dominant-baseline="central">*</text>
+  <text x="569" y="330" fill="#202020" font-family="SimSun,宋体,serif" font-size="15" font-weight="normal" text-anchor="middle" dominant-baseline="central">1</text>
+  <desc data-child="invoice_payment.invoice_id" data-parent="invoice.invoice_id" data-child-multiplicity="*" data-parent-multiplicity="1">invoice_payment.invoice_id → invoice.invoice_id</desc>
+  <text x="40" y="375" fill="#202020" font-family="SimSun,宋体,serif" font-size="20" font-weight="normal" text-anchor="start" dominant-baseline="central">«FK» adjustment_id: bigint</text>
+  <rect x="589" y="362" width="281" height="25" fill="white" stroke="#202020" stroke-width="1.7" />
+  <text x="729.5" y="375" fill="#202020" font-family="SimSun,宋体,serif" font-size="20" font-weight="normal" text-anchor="middle" dominant-baseline="central">invoice_adjustment.id</text>
+  <polyline points="452.00,375.00 589.00,375.00" fill="none" stroke="#202020" stroke-width="1.65" />
+  <polyline points="568.26,382.34 589.00,375.00 568.26,367.66" fill="none" stroke="#202020" stroke-width="1.65" />
+  <text x="466" y="365" fill="#202020" font-family="SimSun,宋体,serif" font-size="15" font-weight="normal" text-anchor="middle" dominant-baseline="central">*</text>
+  <text x="569" y="365" fill="#202020" font-family="SimSun,宋体,serif" font-size="15" font-weight="normal" text-anchor="middle" dominant-baseline="central">0..1</text>
+  <desc data-child="invoice_payment.adjustment_id" data-parent="invoice_adjustment.id" data-child-multiplicity="*" data-parent-multiplicity="0..1">invoice_payment.adjustment_id → invoice_adjustment.id</desc>
+  <polyline points="29.00,441.00 452.00,441.00" fill="none" stroke="#202020" stroke-width="1.65" />
+  <text x="39" y="455" fill="#202020" font-family="SimSun,宋体,serif" font-size="17" font-weight="normal" text-anchor="start" dominant-baseline="central">«PK» (payment_id)</text>
+  <rect x="919" y="267" width="423" height="216" fill="white" stroke="#202020" stroke-width="1.7" />
+  <polyline points="919.00,305.00 1342.00,305.00" fill="none" stroke="#202020" stroke-width="1.65" />
+  <text x="1130.5" y="285" fill="#202020" font-family="SimSun,宋体,serif" font-size="25" font-weight="bold" text-anchor="middle" dominant-baseline="central">treatment_correction</text>
+  <text x="929" y="321" fill="#202020" font-family="SimSun,宋体,serif" font-size="17" font-weight="normal" text-anchor="start" dominant-baseline="central">«column»</text>
+  <text x="930" y="344" fill="#202020" font-family="SimSun,宋体,serif" font-size="20" font-weight="normal" text-anchor="start" dominant-baseline="central">«PK» id: bigint</text>
+  <text x="930" y="375" fill="#202020" font-family="SimSun,宋体,serif" font-size="20" font-weight="normal" text-anchor="start" dominant-baseline="central">«FK» visit_id: bigint</text>
+  <rect x="1479" y="362" width="281" height="25" fill="white" stroke="#202020" stroke-width="1.7" />
+  <text x="1619.5" y="375" fill="#202020" font-family="SimSun,宋体,serif" font-size="20" font-weight="normal" text-anchor="middle" dominant-baseline="central">visit.visit_id</text>
+  <polyline points="1342.00,375.00 1479.00,375.00" fill="none" stroke="#202020" stroke-width="1.65" />
+  <polyline points="1458.26,382.34 1479.00,375.00 1458.26,367.66" fill="none" stroke="#202020" stroke-width="1.65" />
+  <text x="1356" y="365" fill="#202020" font-family="SimSun,宋体,serif" font-size="15" font-weight="normal" text-anchor="middle" dominant-baseline="central">*</text>
+  <text x="1459" y="365" fill="#202020" font-family="SimSun,宋体,serif" font-size="15" font-weight="normal" text-anchor="middle" dominant-baseline="central">1</text>
+  <desc data-child="treatment_correction.visit_id" data-parent="visit.visit_id" data-child-multiplicity="*" data-parent-multiplicity="1">treatment_correction.visit_id → visit.visit_id</desc>
+  <text x="930" y="410" fill="#202020" font-family="SimSun,宋体,serif" font-size="20" font-weight="normal" text-anchor="start" dominant-baseline="central">«FK» requested_by: bigint</text>
+  <rect x="1479" y="397" width="281" height="25" fill="white" stroke="#202020" stroke-width="1.7" />
+  <text x="1619.5" y="410" fill="#202020" font-family="SimSun,宋体,serif" font-size="20" font-weight="normal" text-anchor="middle" dominant-baseline="central">employee.employee_id</text>
+  <polyline points="1342.00,410.00 1479.00,410.00" fill="none" stroke="#202020" stroke-width="1.65" />
+  <polyline points="1458.26,417.34 1479.00,410.00 1458.26,402.66" fill="none" stroke="#202020" stroke-width="1.65" />
+  <text x="1356" y="400" fill="#202020" font-family="SimSun,宋体,serif" font-size="15" font-weight="normal" text-anchor="middle" dominant-baseline="central">*</text>
+  <text x="1459" y="400" fill="#202020" font-family="SimSun,宋体,serif" font-size="15" font-weight="normal" text-anchor="middle" dominant-baseline="central">1</text>
+  <desc data-child="treatment_correction.requested_by" data-parent="employee.employee_id" data-child-multiplicity="*" data-parent-multiplicity="1">treatment_correction.requested_by → employee.employee_id</desc>
+  <polyline points="919.00,454.00 1342.00,454.00" fill="none" stroke="#202020" stroke-width="1.65" />
+  <text x="929" y="468" fill="#202020" font-family="SimSun,宋体,serif" font-size="17" font-weight="normal" text-anchor="start" dominant-baseline="central">«PK» (id)</text>
+  <rect x="29" y="477" width="423" height="216" fill="white" stroke="#202020" stroke-width="1.7" />
+  <polyline points="29.00,515.00 452.00,515.00" fill="none" stroke="#202020" stroke-width="1.65" />
+  <text x="240.5" y="495" fill="#202020" font-family="SimSun,宋体,serif" font-size="25" font-weight="bold" text-anchor="middle" dominant-baseline="central">correction_approval</text>
+  <text x="39" y="531" fill="#202020" font-family="SimSun,宋体,serif" font-size="17" font-weight="normal" text-anchor="start" dominant-baseline="central">«column»</text>
+  <text x="40" y="554" fill="#202020" font-family="SimSun,宋体,serif" font-size="20" font-weight="normal" text-anchor="start" dominant-baseline="central">«PK» id: bigint</text>
+  <text x="40" y="585" fill="#202020" font-family="SimSun,宋体,serif" font-size="20" font-weight="normal" text-anchor="start" dominant-baseline="central">«FK» correction_id: bigint</text>
+  <rect x="589" y="572" width="281" height="25" fill="white" stroke="#202020" stroke-width="1.7" />
+  <text x="729.5" y="585" fill="#202020" font-family="SimSun,宋体,serif" font-size="20" font-weight="normal" text-anchor="middle" dominant-baseline="central">treatment_correction.id</text>
+  <polyline points="452.00,585.00 589.00,585.00" fill="none" stroke="#202020" stroke-width="1.65" />
+  <polyline points="568.26,592.34 589.00,585.00 568.26,577.66" fill="none" stroke="#202020" stroke-width="1.65" />
+  <text x="466" y="575" fill="#202020" font-family="SimSun,宋体,serif" font-size="15" font-weight="normal" text-anchor="middle" dominant-baseline="central">0..1</text>
+  <text x="569" y="575" fill="#202020" font-family="SimSun,宋体,serif" font-size="15" font-weight="normal" text-anchor="middle" dominant-baseline="central">1</text>
+  <desc data-child="correction_approval.correction_id" data-parent="treatment_correction.id" data-child-multiplicity="0..1" data-parent-multiplicity="1">correction_approval.correction_id → treatment_correction.id</desc>
+  <text x="40" y="620" fill="#202020" font-family="SimSun,宋体,serif" font-size="20" font-weight="normal" text-anchor="start" dominant-baseline="central">«FK» reviewer_id: bigint</text>
+  <rect x="589" y="607" width="281" height="25" fill="white" stroke="#202020" stroke-width="1.7" />
+  <text x="729.5" y="620" fill="#202020" font-family="SimSun,宋体,serif" font-size="20" font-weight="normal" text-anchor="middle" dominant-baseline="central">employee.employee_id</text>
+  <polyline points="452.00,620.00 589.00,620.00" fill="none" stroke="#202020" stroke-width="1.65" />
+  <polyline points="568.26,627.34 589.00,620.00 568.26,612.66" fill="none" stroke="#202020" stroke-width="1.65" />
+  <text x="466" y="610" fill="#202020" font-family="SimSun,宋体,serif" font-size="15" font-weight="normal" text-anchor="middle" dominant-baseline="central">*</text>
+  <text x="569" y="610" fill="#202020" font-family="SimSun,宋体,serif" font-size="15" font-weight="normal" text-anchor="middle" dominant-baseline="central">1</text>
+  <desc data-child="correction_approval.reviewer_id" data-parent="employee.employee_id" data-child-multiplicity="*" data-parent-multiplicity="1">correction_approval.reviewer_id → employee.employee_id</desc>
+  <polyline points="29.00,664.00 452.00,664.00" fill="none" stroke="#202020" stroke-width="1.65" />
+  <text x="39" y="678" fill="#202020" font-family="SimSun,宋体,serif" font-size="17" font-weight="normal" text-anchor="start" dominant-baseline="central">«PK» (id)</text>
+  <rect x="919" y="512" width="423" height="216" fill="white" stroke="#202020" stroke-width="1.7" />
+  <polyline points="919.00,550.00 1342.00,550.00" fill="none" stroke="#202020" stroke-width="1.65" />
+  <text x="1130.5" y="530" fill="#202020" font-family="SimSun,宋体,serif" font-size="25" font-weight="bold" text-anchor="middle" dominant-baseline="central">invoice_adjustment</text>
+  <text x="929" y="566" fill="#202020" font-family="SimSun,宋体,serif" font-size="17" font-weight="normal" text-anchor="start" dominant-baseline="central">«column»</text>
+  <text x="930" y="589" fill="#202020" font-family="SimSun,宋体,serif" font-size="20" font-weight="normal" text-anchor="start" dominant-baseline="central">«PK» id: bigint</text>
+  <text x="930" y="620" fill="#202020" font-family="SimSun,宋体,serif" font-size="20" font-weight="normal" text-anchor="start" dominant-baseline="central">«FK» invoice_id: bigint</text>
+  <rect x="1479" y="607" width="281" height="25" fill="white" stroke="#202020" stroke-width="1.7" />
+  <text x="1619.5" y="620" fill="#202020" font-family="SimSun,宋体,serif" font-size="20" font-weight="normal" text-anchor="middle" dominant-baseline="central">invoice.invoice_id</text>
+  <polyline points="1342.00,620.00 1479.00,620.00" fill="none" stroke="#202020" stroke-width="1.65" />
+  <polyline points="1458.26,627.34 1479.00,620.00 1458.26,612.66" fill="none" stroke="#202020" stroke-width="1.65" />
+  <text x="1356" y="610" fill="#202020" font-family="SimSun,宋体,serif" font-size="15" font-weight="normal" text-anchor="middle" dominant-baseline="central">*</text>
+  <text x="1459" y="610" fill="#202020" font-family="SimSun,宋体,serif" font-size="15" font-weight="normal" text-anchor="middle" dominant-baseline="central">1</text>
+  <desc data-child="invoice_adjustment.invoice_id" data-parent="invoice.invoice_id" data-child-multiplicity="*" data-parent-multiplicity="1">invoice_adjustment.invoice_id → invoice.invoice_id</desc>
+  <text x="930" y="655" fill="#202020" font-family="SimSun,宋体,serif" font-size="20" font-weight="normal" text-anchor="start" dominant-baseline="central">«FK» correction_id: bigint</text>
+  <rect x="1479" y="642" width="281" height="25" fill="white" stroke="#202020" stroke-width="1.7" />
+  <text x="1619.5" y="655" fill="#202020" font-family="SimSun,宋体,serif" font-size="20" font-weight="normal" text-anchor="middle" dominant-baseline="central">treatment_correction.id</text>
+  <polyline points="1342.00,655.00 1479.00,655.00" fill="none" stroke="#202020" stroke-width="1.65" />
+  <polyline points="1458.26,662.34 1479.00,655.00 1458.26,647.66" fill="none" stroke="#202020" stroke-width="1.65" />
+  <text x="1356" y="645" fill="#202020" font-family="SimSun,宋体,serif" font-size="15" font-weight="normal" text-anchor="middle" dominant-baseline="central">0..1</text>
+  <text x="1459" y="645" fill="#202020" font-family="SimSun,宋体,serif" font-size="15" font-weight="normal" text-anchor="middle" dominant-baseline="central">1</text>
+  <desc data-child="invoice_adjustment.correction_id" data-parent="treatment_correction.id" data-child-multiplicity="0..1" data-parent-multiplicity="1">invoice_adjustment.correction_id → treatment_correction.id</desc>
+  <polyline points="919.00,699.00 1342.00,699.00" fill="none" stroke="#202020" stroke-width="1.65" />
+  <text x="929" y="713" fill="#202020" font-family="SimSun,宋体,serif" font-size="17" font-weight="normal" text-anchor="start" dominant-baseline="central">«PK» (id)</text>
+  <text x="27" y="740" fill="#202020" font-family="SimSun,宋体,serif" font-size="20" font-weight="normal" text-anchor="start" dominant-baseline="central">外键连至所引用的表列。多重性取外键的唯一性与可空性。</text>
+  <text x="40" y="410" fill="#202020" font-family="SimSun,宋体,serif" font-size="20" font-weight="normal" text-anchor="start" dominant-baseline="central">«FK» source_payment_id: bigint</text>
+  <rect x="589" y="397" width="281" height="25" fill="white" stroke="#202020" stroke-width="1.7" />
+  <text x="729.5" y="410" fill="#202020" font-family="SimSun,宋体,serif" font-size="18" font-weight="normal" text-anchor="middle" dominant-baseline="central">invoice_payment.payment_id</text>
+  <polyline points="452,410 589,410" fill="none" stroke="#202020" stroke-width="1.65" />
+  <polyline points="568.26,417.34 589,410 568.26,402.66" fill="none" stroke="#202020" stroke-width="1.65" />
+  <text x="466" y="400" fill="#202020" font-family="SimSun,宋体,serif" font-size="15" font-weight="normal" text-anchor="middle" dominant-baseline="central">*</text>
+  <text x="569" y="400" fill="#202020" font-family="SimSun,宋体,serif" font-size="15" font-weight="normal" text-anchor="middle" dominant-baseline="central">0..1</text>
+  <desc data-child="invoice_payment.source_payment_id" data-parent="invoice_payment.payment_id" data-child-multiplicity="*" data-parent-multiplicity="0..1">invoice_payment.source_payment_id → invoice_payment.payment_id</desc>
+  <text x="27" y="765" fill="#202020" font-family="SimSun,宋体,serif" font-size="20" font-weight="normal" text-anchor="start" dominant-baseline="central">退款必填原支付引用，收款可留空。服务校验引用的是同一主单的成功收款，原渠道实退另记流水。</text>
+</svg>

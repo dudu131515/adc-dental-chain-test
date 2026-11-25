@@ -1,0 +1,4 @@
+{
+  "navigationBarTitleText": "改期",
+  "usingComponents": { "appointment-summary": "/components/appointment-summary/index" }
+}

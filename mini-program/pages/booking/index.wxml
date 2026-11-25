@@ -1,0 +1,31 @@
+<view class="page">
+  <view class="page-title">预约就诊</view>
+  <view class="section" wx:if="{{loading}}">正在读取预约资料…</view>
+  <block wx:elif="{{profileRequired}}">
+    <view class="section">请先填写预约所需的本人资料。</view>
+    <button class="primary-action" bindtap="profile">填写本人资料</button>
+  </block>
+  <block wx:else>
+    <view class="section">
+      <view class="field-label">就诊门店</view>
+      <picker range="{{clinics}}" range-key="name" value="{{clinicIndex}}" bindchange="chooseClinic">
+        <view class="picker-value">{{clinics[clinicIndex].name || '暂无可预约门店'}}</view>
+      </picker>
+      <view class="form-hint" wx:if="{{clinics[clinicIndex].address}}">{{clinics[clinicIndex].address}}</view>
+    </view>
+    <view class="section">
+      <view class="field-label">主预约项目</view>
+      <picker range="{{treatments}}" range-key="treatment_name" value="{{treatmentIndex}}" bindchange="chooseTreatment">
+        <view class="picker-value">{{treatments[treatmentIndex].treatment_name || '暂无可预约项目'}}</view>
+      </picker>
+    </view>
+    <view class="section">
+      <view class="field-label">就诊日期</view>
+      <picker mode="date" value="{{date}}" bindchange="chooseDate">
+        <view class="picker-value">{{date}}</view>
+      </picker>
+    </view>
+    <button class="primary-action" disabled="{{clinicIndex < 0 || !clinics.length || !treatments.length}}" bindtap="continue">查看可约时段</button>
+  </block>
+  <view class="error-message" wx:if="{{error}}">{{error}}</view>
+</view>

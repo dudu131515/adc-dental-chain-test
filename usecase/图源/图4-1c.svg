@@ -1,0 +1,114 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="654" viewBox="0 0 1600 654">
+  <rect x="0" y="0" width="1600" height="654" rx="0" fill="white" stroke="none" stroke-width="1.65" />
+  <polyline points="370.0,90.0 390.0,90.0 410.0,90.0 434.0,90.0" fill="none" stroke="#252525" stroke-width="2" />
+  <polyline points="370.0,130.0 390.0,130.0 390.0,240.0 370.0,240.0" fill="none" stroke="#252525" stroke-width="2" />
+  <polyline points="370.0,240.0 390.0,240.0 410.0,240.0 434.0,240.0" fill="none" stroke="#252525" stroke-width="2" />
+  <polyline points="814.0,130.0 790.0,130.0 790.0,240.0 770.0,240.0 746.0,240.0" fill="none" stroke="#252525" stroke-width="2" />
+  <polyline points="1126.0,90.0 1150.0,90.0 1170.0,90.0 1194.0,90.0" fill="none" stroke="#252525" stroke-width="2" />
+  <polyline points="746.0,260.0 770.0,260.0 790.0,260.0 814.0,260.0" fill="none" stroke="#252525" stroke-width="2" />
+  <polyline points="370.0,280.0 390.0,280.0 390.0,390.0 370.0,390.0" fill="none" stroke="#252525" stroke-width="2" />
+  <polyline points="370.0,390.0 390.0,390.0 410.0,390.0 434.0,390.0" fill="none" stroke="#252525" stroke-width="2" />
+  <polyline points="746.0,280.0 770.0,280.0 770.0,390.0 746.0,390.0" fill="none" stroke="#252525" stroke-width="2" />
+  <polyline points="370.0,430.0 390.0,430.0 390.0,640.0 790.0,640.0 790.0,430.0 814.0,430.0" fill="none" stroke="#252525" stroke-width="2" />
+  <polyline points="370.0,280.0 390.0,280.0 400.0,280.0 400.0,540.0 390.0,540.0 370.0,540.0" fill="none" stroke="#252525" stroke-width="2" />
+  <polyline points="370.0,560.0 390.0,560.0 410.0,560.0 434.0,560.0" fill="none" stroke="#252525" stroke-width="2" />
+  <polyline points="370.0,430.0 390.0,430.0 410.0,430.0 410.0,540.0 434.0,540.0" fill="none" stroke="#252525" stroke-width="2" />
+  <rect x="58" y="58" width="312" height="104" rx="0" fill="#ffffff" stroke="#252525" stroke-width="2" />
+  <rect x="434" y="58" width="312" height="104" rx="0" fill="#ffffff" stroke="#252525" stroke-width="2" />
+  <rect x="58" y="208" width="312" height="104" rx="0" fill="#ffffff" stroke="#252525" stroke-width="2" />
+  <rect x="434" y="208" width="312" height="104" rx="0" fill="#ffffff" stroke="#252525" stroke-width="2" />
+  <rect x="814" y="58" width="312" height="104" rx="0" fill="#ffffff" stroke="#252525" stroke-width="2" />
+  <rect x="1194" y="58" width="312" height="104" rx="0" fill="#ffffff" stroke="#252525" stroke-width="2" />
+  <rect x="814" y="208" width="312" height="104" rx="0" fill="#ffffff" stroke="#252525" stroke-width="2" />
+  <rect x="58" y="358" width="312" height="104" rx="0" fill="#ffffff" stroke="#252525" stroke-width="2" />
+  <rect x="434" y="358" width="312" height="104" rx="0" fill="#ffffff" stroke="#252525" stroke-width="2" />
+  <rect x="814" y="358" width="312" height="104" rx="0" fill="#ffffff" stroke="#252525" stroke-width="2" />
+  <rect x="58" y="508" width="312" height="104" rx="0" fill="#ffffff" stroke="#252525" stroke-width="2" />
+  <rect x="434" y="508" width="312" height="104" rx="0" fill="#ffffff" stroke="#252525" stroke-width="2" />
+  <text x="214" y="82" fill="#181818" font-family="SimSun,宋体,serif" font-size="25" font-weight="bold" text-anchor="middle" dominant-baseline="central">Appointment</text>
+  <polyline points="58.0,103.0 370.0,103.0" fill="none" stroke="#252525" stroke-width="2" />
+  <text x="65.0" y="122" fill="#181818" font-family="SimSun,宋体,serif" font-size="14" font-weight="normal" text-anchor="start" dominant-baseline="central">- appointmentNo: String　- attended: Boolean</text>
+  <text x="65.0" y="147" fill="#181818" font-family="SimSun,宋体,serif" font-size="16" font-weight="normal" text-anchor="start" dominant-baseline="central">+ 确认真实接诊() : void</text>
+  <polyline points="58.0,132.0 370.0,132.0" stroke="#202020" fill="none" stroke-width="1.2" />
+  <text x="590" y="82" fill="#181818" font-family="SimSun,宋体,serif" font-size="25" font-weight="bold" text-anchor="middle" dominant-baseline="central">ChairUsage</text>
+  <polyline points="434.0,103.0 746.0,103.0" fill="none" stroke="#252525" stroke-width="2" />
+  <text x="441.0" y="122" fill="#181818" font-family="SimSun,宋体,serif" font-size="14" font-weight="normal" text-anchor="start" dominant-baseline="central">- assignedAt: DateTime　- releasedAt: DateTime</text>
+  <text x="441.0" y="147" fill="#181818" font-family="SimSun,宋体,serif" font-size="16" font-weight="normal" text-anchor="start" dominant-baseline="central">+ 分配具体牙椅() : void</text>
+  <polyline points="434.0,132.0 746.0,132.0" stroke="#202020" fill="none" stroke-width="1.2" />
+  <text x="214" y="232" fill="#181818" font-family="SimSun,宋体,serif" font-size="25" font-weight="bold" text-anchor="middle" dominant-baseline="central">Visit</text>
+  <polyline points="58.0,253.0 370.0,253.0" fill="none" stroke="#252525" stroke-width="2" />
+  <text x="65.0" y="272" fill="#181818" font-family="SimSun,宋体,serif" font-size="14" font-weight="normal" text-anchor="start" dominant-baseline="central">- startedAt: DateTime　- status: VisitStatus</text>
+  <text x="65.0" y="297" fill="#181818" font-family="SimSun,宋体,serif" font-size="16" font-weight="normal" text-anchor="start" dominant-baseline="central">+ 开始、完成、中止() : void</text>
+  <polyline points="58.0,282.0 370.0,282.0" stroke="#202020" fill="none" stroke-width="1.2" />
+  <text x="590" y="232" fill="#181818" font-family="SimSun,宋体,serif" font-size="25" font-weight="bold" text-anchor="middle" dominant-baseline="central">TreatmentItem</text>
+  <polyline points="434.0,253.0 746.0,253.0" fill="none" stroke="#252525" stroke-width="2" />
+  <text x="441.0" y="272" fill="#181818" font-family="SimSun,宋体,serif" font-size="14" font-weight="normal" text-anchor="start" dominant-baseline="central">- units: Decimal　- unitPrice: Money</text>
+  <text x="441.0" y="297" fill="#181818" font-family="SimSun,宋体,serif" font-size="16" font-weight="normal" text-anchor="start" dominant-baseline="central">+ 确认计费事实() : void</text>
+  <polyline points="434.0,282.0 746.0,282.0" stroke="#202020" fill="none" stroke-width="1.2" />
+  <text x="970" y="82" fill="#181818" font-family="SimSun,宋体,serif" font-size="25" font-weight="bold" text-anchor="middle" dominant-baseline="central">TreatmentType</text>
+  <polyline points="814.0,103.0 1126.0,103.0" fill="none" stroke="#252525" stroke-width="2" />
+  <text x="821.0" y="122" fill="#181818" font-family="SimSun,宋体,serif" font-size="14" font-weight="normal" text-anchor="start" dominant-baseline="central">- standardUnit: String</text>
+  <text x="821.0" y="147" fill="#181818" font-family="SimSun,宋体,serif" font-size="16" font-weight="normal" text-anchor="start" dominant-baseline="central">+ 校验标准() : void</text>
+  <polyline points="814.0,132.0 1126.0,132.0" stroke="#202020" fill="none" stroke-width="1.2" />
+  <text x="1350" y="82" fill="#181818" font-family="SimSun,宋体,serif" font-size="25" font-weight="bold" text-anchor="middle" dominant-baseline="central">PriceVersion</text>
+  <polyline points="1194.0,103.0 1506.0,103.0" fill="none" stroke="#252525" stroke-width="2" />
+  <text x="1201.0" y="122" fill="#181818" font-family="SimSun,宋体,serif" font-size="14" font-weight="normal" text-anchor="start" dominant-baseline="central">- effectiveFrom: Date　- effectiveTo: Date</text>
+  <text x="1201.0" y="147" fill="#181818" font-family="SimSun,宋体,serif" font-size="16" font-weight="normal" text-anchor="start" dominant-baseline="central">+ 验证价格() : void</text>
+  <polyline points="1194.0,132.0 1506.0,132.0" stroke="#202020" fill="none" stroke-width="1.2" />
+  <text x="970" y="232" fill="#181818" font-family="SimSun,宋体,serif" font-size="25" font-weight="bold" text-anchor="middle" dominant-baseline="central">MaterialUsage</text>
+  <polyline points="814.0,253.0 1126.0,253.0" fill="none" stroke="#252525" stroke-width="2" />
+  <text x="821.0" y="272" fill="#181818" font-family="SimSun,宋体,serif" font-size="14" font-weight="normal" text-anchor="start" dominant-baseline="central">- quantity: Decimal　- unitCost: Money</text>
+  <text x="821.0" y="297" fill="#181818" font-family="SimSun,宋体,serif" font-size="16" font-weight="normal" text-anchor="start" dominant-baseline="central">+ 计算成本() : Money</text>
+  <polyline points="814.0,282.0 1126.0,282.0" stroke="#202020" fill="none" stroke-width="1.2" />
+  <text x="214" y="382" fill="#181818" font-family="SimSun,宋体,serif" font-size="25" font-weight="bold" text-anchor="middle" dominant-baseline="central">Invoice</text>
+  <polyline points="58.0,403.0 370.0,403.0" fill="none" stroke="#252525" stroke-width="2" />
+  <text x="65.0" y="422" fill="#181818" font-family="SimSun,宋体,serif" font-size="14" font-weight="normal" text-anchor="start" dominant-baseline="central">- invoiceNo: String　- originalTotal: Money</text>
+  <text x="65.0" y="447" fill="#181818" font-family="SimSun,宋体,serif" font-size="16" font-weight="normal" text-anchor="start" dominant-baseline="central">+ 保留原单，汇总应收与欠退() : void</text>
+  <polyline points="58.0,432.0 370.0,432.0" stroke="#202020" fill="none" stroke-width="1.2" />
+  <text x="590" y="382" fill="#181818" font-family="SimSun,宋体,serif" font-size="25" font-weight="bold" text-anchor="middle" dominant-baseline="central">InvoiceLine</text>
+  <polyline points="434.0,403.0 746.0,403.0" fill="none" stroke="#252525" stroke-width="2" />
+  <text x="441.0" y="422" fill="#181818" font-family="SimSun,宋体,serif" font-size="14" font-weight="normal" text-anchor="start" dominant-baseline="central">- units: Decimal　- subtotal: Money</text>
+  <text x="441.0" y="447" fill="#181818" font-family="SimSun,宋体,serif" font-size="16" font-weight="normal" text-anchor="start" dominant-baseline="central">+ 计算小计() : void</text>
+  <polyline points="434.0,432.0 746.0,432.0" stroke="#202020" fill="none" stroke-width="1.2" />
+  <text x="970" y="382" fill="#181818" font-family="SimSun,宋体,serif" font-size="25" font-weight="bold" text-anchor="middle" dominant-baseline="central">InvoicePayment</text>
+  <polyline points="814.0,403.0 1126.0,403.0" fill="none" stroke="#252525" stroke-width="2" />
+  <text x="821.0" y="422" fill="#181818" font-family="SimSun,宋体,serif" font-size="14" font-weight="normal" text-anchor="start" dominant-baseline="central">- amount: Money　- status: PayStatus</text>
+  <text x="821.0" y="447" fill="#181818" font-family="SimSun,宋体,serif" font-size="16" font-weight="normal" text-anchor="start" dominant-baseline="central">+ 记录实收或原渠道实退() : void</text>
+  <polyline points="814.0,432.0 1126.0,432.0" stroke="#202020" fill="none" stroke-width="1.2" />
+  <text x="214" y="532" fill="#181818" font-family="SimSun,宋体,serif" font-size="25" font-weight="bold" text-anchor="middle" dominant-baseline="central">TreatmentCorrection</text>
+  <polyline points="58.0,553.0 370.0,553.0" fill="none" stroke="#252525" stroke-width="2" />
+  <text x="65.0" y="572" fill="#181818" font-family="SimSun,宋体,serif" font-size="14" font-weight="normal" text-anchor="start" dominant-baseline="central">- reason: String　- proposedChanges: Record</text>
+  <text x="65.0" y="597" fill="#181818" font-family="SimSun,宋体,serif" font-size="16" font-weight="normal" text-anchor="start" dominant-baseline="central">+ 申请、审批、应用() : void</text>
+  <polyline points="58.0,582.0 370.0,582.0" stroke="#202020" fill="none" stroke-width="1.2" />
+  <text x="590" y="532" fill="#181818" font-family="SimSun,宋体,serif" font-size="25" font-weight="bold" text-anchor="middle" dominant-baseline="central">InvoiceAdjustment</text>
+  <polyline points="434.0,553.0 746.0,553.0" fill="none" stroke="#252525" stroke-width="2" />
+  <text x="441.0" y="572" fill="#181818" font-family="SimSun,宋体,serif" font-size="14" font-weight="normal" text-anchor="start" dominant-baseline="central">- signedAmount: Money</text>
+  <text x="441.0" y="597" fill="#181818" font-family="SimSun,宋体,serif" font-size="16" font-weight="normal" text-anchor="start" dominant-baseline="central">+ 按获批更正记录原单差额() : void</text>
+  <polyline points="434.0,582.0 746.0,582.0" stroke="#202020" fill="none" stroke-width="1.2" />
+  <text x="391.0" y="106.0" fill="#151515" font-family="SimSun,宋体,serif" font-size="18" font-weight="normal" text-anchor="middle" dominant-baseline="central">1</text>
+  <text x="413.0" y="74.0" fill="#151515" font-family="SimSun,宋体,serif" font-size="18" font-weight="normal" text-anchor="middle" dominant-baseline="central">0..*</text>
+  <text x="391.0" y="146.0" fill="#151515" font-family="SimSun,宋体,serif" font-size="18" font-weight="normal" text-anchor="middle" dominant-baseline="central">1</text>
+  <text x="391.0" y="256.0" fill="#151515" font-family="SimSun,宋体,serif" font-size="18" font-weight="normal" text-anchor="middle" dominant-baseline="central">0..1</text>
+  <text x="391.0" y="213.0" fill="#151515" font-family="SimSun,宋体,serif" font-size="18" font-weight="normal" text-anchor="middle" dominant-baseline="central">1</text>
+  <text x="413.0" y="224.0" fill="#151515" font-family="SimSun,宋体,serif" font-size="18" font-weight="normal" text-anchor="middle" dominant-baseline="central">0..*</text>
+  <text x="793.0" y="146.0" fill="#151515" font-family="SimSun,宋体,serif" font-size="18" font-weight="normal" text-anchor="middle" dominant-baseline="central">1</text>
+  <text x="767.0" y="256.0" fill="#151515" font-family="SimSun,宋体,serif" font-size="18" font-weight="normal" text-anchor="middle" dominant-baseline="central">0..*</text>
+  <text x="1147.0" y="106.0" fill="#151515" font-family="SimSun,宋体,serif" font-size="18" font-weight="normal" text-anchor="middle" dominant-baseline="central">1</text>
+  <text x="1173.0" y="74.0" fill="#151515" font-family="SimSun,宋体,serif" font-size="18" font-weight="normal" text-anchor="middle" dominant-baseline="central">0..*</text>
+  <text x="776.0" y="287.0" fill="#151515" font-family="SimSun,宋体,serif" font-size="18" font-weight="normal" text-anchor="middle" dominant-baseline="central">1</text>
+  <text x="793.0" y="233.0" fill="#151515" font-family="SimSun,宋体,serif" font-size="18" font-weight="normal" text-anchor="middle" dominant-baseline="central">0..*</text>
+  <text x="391.0" y="296.0" fill="#151515" font-family="SimSun,宋体,serif" font-size="18" font-weight="normal" text-anchor="middle" dominant-baseline="central">1</text>
+  <text x="391.0" y="406.0" fill="#151515" font-family="SimSun,宋体,serif" font-size="18" font-weight="normal" text-anchor="middle" dominant-baseline="central">0..1</text>
+  <text x="391.0" y="363.0" fill="#151515" font-family="SimSun,宋体,serif" font-size="18" font-weight="normal" text-anchor="middle" dominant-baseline="central">1</text>
+  <text x="413.0" y="374.0" fill="#151515" font-family="SimSun,宋体,serif" font-size="18" font-weight="normal" text-anchor="middle" dominant-baseline="central">0..*</text>
+  <text x="767.0" y="307.0" fill="#151515" font-family="SimSun,宋体,serif" font-size="18" font-weight="normal" text-anchor="middle" dominant-baseline="central">1</text>
+  <text x="767.0" y="406.0" fill="#151515" font-family="SimSun,宋体,serif" font-size="18" font-weight="normal" text-anchor="middle" dominant-baseline="central">0..1</text>
+  <text x="391.0" y="446.0" fill="#151515" font-family="SimSun,宋体,serif" font-size="18" font-weight="normal" text-anchor="middle" dominant-baseline="central">1</text>
+  <text x="793.0" y="446.0" fill="#151515" font-family="SimSun,宋体,serif" font-size="18" font-weight="normal" text-anchor="middle" dominant-baseline="central">0..*</text>
+  <text x="400.0" y="307.0" fill="#151515" font-family="SimSun,宋体,serif" font-size="18" font-weight="normal" text-anchor="middle" dominant-baseline="central">1</text>
+  <text x="391.0" y="556.0" fill="#151515" font-family="SimSun,宋体,serif" font-size="18" font-weight="normal" text-anchor="middle" dominant-baseline="central">0..*</text>
+  <text x="400.0" y="587.0" fill="#151515" font-family="SimSun,宋体,serif" font-size="18" font-weight="normal" text-anchor="middle" dominant-baseline="central">1</text>
+  <text x="413.0" y="533.0" fill="#151515" font-family="SimSun,宋体,serif" font-size="18" font-weight="normal" text-anchor="middle" dominant-baseline="central">0..1</text>
+  <text x="400.0" y="457.0" fill="#151515" font-family="SimSun,宋体,serif" font-size="18" font-weight="normal" text-anchor="middle" dominant-baseline="central">1</text>
+  <text x="413.0" y="567.0" fill="#151515" font-family="SimSun,宋体,serif" font-size="18" font-weight="normal" text-anchor="middle" dominant-baseline="central">0..*</text>
+</svg>

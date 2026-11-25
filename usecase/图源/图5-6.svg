@@ -1,0 +1,156 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1800" height="677" viewBox="0 0 1800 677">
+  <rect x="0" y="0" width="1800" height="677" fill="white" stroke="none" stroke-width="1.7" />
+  <desc>表框及列区用课件 PDF 第 400 页格式，复合外键指向原季度版本。</desc>
+  <rect x="29" y="16" width="423" height="135" fill="white" stroke="#202020" stroke-width="1.7" />
+  <polyline points="29,51 452,51" fill="none" stroke="#202020" stroke-width="1.65" />
+  <text x="240.5" y="35" fill="#202020" font-family="SimSun,宋体,serif" font-size="25" font-weight="bold" text-anchor="middle" dominant-baseline="central">performance_period</text>
+  <text x="39" y="64" fill="#202020" font-family="SimSun,宋体,serif" font-size="17" font-weight="normal" text-anchor="start" dominant-baseline="central">«column»</text>
+  <text x="40" y="84" fill="#202020" font-family="SimSun,宋体,serif" font-size="20" font-weight="normal" text-anchor="start" dominant-baseline="central">«PK» period_id: bigint</text>
+  <polyline points="29,98 452,98" fill="none" stroke="#202020" stroke-width="1.65" />
+  <text x="39" y="113" fill="#202020" font-family="SimSun,宋体,serif" font-size="17" font-weight="normal" text-anchor="start" dominant-baseline="central">«PK» (period_id)</text>
+  <text x="39" y="133" fill="#202020" font-family="SimSun,宋体,serif" font-size="17" font-weight="normal" text-anchor="start" dominant-baseline="central">«UQ» (perf_year, perf_quarter)</text>
+  <rect x="29" y="159" width="423" height="183" fill="white" stroke="#202020" stroke-width="1.7" />
+  <polyline points="29,194 452,194" fill="none" stroke="#202020" stroke-width="1.65" />
+  <text x="240.5" y="178" fill="#202020" font-family="SimSun,宋体,serif" font-size="25" font-weight="bold" text-anchor="middle" dominant-baseline="central">expense_allocation</text>
+  <text x="39" y="207" fill="#202020" font-family="SimSun,宋体,serif" font-size="17" font-weight="normal" text-anchor="start" dominant-baseline="central">«column»</text>
+  <text x="40" y="227" fill="#202020" font-family="SimSun,宋体,serif" font-size="20" font-weight="normal" text-anchor="start" dominant-baseline="central">«PK» id: bigint</text>
+  <text x="40" y="251" fill="#202020" font-family="SimSun,宋体,serif" font-size="20" font-weight="normal" text-anchor="start" dominant-baseline="central">«FK» expense_id: bigint</text>
+  <text x="40" y="275" fill="#202020" font-family="SimSun,宋体,serif" font-size="20" font-weight="normal" text-anchor="start" dominant-baseline="central">«FK» dentist_id: bigint</text>
+  <polyline points="29,289 452,289" fill="none" stroke="#202020" stroke-width="1.65" />
+  <text x="39" y="304" fill="#202020" font-family="SimSun,宋体,serif" font-size="17" font-weight="normal" text-anchor="start" dominant-baseline="central">«PK» (id)</text>
+  <text x="39" y="324" fill="#202020" font-family="SimSun,宋体,serif" font-size="17" font-weight="normal" text-anchor="start" dominant-baseline="central">«UQ» (expense_id, dentist_id)</text>
+  <rect x="567" y="240.5" width="304" height="21" fill="white" stroke="#202020" stroke-width="1.7" />
+  <text x="719" y="251" fill="#202020" font-family="SimSun,宋体,serif" font-size="18" font-weight="normal" text-anchor="middle" dominant-baseline="central">operating_expense.expense_id</text>
+  <polyline points="452,251 567,251" fill="none" stroke="#202020" stroke-width="1.65" />
+  <polyline points="549,258 567,251 549,244" fill="none" stroke="#202020" stroke-width="1.65" />
+  <text x="466" y="239" fill="#202020" font-family="SimSun,宋体,serif" font-size="15" font-weight="normal" text-anchor="middle" dominant-baseline="central">*</text>
+  <text x="547" y="239" fill="#202020" font-family="SimSun,宋体,serif" font-size="15" font-weight="normal" text-anchor="middle" dominant-baseline="central">1</text>
+  <desc data-child="expense_allocation.expense_id" data-parent="operating_expense.expense_id" data-child-multiplicity="*" data-parent-multiplicity="1">expense_allocation.expense_id → operating_expense.expense_id</desc>
+  <rect x="567" y="264.5" width="304" height="21" fill="white" stroke="#202020" stroke-width="1.7" />
+  <text x="719" y="275" fill="#202020" font-family="SimSun,宋体,serif" font-size="18" font-weight="normal" text-anchor="middle" dominant-baseline="central">employee.employee_id</text>
+  <polyline points="452,275 567,275" fill="none" stroke="#202020" stroke-width="1.65" />
+  <polyline points="549,282 567,275 549,268" fill="none" stroke="#202020" stroke-width="1.65" />
+  <text x="466" y="263" fill="#202020" font-family="SimSun,宋体,serif" font-size="15" font-weight="normal" text-anchor="middle" dominant-baseline="central">*</text>
+  <text x="547" y="263" fill="#202020" font-family="SimSun,宋体,serif" font-size="15" font-weight="normal" text-anchor="middle" dominant-baseline="central">1</text>
+  <desc data-child="expense_allocation.dentist_id" data-parent="employee.employee_id" data-child-multiplicity="*" data-parent-multiplicity="1">expense_allocation.dentist_id → employee.employee_id</desc>
+  <rect x="29" y="353" width="423" height="275" fill="white" stroke="#202020" stroke-width="1.7" />
+  <polyline points="29,388 452,388" fill="none" stroke="#202020" stroke-width="1.65" />
+  <text x="240.5" y="372" fill="#202020" font-family="SimSun,宋体,serif" font-size="25" font-weight="bold" text-anchor="middle" dominant-baseline="central">performance_revision</text>
+  <text x="39" y="401" fill="#202020" font-family="SimSun,宋体,serif" font-size="17" font-weight="normal" text-anchor="start" dominant-baseline="central">«column»</text>
+  <text x="40" y="421" fill="#202020" font-family="SimSun,宋体,serif" font-size="20" font-weight="normal" text-anchor="start" dominant-baseline="central">«PK» revision_id: bigint</text>
+  <text x="40" y="445" fill="#202020" font-family="SimSun,宋体,serif" font-size="20" font-weight="normal" text-anchor="start" dominant-baseline="central">«FK» period_id: bigint</text>
+  <text x="40" y="469" fill="#202020" font-family="SimSun,宋体,serif" font-size="20" font-weight="normal" text-anchor="start" dominant-baseline="central">revision_no: integer</text>
+  <text x="40" y="493" fill="#202020" font-family="SimSun,宋体,serif" font-size="20" font-weight="normal" text-anchor="start" dominant-baseline="central">«FK» source_adjustment_id: bigint</text>
+  <text x="40" y="517" fill="#202020" font-family="SimSun,宋体,serif" font-size="20" font-weight="normal" text-anchor="start" dominant-baseline="central">«FK» confirmed_by: bigint</text>
+  <text x="40" y="541" fill="#202020" font-family="SimSun,宋体,serif" font-size="20" font-weight="normal" text-anchor="start" dominant-baseline="central">confirmed_at: timestamptz</text>
+  <polyline points="29,555 452,555" fill="none" stroke="#202020" stroke-width="1.65" />
+  <text x="39" y="570" fill="#202020" font-family="SimSun,宋体,serif" font-size="17" font-weight="normal" text-anchor="start" dominant-baseline="central">«PK» (revision_id)</text>
+  <text x="39" y="590" fill="#202020" font-family="SimSun,宋体,serif" font-size="17" font-weight="normal" text-anchor="start" dominant-baseline="central">«UQ» (period_id, revision_no)</text>
+  <text x="39" y="610" fill="#202020" font-family="SimSun,宋体,serif" font-size="17" font-weight="normal" text-anchor="start" dominant-baseline="central">«UQ» (source_adjustment_id)</text>
+  <rect x="567" y="434.5" width="304" height="21" fill="white" stroke="#202020" stroke-width="1.7" />
+  <text x="719" y="445" fill="#202020" font-family="SimSun,宋体,serif" font-size="18" font-weight="normal" text-anchor="middle" dominant-baseline="central">performance_period.period_id</text>
+  <polyline points="452,445 567,445" fill="none" stroke="#202020" stroke-width="1.65" />
+  <polyline points="549,452 567,445 549,438" fill="none" stroke="#202020" stroke-width="1.65" />
+  <text x="466" y="433" fill="#202020" font-family="SimSun,宋体,serif" font-size="15" font-weight="normal" text-anchor="middle" dominant-baseline="central">*</text>
+  <text x="547" y="433" fill="#202020" font-family="SimSun,宋体,serif" font-size="15" font-weight="normal" text-anchor="middle" dominant-baseline="central">1</text>
+  <desc data-child="performance_revision.period_id" data-parent="performance_period.period_id" data-child-multiplicity="*" data-parent-multiplicity="1">performance_revision.period_id → performance_period.period_id</desc>
+  <rect x="567" y="482.5" width="304" height="21" fill="white" stroke="#202020" stroke-width="1.7" />
+  <text x="719" y="493" fill="#202020" font-family="SimSun,宋体,serif" font-size="18" font-weight="normal" text-anchor="middle" dominant-baseline="central">invoice_adjustment.id</text>
+  <polyline points="452,493 567,493" fill="none" stroke="#202020" stroke-width="1.65" />
+  <polyline points="549,500 567,493 549,486" fill="none" stroke="#202020" stroke-width="1.65" />
+  <text x="466" y="481" fill="#202020" font-family="SimSun,宋体,serif" font-size="15" font-weight="normal" text-anchor="middle" dominant-baseline="central">0..1</text>
+  <text x="547" y="481" fill="#202020" font-family="SimSun,宋体,serif" font-size="15" font-weight="normal" text-anchor="middle" dominant-baseline="central">0..1</text>
+  <desc data-child="performance_revision.source_adjustment_id" data-parent="invoice_adjustment.id" data-child-multiplicity="0..1" data-parent-multiplicity="0..1">performance_revision.source_adjustment_id → invoice_adjustment.id</desc>
+  <rect x="567" y="506.5" width="304" height="21" fill="white" stroke="#202020" stroke-width="1.7" />
+  <text x="719" y="517" fill="#202020" font-family="SimSun,宋体,serif" font-size="18" font-weight="normal" text-anchor="middle" dominant-baseline="central">employee.employee_id</text>
+  <polyline points="452,517 567,517" fill="none" stroke="#202020" stroke-width="1.65" />
+  <polyline points="549,524 567,517 549,510" fill="none" stroke="#202020" stroke-width="1.65" />
+  <text x="466" y="505" fill="#202020" font-family="SimSun,宋体,serif" font-size="15" font-weight="normal" text-anchor="middle" dominant-baseline="central">*</text>
+  <text x="547" y="505" fill="#202020" font-family="SimSun,宋体,serif" font-size="15" font-weight="normal" text-anchor="middle" dominant-baseline="central">0..1</text>
+  <desc data-child="performance_revision.confirmed_by" data-parent="employee.employee_id" data-child-multiplicity="*" data-parent-multiplicity="0..1">performance_revision.confirmed_by → employee.employee_id</desc>
+  <rect x="919" y="16" width="423" height="187" fill="white" stroke="#202020" stroke-width="1.7" />
+  <polyline points="919,51 1342,51" fill="none" stroke="#202020" stroke-width="1.65" />
+  <text x="1130.5" y="35" fill="#202020" font-family="SimSun,宋体,serif" font-size="25" font-weight="bold" text-anchor="middle" dominant-baseline="central">operating_expense</text>
+  <text x="929" y="64" fill="#202020" font-family="SimSun,宋体,serif" font-size="17" font-weight="normal" text-anchor="start" dominant-baseline="central">«column»</text>
+  <text x="930" y="84" fill="#202020" font-family="SimSun,宋体,serif" font-size="20" font-weight="normal" text-anchor="start" dominant-baseline="central">«PK» expense_id: bigint</text>
+  <text x="930" y="108" fill="#202020" font-family="SimSun,宋体,serif" font-size="20" font-weight="normal" text-anchor="start" dominant-baseline="central">«FK» clinic_id: bigint</text>
+  <text x="930" y="132" fill="#202020" font-family="SimSun,宋体,serif" font-size="20" font-weight="normal" text-anchor="start" dominant-baseline="central">«FK» period_id: bigint</text>
+  <text x="930" y="156" fill="#202020" font-family="SimSun,宋体,serif" font-size="20" font-weight="normal" text-anchor="start" dominant-baseline="central">«FK» dentist_id: bigint</text>
+  <polyline points="919,170 1342,170" fill="none" stroke="#202020" stroke-width="1.65" />
+  <text x="929" y="185" fill="#202020" font-family="SimSun,宋体,serif" font-size="17" font-weight="normal" text-anchor="start" dominant-baseline="central">«PK» (expense_id)</text>
+  <rect x="1457" y="97.5" width="304" height="21" fill="white" stroke="#202020" stroke-width="1.7" />
+  <text x="1609" y="108" fill="#202020" font-family="SimSun,宋体,serif" font-size="18" font-weight="normal" text-anchor="middle" dominant-baseline="central">clinic.clinic_id</text>
+  <polyline points="1342,108 1457,108" fill="none" stroke="#202020" stroke-width="1.65" />
+  <polyline points="1439,115 1457,108 1439,101" fill="none" stroke="#202020" stroke-width="1.65" />
+  <text x="1356" y="96" fill="#202020" font-family="SimSun,宋体,serif" font-size="15" font-weight="normal" text-anchor="middle" dominant-baseline="central">*</text>
+  <text x="1437" y="96" fill="#202020" font-family="SimSun,宋体,serif" font-size="15" font-weight="normal" text-anchor="middle" dominant-baseline="central">1</text>
+  <desc data-child="operating_expense.clinic_id" data-parent="clinic.clinic_id" data-child-multiplicity="*" data-parent-multiplicity="1">operating_expense.clinic_id → clinic.clinic_id</desc>
+  <rect x="1457" y="121.5" width="304" height="21" fill="white" stroke="#202020" stroke-width="1.7" />
+  <text x="1609" y="132" fill="#202020" font-family="SimSun,宋体,serif" font-size="18" font-weight="normal" text-anchor="middle" dominant-baseline="central">performance_period.period_id</text>
+  <polyline points="1342,132 1457,132" fill="none" stroke="#202020" stroke-width="1.65" />
+  <polyline points="1439,139 1457,132 1439,125" fill="none" stroke="#202020" stroke-width="1.65" />
+  <text x="1356" y="120" fill="#202020" font-family="SimSun,宋体,serif" font-size="15" font-weight="normal" text-anchor="middle" dominant-baseline="central">*</text>
+  <text x="1437" y="120" fill="#202020" font-family="SimSun,宋体,serif" font-size="15" font-weight="normal" text-anchor="middle" dominant-baseline="central">1</text>
+  <desc data-child="operating_expense.period_id" data-parent="performance_period.period_id" data-child-multiplicity="*" data-parent-multiplicity="1">operating_expense.period_id → performance_period.period_id</desc>
+  <rect x="1457" y="145.5" width="304" height="21" fill="white" stroke="#202020" stroke-width="1.7" />
+  <text x="1609" y="156" fill="#202020" font-family="SimSun,宋体,serif" font-size="18" font-weight="normal" text-anchor="middle" dominant-baseline="central">employee.employee_id</text>
+  <polyline points="1342,156 1457,156" fill="none" stroke="#202020" stroke-width="1.65" />
+  <polyline points="1439,163 1457,156 1439,149" fill="none" stroke="#202020" stroke-width="1.65" />
+  <text x="1356" y="144" fill="#202020" font-family="SimSun,宋体,serif" font-size="15" font-weight="normal" text-anchor="middle" dominant-baseline="central">*</text>
+  <text x="1437" y="144" fill="#202020" font-family="SimSun,宋体,serif" font-size="15" font-weight="normal" text-anchor="middle" dominant-baseline="central">0..1</text>
+  <desc data-child="operating_expense.dentist_id" data-parent="employee.employee_id" data-child-multiplicity="*" data-parent-multiplicity="0..1">operating_expense.dentist_id → employee.employee_id</desc>
+  <rect x="919" y="212" width="423" height="231" fill="white" stroke="#202020" stroke-width="1.7" />
+  <polyline points="919,247 1342,247" fill="none" stroke="#202020" stroke-width="1.65" />
+  <text x="1130.5" y="231" fill="#202020" font-family="SimSun,宋体,serif" font-size="25" font-weight="bold" text-anchor="middle" dominant-baseline="central">dentist_performance</text>
+  <text x="929" y="260" fill="#202020" font-family="SimSun,宋体,serif" font-size="17" font-weight="normal" text-anchor="start" dominant-baseline="central">«column»</text>
+  <text x="930" y="280" fill="#202020" font-family="SimSun,宋体,serif" font-size="20" font-weight="normal" text-anchor="start" dominant-baseline="central">«PK» id: bigint</text>
+  <text x="930" y="304" fill="#202020" font-family="SimSun,宋体,serif" font-size="20" font-weight="normal" text-anchor="start" dominant-baseline="central">«FK» period_id: bigint</text>
+  <text x="930" y="328" fill="#202020" font-family="SimSun,宋体,serif" font-size="20" font-weight="normal" text-anchor="start" dominant-baseline="central">«FK» revision_no: integer</text>
+  <text x="930" y="352" fill="#202020" font-family="SimSun,宋体,serif" font-size="20" font-weight="normal" text-anchor="start" dominant-baseline="central">«FK» dentist_id: bigint</text>
+  <text x="930" y="376" fill="#202020" font-family="SimSun,宋体,serif" font-size="20" font-weight="normal" text-anchor="start" dominant-baseline="central">«FK» clinic_id: bigint</text>
+  <polyline points="919,390 1342,390" fill="none" stroke="#202020" stroke-width="1.65" />
+  <text x="929" y="405" fill="#202020" font-family="SimSun,宋体,serif" font-size="17" font-weight="normal" text-anchor="start" dominant-baseline="central">«PK» (id)</text>
+  <text x="929" y="425" fill="#202020" font-family="SimSun,宋体,serif" font-size="17" font-weight="normal" text-anchor="start" dominant-baseline="central">«UQ» (period_id, revision_no, dentist_id, clinic_id)</text>
+  <rect x="1457" y="297.0" width="304" height="38" fill="white" stroke="#202020" stroke-width="1.7" />
+  <text x="1609" y="307.0" fill="#202020" font-family="SimSun,宋体,serif" font-size="18" font-weight="normal" text-anchor="middle" dominant-baseline="central">performance_revision</text>
+  <text x="1609" y="325.0" fill="#202020" font-family="SimSun,宋体,serif" font-size="17" font-weight="normal" text-anchor="middle" dominant-baseline="central">(period_id, revision_no)</text>
+  <polyline points="1342,316 1457,316" fill="none" stroke="#202020" stroke-width="1.65" />
+  <polyline points="1439,323 1457,316 1439,309" fill="none" stroke="#202020" stroke-width="1.65" />
+  <text x="1356" y="304.0" fill="#202020" font-family="SimSun,宋体,serif" font-size="15" font-weight="normal" text-anchor="middle" dominant-baseline="central">*</text>
+  <text x="1437" y="304.0" fill="#202020" font-family="SimSun,宋体,serif" font-size="15" font-weight="normal" text-anchor="middle" dominant-baseline="central">1</text>
+  <desc data-child="dentist_performance.(period_id, revision_no)" data-parent="performance_revision(period_id, revision_no)" data-child-multiplicity="*" data-parent-multiplicity="1">dentist_performance.(period_id, revision_no) → performance_revision(period_id, revision_no)</desc>
+  <rect x="1457" y="341.5" width="304" height="21" fill="white" stroke="#202020" stroke-width="1.7" />
+  <text x="1609" y="352" fill="#202020" font-family="SimSun,宋体,serif" font-size="18" font-weight="normal" text-anchor="middle" dominant-baseline="central">employee.employee_id</text>
+  <polyline points="1342,352 1457,352" fill="none" stroke="#202020" stroke-width="1.65" />
+  <polyline points="1439,359 1457,352 1439,345" fill="none" stroke="#202020" stroke-width="1.65" />
+  <text x="1356" y="340" fill="#202020" font-family="SimSun,宋体,serif" font-size="15" font-weight="normal" text-anchor="middle" dominant-baseline="central">*</text>
+  <text x="1437" y="340" fill="#202020" font-family="SimSun,宋体,serif" font-size="15" font-weight="normal" text-anchor="middle" dominant-baseline="central">1</text>
+  <desc data-child="dentist_performance.dentist_id" data-parent="employee.employee_id" data-child-multiplicity="*" data-parent-multiplicity="1">dentist_performance.dentist_id → employee.employee_id</desc>
+  <rect x="1457" y="365.5" width="304" height="21" fill="white" stroke="#202020" stroke-width="1.7" />
+  <text x="1609" y="376" fill="#202020" font-family="SimSun,宋体,serif" font-size="18" font-weight="normal" text-anchor="middle" dominant-baseline="central">clinic.clinic_id</text>
+  <polyline points="1342,376 1457,376" fill="none" stroke="#202020" stroke-width="1.65" />
+  <polyline points="1439,383 1457,376 1439,369" fill="none" stroke="#202020" stroke-width="1.65" />
+  <text x="1356" y="364" fill="#202020" font-family="SimSun,宋体,serif" font-size="15" font-weight="normal" text-anchor="middle" dominant-baseline="central">*</text>
+  <text x="1437" y="364" fill="#202020" font-family="SimSun,宋体,serif" font-size="15" font-weight="normal" text-anchor="middle" dominant-baseline="central">1</text>
+  <desc data-child="dentist_performance.clinic_id" data-parent="clinic.clinic_id" data-child-multiplicity="*" data-parent-multiplicity="1">dentist_performance.clinic_id → clinic.clinic_id</desc>
+  <rect x="919" y="453" width="423" height="183" fill="white" stroke="#202020" stroke-width="1.7" />
+  <polyline points="919,488 1342,488" fill="none" stroke="#202020" stroke-width="1.65" />
+  <text x="1130.5" y="472" fill="#202020" font-family="SimSun,宋体,serif" font-size="25" font-weight="bold" text-anchor="middle" dominant-baseline="central">company_performance</text>
+  <text x="929" y="501" fill="#202020" font-family="SimSun,宋体,serif" font-size="17" font-weight="normal" text-anchor="start" dominant-baseline="central">«column»</text>
+  <text x="930" y="521" fill="#202020" font-family="SimSun,宋体,serif" font-size="20" font-weight="normal" text-anchor="start" dominant-baseline="central">«PK» id: bigint</text>
+  <text x="930" y="545" fill="#202020" font-family="SimSun,宋体,serif" font-size="20" font-weight="normal" text-anchor="start" dominant-baseline="central">«FK» period_id: bigint</text>
+  <text x="930" y="569" fill="#202020" font-family="SimSun,宋体,serif" font-size="20" font-weight="normal" text-anchor="start" dominant-baseline="central">«FK» revision_no: integer</text>
+  <polyline points="919,583 1342,583" fill="none" stroke="#202020" stroke-width="1.65" />
+  <text x="929" y="598" fill="#202020" font-family="SimSun,宋体,serif" font-size="17" font-weight="normal" text-anchor="start" dominant-baseline="central">«PK» (id)</text>
+  <text x="929" y="618" fill="#202020" font-family="SimSun,宋体,serif" font-size="17" font-weight="normal" text-anchor="start" dominant-baseline="central">«UQ» (period_id, revision_no)</text>
+  <rect x="1457" y="538.0" width="304" height="38" fill="white" stroke="#202020" stroke-width="1.7" />
+  <text x="1609" y="548.0" fill="#202020" font-family="SimSun,宋体,serif" font-size="18" font-weight="normal" text-anchor="middle" dominant-baseline="central">performance_revision</text>
+  <text x="1609" y="566.0" fill="#202020" font-family="SimSun,宋体,serif" font-size="17" font-weight="normal" text-anchor="middle" dominant-baseline="central">(period_id, revision_no)</text>
+  <polyline points="1342,557 1457,557" fill="none" stroke="#202020" stroke-width="1.65" />
+  <polyline points="1439,564 1457,557 1439,550" fill="none" stroke="#202020" stroke-width="1.65" />
+  <text x="1356" y="545.0" fill="#202020" font-family="SimSun,宋体,serif" font-size="15" font-weight="normal" text-anchor="middle" dominant-baseline="central">0..1</text>
+  <text x="1437" y="545.0" fill="#202020" font-family="SimSun,宋体,serif" font-size="15" font-weight="normal" text-anchor="middle" dominant-baseline="central">1</text>
+  <desc data-child="company_performance.(period_id, revision_no)" data-parent="performance_revision(period_id, revision_no)" data-child-multiplicity="0..1" data-parent-multiplicity="1">company_performance.(period_id, revision_no) → performance_revision(period_id, revision_no)</desc>
+  <text x="29" y="650" fill="#202020" font-family="SimSun,宋体,serif" font-size="17" font-weight="normal" text-anchor="start" dominant-baseline="central">版本号从 1 递增。初版来源调整为空，后续版本关联一笔获批调整。确认人、确认时间须同时留空或同时填写。</text>
+  <text x="29" y="669" fill="#202020" font-family="SimSun,宋体,serif" font-size="17" font-weight="normal" text-anchor="start" dominant-baseline="central">company_performance_revision_fact 含待确认版本。正式报告比较原确认版与最新确认版，并列出差额。</text>
+</svg>

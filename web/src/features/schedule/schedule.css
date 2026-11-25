@@ -1,0 +1,69 @@
+.schedule-page { display: grid; gap: 16px; }
+.schedule-tabs, .schedule-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.schedule-tabs .button[aria-pressed="true"] { color: var(--primary); background: #edf4ff; border-color: #b6d2f4; }
+.schedule-panel, .schedule-drawer {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px;
+  min-width: 0;
+}
+.schedule-heading { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; }
+.schedule-heading h2, .schedule-panel > h2 { margin: 0 0 8px; font-size: 19px; }
+.schedule-form { display: flex; flex-wrap: wrap; gap: 8px; align-items: end; margin: 16px 0; }
+.schedule-form label { display: grid; gap: 4px; font-size: 14px; }
+.schedule-form label.inline-control { display: inline-flex; align-items: center; }
+.compact-list { padding: 0; margin: 12px 0 0; list-style: none; }
+.compact-list li { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; padding: 12px 0; border-top: 1px solid var(--border); }
+.schedule-scroll { overflow: auto; margin-top: 12px; }
+.shift-grid { width: 100%; min-width: 770px; border-collapse: collapse; table-layout: fixed; }
+.shift-grid th, .shift-grid td { border: 1px solid var(--border); padding: 8px; vertical-align: top; font-size: 13px; }
+.shift-grid thead { background: var(--page); color: var(--secondary); }
+.shift-grid th[scope="row"] { text-align: left; }
+.shift-slot {
+  display: grid;
+  width: 100%;
+  gap: 4px;
+  text-align: left;
+  padding: 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: inherit;
+  background: var(--page);
+  cursor: pointer;
+}
+.shift-slot + .shift-slot { margin-top: 8px; }
+.compact-list .shift-slot { max-width: 320px; }
+.status-tag {
+  display: inline-block;
+  width: max-content;
+  border-radius: 4px;
+  padding: 2px 6px;
+  color: var(--secondary);
+  background: #edf3fa;
+}
+.status-tag[data-state="PUBLISHED"], .status-tag[data-state="COMPLETED"] { color: var(--success); background: var(--success-soft); }
+.status-tag[data-state="PENDING"], .status-tag[data-state="CHECKED_IN"] { color: var(--pending); background: var(--pending-soft); }
+.status-tag[data-state="REJECTED"], .status-tag[data-state="CANCELLED"] { color: var(--error); background: var(--error-soft); }
+.schedule-drawer {
+  position: fixed;
+  top: 64px;
+  bottom: 0;
+  right: 0;
+  width: min(var(--drawer-width), 100%);
+  z-index: 3;
+  overflow: auto;
+  padding: 24px;
+  box-shadow: -4px 0 20px #17283e12;
+}
+.muted { color: var(--secondary); }
+.appointment-grid th:first-child { width: 92px; }
+.appointment-grid td { min-width: 142px; }
+.appointment-grid td > div + div { margin-top: 8px; }
+.appointment-action { margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--border); }
+.appointment-action h3 { margin: 0 0 8px; }
+
+@media (max-width: 760px) {
+  .schedule-panel, .schedule-drawer { padding: 12px; }
+  .schedule-drawer { top: 0; }
+}
