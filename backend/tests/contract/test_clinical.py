@@ -79,6 +79,19 @@ class ClinicalContractTests(TestCase):
             self.assertIn(started.status_code, (200, 201), started.content)
         return started.json()["data"]["visit_id"]
 
+    def test_finished_visit_list_is_separate_and_dentist_scoped(self):
+        visit_id = self.check_in_and_start()
+        visit_path = "/api/v1/visits/" + visit_id
+        ended = self.dentist.post(visit_path + "/terminate", {"reason": "合成患者决定停止"},
+                                  content_type="application/json", HTTP_IDEMPOTENCY_KEY="clinical-history-end")
+        self.assertEqual(ended.status_code, 200, ended.content)
+        active = self.dentist.get("/api/v1/clinical/queue")
+        archive = self.dentist.get("/api/v1/clinical/queue?view=history")
+        self.assertEqual(archive.status_code, 200, archive.content)
+        self.assertNotIn(visit_id, [item["visit_id"] for item in active.json()["data"]["items"]])
+        self.assertIn(visit_id, [item["visit_id"] for item in archive.json()["data"]["items"]])
+        self.assertEqual(self.front.get("/api/v1/clinical/queue?view=history").status_code, 403)
+
     def test_sign_in_and_actual_start_are_separate_and_refund_only_once(self):
         rejected = self.action(self.other, "check-in", "clinical-cross-clinic", identity_confirmed=True)
         self.assertIn(rejected.status_code, (403, 404))

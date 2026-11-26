@@ -1,6 +1,7 @@
 import { FormEvent, useEffect, useState } from "react";
 
-import { ApiError, request } from "../../shared/api";
+import { ApiError } from "../../shared/api";
+import { useApiRequest } from "../../shared/ApiTransport";
 import type { StaffIdentity } from "../../shared/AppShell";
 import { localDate, localTime, toOffset } from "./types";
 
@@ -15,6 +16,7 @@ export type Demand = {
 type Qualification = { qualification_id: string; name: string };
 
 export function ShiftDemandForm({ identity, clinicId }: { identity: StaffIdentity; clinicId: string }) {
+  const request = useApiRequest();
   const [qualifications, setQualifications] = useState<Qualification[]>([]);
   const [demands, setDemands] = useState<Demand[]>([]);
   const [error, setError] = useState("");

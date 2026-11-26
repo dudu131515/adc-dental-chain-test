@@ -1,9 +1,10 @@
 export const groups = [
   {id:"desk", name:"门诊运营", icon:"calendar", tabs:[
-    {id:"desk/home", label:"预约趋势", title:"预约趋势"},
+    {id:"desk/home", label:"今日门诊", title:"今日门诊"},
     {id:"desk/calendar", label:"预约日历", title:"预约日历"},
     {id:"desk/staff", label:"跨店排班", title:"跨店排班"},
-    {id:"desk/chairs", label:"牙椅资源", title:"牙椅资源"},
+    {id:"desk/demands", label:"排班需求", title:"排班需求"},
+    {id:"desk/chairs", label:"牙椅停用", title:"牙椅停用"},
   ]},
   {id:"patients", name:"患者与诊疗", icon:"tooth", tabs:[
     {id:"patients/directory", label:"患者档案", title:"患者档案"},
@@ -17,12 +18,14 @@ export const groups = [
     {id:"billing/approvals", label:"更正与审批", title:"更正与审批"},
   ]},
   {id:"operations", name:"经营与配置", icon:"chart", tabs:[
-    {id:"operations/overview", label:"经营概览", title:"经营概览"},
+    {id:"operations/overview", label:"经营报告", title:"经营报告"},
     {id:"operations/compare", label:"门店对比", title:"门店对比"},
-    {id:"operations/ai", label:"AI 分析", title:"AI 分析"},
+    {id:"operations/ai", label:"经营智能助手", title:"经营智能助手"},
+    {id:"operations/expenses", label:"费用登记", title:"费用登记"},
     {id:"operations/quarter", label:"季度核算", title:"季度核算"},
     {id:"operations/catalog", label:"项目与价格", title:"项目与价格"},
-    {id:"operations/access", label:"门店与授权", title:"门店与授权"},
+    {id:"operations/clinics", label:"门店与资源", title:"门店与资源"},
+    {id:"operations/access", label:"人员与授权", title:"人员与授权"},
   ]},
 ] as const;
 

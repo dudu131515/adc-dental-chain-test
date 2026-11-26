@@ -1,6 +1,6 @@
 export const clinics = {central: "中心口腔门诊", river: "滨江口腔门诊"} as const;
 export type Clinic = keyof typeof clinics;
-export const days = ["2026-11-25", "2026-11-26"] as const;
+export const days = ["2026-11-25", "2026-11-26", "2026-11-27", "2026-11-28", "2026-11-29"] as const;
 export const statusLabels = {
   booked: "已确认", arrived: "已签到", treating: "诊疗中",
   done: "已结束", missed: "已核实爽约", cancelled: "已取消",
@@ -30,11 +30,32 @@ export const appointments: Appointment[] = [
   {id:"ADC-DEMO-011", date:tomorrow, clinic:"central", time:"10:30", patient:"陈晓雨", service:"口腔检查", doctor:"林明远", status:"booked", allergy:"乳胶"},
   {id:"ADC-DEMO-025", date:tomorrow, clinic:"river", time:"15:00", patient:"沈淮", service:"洁牙护理", doctor:"顾然", status:"booked"},
 ].sort((a,b) => a.time.localeCompare(b.time)) as Appointment[];
+const samplePatients=["梁语","俞静","龚婷","夏言","郭帆","杜思彤","罗杏","苏怡","柳明","欧阳欣","于航","韩茵"];
+const sampleDoctors={central:["林明远","周宁"],river:["何可","顾然"]};
+const sampleServices=["口腔检查","树脂充填","洁牙护理","根管治疗","牙周基础治疗"];
+const sampleStatuses:Status[]=["done","arrived","treating","booked","missed","cancelled"];
+for(const [dayIndex,date] of days.slice(2).entries()){
+  for(const [i,patient] of samplePatients.entries()){
+    const clinic=i%2===0?"central":"river";
+    const status=sampleStatuses[(i+dayIndex)%sampleStatuses.length];
+    const number=100+dayIndex*20+i;
+    appointments.push({id:"ADC-DEMO-"+number,date,clinic,patient,doctor:sampleDoctors[clinic][(i+dayIndex)%2],
+      time:String(8+Math.floor(i/2)).padStart(2,"0")+":"+(i%2?"30":"00"),
+      service:sampleServices[i%sampleServices.length],status,
+      allergy:i%5===0?"乳胶":i%7===0?"青霉素":undefined,
+      invoice:status==="done"?"ADC-DEMO-INV-"+number:undefined});
+  }
+}
 
-export const invoices = {
+export const invoices:Record<string,{status:string;due:number;received:number;refunded:number;outstanding:number}> = {
   "ADC-DEMO-INV-120": {status:"部分收款", due:180, received:80, refunded:0, outstanding:100},
   "ADC-DEMO-INV-131": {status:"已结清", due:150, received:180, refunded:20, outstanding:0},
-} as const;
+};
+for(const [index,row] of appointments.filter(item=>item.invoice&&!invoices[item.invoice]).entries()){
+  const due=180+index*50;
+  const received=index%2===0?due:80;
+  invoices[row.invoice!]={status:received===due?"已结清":"部分收款",due,received,refunded:0,outstanding:due-received};
+}
 
 type Fund = {clinic: Clinic; date: (typeof days)[number]; id: string; label: string; type: "deposit" | "treatment"; kind: "received" | "refund" | "pending"; value: number; time: string};
 export const funds: Fund[] = [
@@ -56,6 +77,12 @@ export const chairs = [
   {code:"B-02",clinic:"river",doctor:"顾然",room:"第二诊室",type:"通用"},
 ] as const;
 
+for(const row of appointments.filter(item=>item.invoice&&item.date>days[1])){
+  const invoice=invoices[row.invoice!];
+  funds.push({clinic:row.clinic,date:row.date,id:row.invoice!,label:"诊疗收款",type:"treatment",kind:"received",value:invoice.received,time:row.time});
+  funds.push({clinic:row.clinic,date:row.date,id:row.id,label:"预约金已退",type:"deposit",kind:"refund",value:50,time:row.time});
+}
+
 export const staffShifts = [
   {doctor:"林明远",clinic:"central",date:today,time:"08:30–17:00",status:"已发布"},
   {doctor:"周宁",clinic:"central",date:today,time:"09:00–17:30",status:"已发布"},
@@ -71,16 +98,13 @@ export const catalog = [
   {code:"CLEAN",name:"洁牙护理",price:180,duration:30,date:"2026-09-01"},
   {code:"FILL",name:"树脂充填",price:280,duration:30,date:"2026-09-01"},
 ] as const;
-export const accessRows = [
-  {role:"诊所前台",scope:"中心口腔门诊",actions:"患者登记、签到、开单与收退"},
-  {role:"责任牙医",scope:"中心、滨江口腔门诊",actions:"本人接诊、过敏核对、诊疗记录"},
-  {role:"诊所主管",scope:"滨江口腔门诊",actions:"更正审批、日结、费用核对"},
-  {role:"总部经营查询",scope:"两家授权门店",actions:"经营报表、门店对比、助手"},
-  {role:"总部权限管理",scope:"总部",actions:"门店资料、员工账号与门店授权"},
-] as const;
 export const approvals = [
   {id:"COR-DEMO-031",appointment:"ADC-DEMO-021",clinic:"river",reason:"计费项目差额",amount:-30,status:"已入账"},
   {id:"COR-DEMO-032",appointment:"ADC-DEMO-001",clinic:"central",reason:"治疗记录更正",amount:0,status:"待主管复核"},
+  {id:"COR-DEMO-036",appointment:"ADC-DEMO-024",clinic:"river",reason:"重复挂号结果核查",amount:0,status:"已退回"},
+  {id:"COR-DEMO-041",appointment:"ADC-DEMO-010",clinic:"central",reason:"更正牙位记录",amount:0,status:"待主管复核"},
+  {id:"COR-DEMO-045",appointment:"ADC-DEMO-021",clinic:"river",reason:"旧明细误用标准价",amount:-20,status:"已入账"},
+  {id:"COR-DEMO-046",appointment:"ADC-DEMO-002",clinic:"central",reason:"补充已实施项目证据",amount:40,status:"待主管复核"},
 ] as const;
 
 type Daily = {day:string; clinic:Clinic; arrived:number; total:number; unresolved:number; net:number};

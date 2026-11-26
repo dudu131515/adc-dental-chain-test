@@ -1,6 +1,7 @@
 import { FormEvent, useEffect, useRef, useState } from "react";
 import { StaffIdentity } from "../../shared/AppShell";
-import { ApiError, request } from "../../shared/api";
+import { ApiError } from "../../shared/api";
+import { useApiRequest } from "../../shared/ApiTransport";
 import { errorMessage, localDay } from "../../shared/format";
 import { Period } from "./ExpensesPage";
 import { Version, VersionComparison, versionStates } from "./VersionComparison";
@@ -12,6 +13,7 @@ const base = "/performance/periods";
 export function QuarterReview({ identity, periodId, open }: {
   identity: StaffIdentity; periodId?: string; open: (path: string) => void;
 }) {
+  const request = useApiRequest();
   const canCalculate = identity.capabilities.includes("HQ_PERFORMANCE_CALCULATE");
   const today = localDay().split("-").map(Number);
   const [year, setYear] = useState(today[0]);
@@ -108,12 +110,16 @@ export function QuarterReview({ identity, periodId, open }: {
         </select></label>
         <button className="button primary" disabled={busy}>打开核算期间</button>
       </form>}
-      {!!items.length && <ul className="compact-list">{items.map(row => <li key={row.period_id}>
-        <button className="text-action" onClick={() => open("/operations/quarters/" + row.period_id)}>
-          {row.year} 年第 {row.quarter} 季度
-        </button>{row.status && <span>{versionStates[row.status]}</span>}
-        {row.latest_confirmed_revision_no && <span>最新正式第 {row.latest_confirmed_revision_no} 版</span>}
-      </li>)}</ul>}
+      {!!items.length && <div className="schedule-scroll"><table className="report-table">
+        <thead><tr><th scope="col">核算期间</th><th scope="col">当前状态</th><th scope="col">最新已确认版本</th></tr></thead>
+        <tbody>{items.map(row => <tr key={row.period_id}>
+          <th scope="row"><button className="text-action" onClick={() => open("/operations/quarters/" + row.period_id)}>
+            {row.year} 年第 {row.quarter} 季度
+          </button></th>
+          <td><span className="status-tag" data-state={row.status}>{row.status ? versionStates[row.status] ?? row.status : "—"}</span></td>
+          <td>{row.latest_confirmed_revision_no ? "正式第 " + row.latest_confirmed_revision_no + " 版" : "尚未确认"}</td>
+        </tr>)}</tbody>
+      </table></div>}
       {!loading && !items.length && <p>当前范围暂无季度。</p>}
     </section>}
     {shownPeriod && <section className="schedule-panel">

@@ -1,12 +1,25 @@
-import { type MouseEvent, useEffect, useRef, useState } from "react";
+import { type MouseEvent, useEffect, useMemo, useRef, useState } from "react";
 import { Brand, Icon } from "../src/shared/Icons";
 import {
-  type Appointment, type Clinic, type Status, appointments, clinics, days, funds, money, statusLabels,
+  type Appointment, type Clinic, type Status, appointments, clinics, days, statusLabels,
 } from "./fixtures";
-import { OperationsDemo, OperationsOverview, SourceTable } from "./OperationsDemo";
+import { OperationsDemo, OperationsOverview } from "./OperationsDemo";
 import { AppointmentList, VisitDrawer } from "./AppointmentDetails";
-import { AppointmentCalendar, ClinicResources, PatientWorkspace } from "./ClinicViews";
-import { Billing, FinanceWorkspace, BusinessDirectory } from "./FinanceViews";
+import { AppointmentCalendar, PatientWorkspace } from "./ClinicViews";
+import { Billing, FinanceWorkspace } from "./FinanceViews";
+import { ApiTransport } from "../src/shared/ApiTransport";
+import { ManagementHome } from "../src/features/dashboard/DashboardPage";
+import { ShiftBoard } from "../src/features/schedule/ShiftBoard";
+import { ShiftDemandForm } from "../src/features/schedule/ShiftDemandForm";
+import { ResourceImpactPanel } from "../src/features/schedule/ResourceImpactPanel";
+import { AccessPage } from "../src/features/admin/AccessPage";
+import { CatalogPage } from "../src/features/catalog/CatalogPage";
+import { ExpensesPage } from "../src/features/operations/ExpensesPage";
+import { QuarterReview } from "../src/features/operations/QuarterReview";
+import { OperationsReport } from "../src/features/operations/OperationsReport";
+import { ClinicComparison } from "../src/features/operations/ClinicComparison";
+import "../src/features/operations/operations.css";
+import { createSampleWorkspace, sampleRoles, type SampleRole } from "./sampleWorkspace";
 import { type Route, groups, routeFromHash } from "./workspace";
 
 const states = Object.keys(statusLabels) as Status[];
@@ -69,35 +82,14 @@ function Dashboard({rows, onOpen, onCalendar}: {rows:Appointment[]; onCalendar:(
 
 
 
-function HomeOverview({rows,date,clinic,open}:{
-  rows:Appointment[]; date:string; clinic:Clinic|"all"; open:(event:MouseEvent<HTMLAnchorElement>,route:Route)=>void;
-}) {
-  const receipts=funds.filter(row=>row.date===date&&(clinic==="all"||row.clinic===clinic)&&row.kind!=="pending");
-  const net=receipts.filter(row=>row.type==="treatment").reduce((sum,row)=>sum+(row.kind==="refund"?-row.value:row.value),0);
-  const totals=[
-    {label:"门诊运营",value:rows.length+" 笔",helper:"预约总量",icon:"calendar"},
-    {label:"患者与诊疗",value:new Set(rows.map(row=>row.patient)).size+" 位",helper:"涉及患者",icon:"tooth"},
-    {label:"收费与日结",value:money(net),helper:"诊疗净实收",icon:"receipt"},
-    {label:"经营与配置",value:(clinic==="all"?2:1)+" 家",helper:"展示门店",icon:"chart"},
-  ] as const;
-  return <>
-    <section className="pd-home-hero"><div><h2>安德鲁牙科连锁</h2><p>查看门店整体运行情况，再进入对应业务</p></div>
-      <a className="pd-home-assistant" href="#operations/ai" onClick={event=>open(event,"operations/ai")}>
-        <Icon name="activity" size={18}/>问经营助手<Icon name="arrow" size={16}/></a>
-    </section>
-    <div className="pd-metrics pd-compact-metrics">{totals.map(item=><article className="pd-metric" key={item.label}>
-      <div><span>{item.label}</span><strong>{item.value}</strong><small>{item.helper}</small></div>
-      <span className="pd-metric-icon"><Icon name={item.icon} size={19}/></span></article>)}</div>
-    <section className="pd-panel"><div className="pd-panel-title"><div><h2>功能直达</h2></div></div>
-      <div className="pd-home-links">{groups.map(group=><a key={group.id} href={"#"+group.tabs[0].id}
-        onClick={event=>open(event,group.tabs[0].id)}><Icon name={group.icon} size={20}/><span><strong>{group.name}</strong>
-          <small>{group.tabs.slice(0,3).map(item=>item.label).join(" · ")}</small></span><Icon name="chevron" size={16}/></a>)}</div>
-    </section>
-  </>;
-}
-
 export function PagesDemo() {
   const [route,setRoute] = useState(routeFromHash);
+  const [sample] = useState(createSampleWorkspace);
+  const [role,setRole]=useState<SampleRole>("visitor");
+  const [quarter,setQuarter]=useState<string>();
+  const [reportQuery,setReportQuery]=useState("");
+  const request=useMemo(()=>sample.transport(role),[sample,role]);
+  const identity=sample.identity(role);
   const [clinic,setClinic] = useState<Clinic | "all">("all");
   const [date,setDate] = useState<(typeof days)[number]>(days[0]);
   const [selected,setSelected] = useState<{row:Appointment; bill:boolean}>();
@@ -109,6 +101,8 @@ export function PagesDemo() {
   const [expanded,setExpanded] = useState<string>(()=>routeFromHash().split("/")[0]);
   function switchRoute(next:Route) {
     setRoute(next);
+    if(next!=="operations/quarter") setQuarter(undefined);
+    if(next!=="operations/overview") setReportQuery("");
     setExpanded(next.split("/")[0]);
     setNavOpen(false);
     setSelected(undefined);
@@ -127,6 +121,25 @@ export function PagesDemo() {
     switchRoute(next);
     document.documentElement.scrollTop = 0;
   }
+  function openShared(path:string) {
+    const quarterPath = path.match(/^\/operations\/quarters(?:\/(\d+))?$/);
+    if(quarterPath){
+      if(route!=="operations/quarter"){
+        window.history.pushState(null,"","#operations/quarter");
+        switchRoute("operations/quarter");
+      }
+      setQuarter(quarterPath[1]); return;
+    }
+    if(path.startsWith("/operations/report")){
+      window.history.pushState(null,"","#operations/overview");
+      switchRoute("operations/overview");
+      setReportQuery(path.split("?")[1]??"");
+    }
+  }
+  function showAppointment(id:string){
+    const row=appointments.find(item=>item.id===id);
+    if(row) setSelected({row,bill:false});
+  }
   function inspect(row:Appointment, button:HTMLButtonElement, bill=false) {
     trigger.current = button;
     setSelected({row,bill});
@@ -135,10 +148,15 @@ export function PagesDemo() {
     setSelected(undefined);
     requestAnimationFrame(() => trigger.current?.focus());
   }
-  const scoped = appointments.filter(item => clinic === "all" || clinic === item.clinic);
+  const filterableClinics=role==="visitor"?Object.keys(clinics):identity.clinics.map(branch=>branch.clinic_id);
+  const scoped = appointments.filter(item => filterableClinics.includes(item.clinic) && (clinic === "all" || clinic === item.clinic));
   const rows = scoped.filter(item => item.date === date);
-  const usesDate = group?.id !== "operations" && route !== "patients/directory";
-  return <div className="pd-app">
+  const usesDate = group?.id !== "operations" && route !== "patients/directory" && !["desk/staff","desk/demands","desk/chairs"].includes(route);
+  const scopedClinic=clinic==="all"?(role==="manager"||role==="front"?identity.clinics[0]?.clinic_id||"":""):clinic;
+  const managementIdentity=role==="visitor"?sample.identity("reports"):identity;
+  const previewComparison={current:{from:"2026-11-24",to:"2026-11-26"},before:{from:"2026-11-17",to:"2026-11-19"}};
+  const allowedScope=identity.clinics.some(branch=>branch.clinic_id===scopedClinic)?scopedClinic:"";
+  return <ApiTransport.Provider value={request}><div className="pd-app">
     <a className="skip-link" href="#demo-main" onClick={event => {
       event.preventDefault(); document.getElementById("demo-main")?.focus();
     }}>跳至工作区</a>
@@ -150,7 +168,7 @@ export function PagesDemo() {
         <a href="#home" aria-current={route==="home"?"page":undefined} onClick={event=>open(event,"home")}>
           <Icon name="dashboard" size={19}/>首页</a>
         {groups.map(item => <div className="pd-tree-section" key={item.id}>
-          <button className="pd-tree-heading" type="button" aria-expanded={expanded===item.id}
+          <button className="pd-tree-heading" type="button" data-active={group?.id===item.id} aria-expanded={expanded===item.id}
             aria-controls={"demo-group-"+item.id} onClick={()=>setExpanded(expanded===item.id?"":item.id)}>
             <Icon name={item.icon} size={19}/>{item.name}<Icon name="chevron" size={15}/>
           </button>
@@ -164,32 +182,47 @@ export function PagesDemo() {
     </aside>
     <div className="pd-content">
       <header className="pd-top"><div><span>管理中心</span><b>/</b>{group?.name ?? "首页"}</div>
-        <span className="pd-demo"><i aria-hidden="true"/>合成演示</span>
+        <div className="pd-demo-controls"><label>样例身份 <select value={role} onChange={event=>{setRole(event.target.value as SampleRole);setClinic("all");}}>
+          {Object.entries(sampleRoles).map(([key,item])=><option key={key} value={key}>{item.label}</option>)}
+        </select></label><span className="pd-demo"><i aria-hidden="true"/>合成演示</span></div>
       </header>
       <main className="pd-main" id="demo-main" tabIndex={-1}>
-        <div className="pd-heading"><div><h1>{tab?.title ?? "运营首页"}</h1>
+        {route!=="home" && <div className="pd-heading"><div><h1>{tab?.title}</h1>
           {usesDate && <p>{(clinic === "all" ? "两家门店" : clinics[clinic]) + " · " + date}</p>}</div>
-          {(usesDate || route === "patients/directory" || route === "operations/overview") && <div className="pd-filters">
+          {(usesDate || ["patients/directory","operations/overview","operations/expenses","desk/staff","desk/demands","desk/chairs"].includes(route)) && <div className="pd-filters">
             <label>门店<select value={clinic} onChange={event => setClinic(event.target.value as Clinic | "all")}>
-              <option value="all">全部门店</option>{Object.entries(clinics).map(([key,label]) => <option key={key} value={key}>{label}</option>)}
+              <option value="all">全部门店</option>{Object.entries(clinics).filter(([key])=>filterableClinics.includes(key)).map(([key,label]) => <option key={key} value={key}>{label}</option>)}
             </select></label>
             {usesDate && <label>业务日期<select value={date} onChange={event => setDate(event.target.value as (typeof days)[number])}>
               {days.map(day => <option value={day} key={day}>{day}</option>)}</select></label>}
           </div>}
-        </div>
-        {route === "home" && <HomeOverview rows={rows} date={date} clinic={clinic} open={open}/>}
+        </div>}
+        {route === "home" && <ManagementHome section="/dashboard" path="/dashboard" summaryDay={date} identity={managementIdentity} clinicId={allowedScope} open={openShared}/>}
         {route === "desk/home" && <Dashboard key={clinic+date} rows={rows} onOpen={inspect} onCalendar={event=>open(event,"desk/calendar")}/>}
         {route === "desk/calendar" && <AppointmentCalendar key={clinic+date} rows={rows} clinic={clinic} onOpen={inspect}/>}
-        {(route === "desk/staff" || route === "desk/chairs") && <ClinicResources route={route} date={date} rows={rows} clinic={clinic}/>}
+        {route === "desk/staff" && <ShiftBoard key={role+allowedScope} initialWeek="2026-11-23" identity={identity} clinicId={allowedScope} onAppointment={showAppointment}/>}
+        {route === "desk/demands" && <ShiftDemandForm key={role+allowedScope} identity={identity} clinicId={allowedScope}/>}
+        {route === "desk/chairs" && <ResourceImpactPanel key={role+allowedScope} identity={identity} clinicId={allowedScope} onAppointment={showAppointment}/>}
         {group?.id === "patients" && <PatientWorkspace key={route} route={route} rows={rows} scoped={scoped} onOpen={inspect}/>}
         {route === "billing/reconcile" && <Billing date={date} clinic={clinic}/>}
         {group?.id === "billing" && route!=="billing/reconcile" && <FinanceWorkspace key={route} route={route} rows={rows} clinic={clinic} onOpen={inspect}/>}
-        {route === "operations/overview" && <OperationsOverview clinic={clinic}/>}
-        {route === "operations/compare" && <SourceTable title="两店样例指标"/>}
+        {route === "operations/overview" && <>
+          {!reportQuery && <OperationsOverview clinic={clinic}/>}
+          <OperationsReport key={reportQuery||clinic} identity={managementIdentity} clinicId={clinic==="all"?"":clinic}
+            initialQuery={reportQuery||"date_from=2026-11-24&date_to=2026-11-26"+(clinic==="all"?"":"&clinic_ids="+clinic)}
+            inlineAssistantActive={false} assistantLink="#operations/ai" open={openShared}/>
+        </>}
+        {route === "operations/compare" && <ClinicComparison key={role} identity={managementIdentity} initial={previewComparison} open={openShared}/>}
         {route === "operations/ai" && <OperationsDemo/>}
-        {["operations/quarter","operations/catalog","operations/access"].includes(route) && <BusinessDirectory route={route}/>}
+        {route === "operations/expenses" && <ExpensesPage key={role+allowedScope} identity={identity} clinicId={allowedScope}/>}
+        {route === "operations/quarter" && <QuarterReview key={role} identity={identity} periodId={quarter} open={openShared}/>}
+        {route === "operations/catalog" && <CatalogPage key={role} canEdit={role==="catalog"}/>}
+        {["operations/access","operations/clinics"].includes(route) && <AccessPage key={role+route} path={route==="operations/clinics"?"/admin/clinics":"/admin/access"}
+          section="/admin" identity={identity} clinicId={allowedScope} open={openShared}/>}
+        {(route==="operations/access"||route==="operations/clinics")&&role!=="admin"&&
+          <p className="muted">在右上角切换到「总部权限管理员」后可体验员工和授权管理。</p>}
       </main>
     </div>
     {selected && <VisitDrawer visit={selected.row} initialBill={selected.bill} dismiss={dismiss}/>}
-  </div>;
+  </div></ApiTransport.Provider>;
 }

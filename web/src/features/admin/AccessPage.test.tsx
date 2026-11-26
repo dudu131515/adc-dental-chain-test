@@ -41,6 +41,7 @@ test("the clinic directory is read-only and uses the authorized clinic endpoint"
 test("grant recovery keeps the operation key and reloads the result after a successful retry", async () => {
   const operations: { key: string | null; body: unknown }[] = [];
   const fetcher = vi.fn(async (url: string, options: RequestInit) => {
+    if (url.endsWith("/history")) return Response.json({ data: { items: [] } });
     if (url.endsWith("/csrf")) return Response.json({ data: { csrf_token: "fake" } });
     if (url.endsWith("/grants")) {
       operations.push({ key: (options.headers as Headers).get("Idempotency-Key"), body: JSON.parse(String(options.body)) });
@@ -68,6 +69,7 @@ test("grant recovery keeps the operation key and reloads the result after a succ
 
 test("an account status conflict leaves a visible way to read the latest state", async () => {
   const fetcher = vi.fn(async (url: string) => {
+    if (url.endsWith("/history")) return Response.json({ data: { items: [] } });
     if (url.endsWith("/csrf")) return Response.json({ data: { csrf_token: "fake" } });
     if (url.endsWith("/account-status")) return Response.json({
       error: { code: "STALE_ACCESS_STATE", message: "资料已更新，请重新查询后再提交。" },

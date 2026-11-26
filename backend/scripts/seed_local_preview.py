@@ -15,9 +15,12 @@ from adc.catalog.models import TreatmentPrice, TreatmentType
 from adc.clinical.models import ChairUsage, DentistWorkSession, PatientAllergy, TreatmentItem, Visit
 from adc.identity.audit import record_event
 from adc.identity.models import AppRole, Clinic, Employee, EmployeeRole, Patient, UserAccount
-from adc.identity.permissions import ACCESS_ADMIN_ROLE
-from adc.reporting.period_locks import BUSINESS_ZONE
-from adc.scheduling.models import DentalChair, Shift
+from adc.common.idempotency import OperationKey
+from adc.identity.permissions import ACCESS_ADMIN_ROLE, current_principal
+from adc.reporting.models import OperatingExpense
+from adc.reporting.period_locks import BUSINESS_ZONE, lock_period
+from adc.reporting.quarter_versions import calculate, confirm, review
+from adc.scheduling.models import DentalChair, Shift, ShiftDemand
 from tests.fixtures.scenarios import load_synthetic_base
 
 
@@ -41,6 +44,8 @@ def seed():
     Clinic.objects.filter(pk=2).update(clinic_name="滨江口腔门诊", postal_address="示例大道 56 号 · 1 层")
     Employee.objects.filter(pk=1).update(full_name="林明远")
     doctor = Employee.objects.create(employee_no="ADC-PREVIEW-DOCTOR-2", full_name="周宁")
+    second_doctor_account = UserAccount.objects.create(employee=doctor, login_identity="demo.dentist-center2")
+    roles[second_doctor_account.login_identity] = second_doctor_account.pk
     grant = EmployeeRole.objects.filter(employee_id=1, role__role_code="DENTIST", scope_clinic_id=1).get()
     EmployeeRole.objects.create(employee=doctor, role_id=grant.role_id, scope_clinic_id=1)
     chairs = [DentalChair.objects.create(clinic_id=1, chair_no=f"A-{number:02d}") for number in range(1, 5)]
@@ -167,6 +172,37 @@ def seed():
                 if (first_no, clinic_index, index) in {(120, 0, 0), (120, 1, 1)}:
                     preview_visits[clinic_index] = Visit.objects.get(appointment=record)
 
+    current_quarter = today.year * 4 + (today.month - 1) // 3
+    for offset, stage in ((3, "confirmed"), (2, "confirmed"), (1, "review")):
+        year, quarter_index = divmod(current_quarter - offset, 4)
+        period = lock_period(year, quarter_index + 1)
+        for idx, expense_name in enumerate(("设备维保", "诊室租赁", "院感耗材", "前台统筹")):
+            clinic = 1 if idx % 2 == 0 else 2
+            item = OperatingExpense.objects.create(
+                clinic_id=clinic, period=period, expense_category=expense_name,
+                amount=Decimal(18 + idx * 6), scope="SHARED",
+            )
+            proof = {"evidence_ref": f"ADC-DEMO-Q{year}-{quarter_index + 1}-{idx + 1}",
+                     "clinic_id": str(clinic), "period_id": str(period.pk)}
+            record_event(account_id=roles[f"demo.manager-{'a' if clinic == 1 else 'b'}"], action="EXPENSE_RECORDED",
+                         target_type="operating_expense", target_id=item.pk, visible_fields=proof.keys(), after=proof)
+        for index, day_of_month in enumerate((5, 12, 19)):
+            day = today.replace(year=year, month=quarter_index * 3 + 1, day=day_of_month)
+            for branch, chair, hour in ((1, chairs[0], 9), (2, branch_chair, 14)):
+                work = shift(day, branch, 1, hour, hour + 2)
+                for position in range(2):
+                    number = 300 + 30 * offset + 6 * (branch - 1) + 2 * index + position
+                    record = appointment(number, work, at(day, hour, 30 * position), 1 + number % 10,
+                                         projects[(index + position + branch) % len(projects)], "COMPLETED", chair)
+                    visit = Visit.objects.get(appointment=record)
+                    preview_invoice(visit, "ISSUED")
+        seed_performance_version(period, roles, stage)
+
+    for i in range(4):
+        future = today + timedelta(days=i + 8)
+        branch = 1 if i % 2 == 0 else 2
+        ShiftDemand.objects.create(clinic_id=branch, start_at=at(future, 9), end_at=at(future, 12), required_count=1 + i % 2)
+
     seed_treatment_bill(preview_visits[0], roles["demo.front-a"])
     seed_branch_refund(preview_visits[1])
     start, end = today-timedelta(days=8), today+timedelta(days=21)
@@ -175,6 +211,20 @@ def seed():
                      "version":"ADC-preview","working_dates":days} for key in ("1","2")}
     Path(settings.ADC_WORK_CALENDARS_PATH).write_text(json.dumps(calendar),encoding="utf-8")
     return {login:make_password("ADC-preview-2026") for login in roles}
+
+
+def seed_performance_version(period, roles, stage):
+    identifier = {"period_id": period.pk}
+    planner = current_principal(roles["demo.calculate"], "staff")
+    revision = calculate(planner, period.pk, OperationKey(planner.account_id, "performance_calculate", identifier, "preview-trial"))
+    if stage == "confirmed":
+        target = {**identifier, "revision_no": revision.revision_no}
+        reviewer = current_principal(roles["demo.review"], "staff")
+        review(reviewer, period.pk, revision.revision_no, {"decision": "APPROVED", "reason": "合成环境凭据核对通过"},
+               OperationKey(reviewer.account_id, "performance_review", target, "preview-review"))
+        approver = current_principal(roles["demo.confirm"], "staff")
+        confirm(approver, period.pk, revision.revision_no,
+                OperationKey(approver.account_id, "performance_confirm", target, "preview-confirm"))
 
 
 def preview_invoice(visit, status):

@@ -1,8 +1,10 @@
 import { useRef, useState } from "react";
-import { ApiError, request } from "./api";
+import { ApiError } from "./api";
+import { useApiRequest } from "./ApiTransport";
 import { errorMessage } from "./format";
 
 export function useAction() {
+  const request = useApiRequest();
   const current = useRef<((recovery: boolean) => Promise<void>) | null>(null);
   const active = useRef(false);
   const rejected = useRef<(() => void) | undefined>(undefined);

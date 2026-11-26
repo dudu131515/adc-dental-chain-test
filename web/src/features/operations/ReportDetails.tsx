@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { request } from "../../shared/api";
+import { useApiRequest } from "../../shared/ApiTransport";
 import { dateTime, errorMessage } from "../../shared/format";
 
 const labels: Record<string, string> = {
@@ -29,6 +29,7 @@ function valueLabel(key: string, value: Row[string]) {
 export function ReportDetails({ token, metric, label, clinic, onClose }: {
   token: string; metric: string; label: string; clinic?: string; onClose: () => void;
 }) {
+  const request = useApiRequest();
   const [page, setPage] = useState<DetailPage>();
   const [fault, setFault] = useState("");
   const [cursor, setCursor] = useState("");
@@ -51,7 +52,7 @@ export function ReportDetails({ token, metric, label, clinic, onClose }: {
       if (!controller.signal.aborted) setLoading(false);
     });
     return () => controller.abort();
-  }, [token, metric, clinic, cursor]);
+  }, [token, metric, clinic, cursor, request]);
   return <aside className="schedule-drawer" aria-label={label + "明细"} onKeyDown={event => {
     if (event.key === "Escape") onClose();
   }}>

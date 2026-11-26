@@ -1,6 +1,6 @@
 import { FormEvent, useEffect, useRef, useState } from "react";
 import { StaffIdentity } from "../../shared/AppShell";
-import { request } from "../../shared/api";
+import { useApiRequest } from "../../shared/ApiTransport";
 import { dateTime, errorMessage, localDay, money } from "../../shared/format";
 import { AssistantDrilldown, AssistantPanel } from "./AssistantPanel";
 import { ReportDetails } from "./ReportDetails";
@@ -38,11 +38,13 @@ function ratio(rate: Rate) {
   return new Intl.NumberFormat("zh-CN", { style: "percent", maximumFractionDigits: 2 }).format(Number(rate.value));
 }
 
-export function OperationsReport({ identity, clinicId, open, assistantWorkspace = false, inlineAssistantActive = true }: {
+export function OperationsReport({ identity, clinicId, open, assistantWorkspace = false, inlineAssistantActive = true, initialQuery, assistantLink }: {
   identity: StaffIdentity; clinicId: string; open: (path: string) => void; assistantWorkspace?:boolean; inlineAssistantActive?:boolean;
+  initialQuery?:string; assistantLink?:string;
 }) {
+  const request = useApiRequest();
   const today = localDay();
-  const [initial] = useState(() => new URLSearchParams(window.location.search));
+  const [initial] = useState(() => new URLSearchParams(initialQuery ?? window.location.search));
   const [from, setFrom] = useState(initial.get("date_from") || today.slice(0, 7) + "-01");
   const [to, setTo] = useState(initial.get("date_to") || today);
   const [clinic, setClinic] = useState(initial.get("clinic_ids") ?? clinicId);
@@ -78,6 +80,7 @@ export function OperationsReport({ identity, clinicId, open, assistantWorkspace 
 
   function changeFilter(key: string, value: string, setter: (value: string) => void) {
     setter(value);
+    if (initialQuery !== undefined) return;
     const url = new URL(window.location.href);
     if (value) url.searchParams.set(key, value);
     else url.searchParams.delete(key);
@@ -98,6 +101,12 @@ export function OperationsReport({ identity, clinicId, open, assistantWorkspace 
     setSelected(undefined);
     setBusy(false);
   }
+
+  useEffect(() => {
+    if (initial.has("date_from") && initial.has("date_to") && !assistantWorkspace) {
+      void loadReport("/reports/operations?" + initial.toString());
+    }
+  }, []);
 
   function openOriginal(reference: string, button: HTMLButtonElement, detail?: AssistantDrilldown) {
     const query = new URLSearchParams({ reference });
@@ -128,7 +137,8 @@ export function OperationsReport({ identity, clinicId, open, assistantWorkspace 
     {!assistantWorkspace && <section className="schedule-panel">
       <div className="schedule-heading">
         <h2 ref={heading} tabIndex={-1}>查询经营报告</h2>
-        {identity.capabilities.includes("HQ_OPERATIONS_QUERY") && <button type="button" className="button"
+        {assistantLink ? <a className="button" href={assistantLink}>打开经营智能助手</a> : inlineAssistantActive &&
+        identity.capabilities.includes("HQ_OPERATIONS_QUERY") && <button type="button" className="button"
           aria-expanded={assistantOpen} aria-controls="operations-assistant" onClick={() => setAssistantOpen(value => !value)}>
           经营分析助手
         </button>}

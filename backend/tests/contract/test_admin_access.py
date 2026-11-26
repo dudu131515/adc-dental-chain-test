@@ -116,6 +116,20 @@ class AdminAccessTests(TestCase):
         self.assertEqual(self.change_grant(browser=other, target=self.protected.employee_id).status_code, 403)
         self.assertEqual(self.staff.get(f"/api/v1/clinics/{self.clinic.pk}/patient-directory").status_code, 403)
 
+    def test_employee_history_is_admin_only_and_returns_safe_audit_fields(self):
+        endpoint = f"{ACCESS}/employees/{self.target.employee_id}/history"
+        self.assertEqual(self.sign_in(self.target).get(endpoint).status_code, 403)
+        self.assertEqual(self.change_grant(reason="跨店支援").status_code, 200)
+        self.assertEqual(self.change_status().status_code, 200)
+        result = self.staff.get(endpoint)
+        self.assertEqual(result.status_code, 200, result.content)
+        items = result.json()["data"]["items"]
+        self.assertEqual([row["action"] for row in items], ["EMPLOYEE_ACCOUNT_STATUS_CHANGED", "EMPLOYEE_SCOPE_CHANGED"])
+        self.assertEqual(items[0]["before"], {"status": "ACTIVE"})
+        self.assertEqual(items[1]["after"]["reason"], "跨店支援")
+        self.assertEqual(items[1]["actor_account_id"], str(self.admin.pk))
+        self.assertEqual(set(items[1]), {"audit_id", "action", "occurred_at", "actor_account_id", "before", "after"})
+
     def test_grant_validation_rejects_self_approval_deployment_roles_and_missing_clinic(self):
         for role in ("HQ_ACCESS_ADMIN", "HQ_PERFORMANCE_REVIEW", "INVENTED"):
             with self.subTest(role=role):

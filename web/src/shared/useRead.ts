@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
-import { request } from "./api";
+import { useApiRequest } from "./ApiTransport";
 import { errorMessage } from "./format";
 
 export function useRead<T>(path?: string, change = 0) {
+  const request = useApiRequest();
   const [response, setResponse] = useState<{ path: string; value: T }>();
   const [loading, setLoading] = useState(Boolean(path));
   const [fault, setFault] = useState("");
@@ -19,6 +20,6 @@ export function useRead<T>(path?: string, change = 0) {
       if (!controller.signal.aborted) setLoading(false);
     });
     return () => controller.abort();
-  }, [path, change]);
+  }, [path, change, request]);
   return { data: response?.path === path ? response?.value : undefined, loading, fault };
 }

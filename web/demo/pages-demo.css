@@ -293,3 +293,16 @@
   .pd-home-links {grid-template-columns:1fr;}
   .pd-home-hero {align-items:start;flex-direction:column;padding:16px;}
 }
+
+
+.pd-demo-controls { gap:10px; flex-wrap:wrap; justify-content:flex-end; }
+.pd-demo-controls label { font-size:13px; color:#465d6b; }
+.pd-demo-controls select { padding:6px 9px; margin-left:3px; }
+.pd-main > .schedule-panel,.pd-main .operations-sections .schedule-panel {
+  background:#fff; border:1px solid var(--border); border-radius:13px; padding:clamp(16px,1.65vw,26px);
+}
+.pd-main .shift-grid { min-width:760px; }
+@media(max-width:480px) {
+  .pd-top { flex-wrap:wrap; padding-block:8px; }
+  .pd-demo-controls select { max-width:145px; }
+}

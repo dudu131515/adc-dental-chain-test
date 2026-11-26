@@ -1,6 +1,6 @@
 import { FormEvent, useEffect, useState } from "react";
 
-import { request } from "../../shared/api";
+import { useApiRequest } from "../../shared/ApiTransport";
 import type { StaffIdentity } from "../../shared/AppShell";
 import { AppointmentSummary, localDate, localTime, toOffset } from "./types";
 
@@ -30,6 +30,7 @@ export function AffectedAppointments({ items, onAppointment }: {
 export function ResourceImpactPanel({ identity, clinicId, onAppointment }: {
   identity: StaffIdentity; clinicId: string; onAppointment?: (id: string, start: string) => void;
 }) {
+  const request = useApiRequest();
   const [chosen, setChosen] = useState(clinicId || identity.clinics[0]?.clinic_id || "");
   const [chairs, setChairs] = useState<Chair[]>([]);
   const [impacted, setImpacted] = useState<AppointmentSummary[]>();

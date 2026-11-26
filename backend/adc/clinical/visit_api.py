@@ -108,12 +108,26 @@ def visit_projection(entry, *, clinical):
 @api_view(["GET"])
 def queue(request):
     request.user.require("DENTIST")
-    current = accessible_appointments(request.user).filter(
-        claim__dentist_id=request.user.employee_id, status__in=("CHECKED_IN", "IN_TREATMENT"),
+    history = request.query_params.get("view") == "history"
+    scope = accessible_appointments(request.user).filter(
+        claim__dentist_id=request.user.employee_id,
         claim__clinic_id__in=request.user.clinic_scope("DENTIST"),
-    ).order_by("claim__start_at", "pk")
+    )
+    if history:
+        visits = Visit.objects.filter(
+            appointment__in=scope, main_dentist_id=request.user.employee_id,
+            status__in=("COMPLETED", "TERMINATED"),
+        ).select_related("appointment").order_by("-ended_at", "-pk")[:100]
+        return success({"items": [
+            {
+                **appointment_projection(request.user, visit.appointment), "chair": None,
+                "visit_id": str(visit.pk), "ended_at": visit.ended_at.isoformat(), "visit_status": visit.status,
+            }
+            for visit in visits
+        ], "next_cursor": None})
+    active = scope.filter(status__in=("CHECKED_IN", "IN_TREATMENT")).order_by("claim__start_at", "pk")
     entries = []
-    for appointment in current:
+    for appointment in active:
         actual = Visit.objects.filter(appointment=appointment).first()
         entries.append({
             **appointment_projection(request.user, appointment), "chair": chair_projection(appointment),

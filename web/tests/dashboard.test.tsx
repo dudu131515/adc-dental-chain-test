@@ -14,21 +14,13 @@ const front: StaffIdentity = {
   clinics: [{clinic_id: "1", name: "中心门诊"}], role_clinic_ids: {FRONT_DESK: ["1"]},
 };
 
-test("the employee home lists permitted groups and leaves appointments in their workspace", async () => {
-  const fetch = vi.fn(async () => new Response(JSON.stringify({data: {schedule:true}})));
-  vi.stubGlobal("fetch", fetch);
-  window.history.replaceState({}, "", "/dashboard?date=2026-11-23");
+test("the employee home summarizes authorized branches without duplicate business links", () => {
   const open = vi.fn();
   render(<ManagementHome section="/dashboard" path="/dashboard" identity={front} clinicId="1" open={open}/>);
   expect(screen.getByRole("heading", {name:"连锁管理总览"})).toBeTruthy();
-  const schedule = await screen.findByRole("link", {name:/门诊运营.*有待办/});
-  expect(schedule.querySelector(".desk-pending-dot")).toBeTruthy();
+  expect(screen.getAllByText("中心门诊").length).toBeGreaterThan(0);
+  expect(screen.queryByRole("link")).toBeNull();
   expect(screen.queryByRole("heading", {name:"预约日程"})).toBeNull();
-  expect(screen.queryByRole("link", {name:/经营与配置/})).toBeNull();
-  expect(fetch.mock.calls).toHaveLength(1);
-  expect(fetch).toHaveBeenCalledWith(expect.stringMatching(/^\/api\/v1\/workbench\/alerts\?.*clinic_id=1/), expect.anything());
-  fireEvent.click(schedule);
-  expect(open).toHaveBeenCalledWith("/schedule/today?date=2026-11-23");
 });
 
 test("the dashboard requests the selected store and business day and links to the same filtered appointments", async () => {

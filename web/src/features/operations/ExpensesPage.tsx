@@ -1,6 +1,7 @@
 import { FormEvent, useEffect, useRef, useState } from "react";
 import { StaffIdentity } from "../../shared/AppShell";
-import { ApiError, request } from "../../shared/api";
+import { ApiError } from "../../shared/api";
+import { useApiRequest } from "../../shared/ApiTransport";
 import { errorMessage, money } from "../../shared/format";
 
 export type Period = { period_id: string; year: number; quarter: number; status?: string; latest_confirmed_revision_no?: number };
@@ -9,6 +10,7 @@ type Expense = { expense_id: string; clinic_id: string; period_id: string; expen
 const blank = { period_id: "", expense_category: "", amount: "", scope: "SHARED", dentist_id: "", evidence_ref: "" };
 
 export function ExpensesPage({ identity, clinicId }: { identity: StaffIdentity; clinicId: string }) {
+  const request = useApiRequest();
   const manager = identity.capabilities.includes("CLINIC_MANAGER");
   const [periods, setPeriods] = useState<Period[]>([]);
   const [items, setItems] = useState<Expense[]>([]);

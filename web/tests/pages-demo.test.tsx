@@ -9,8 +9,9 @@ afterEach(() => {
 
 test("store and schedule filters lead to synthetic appointment evidence", () => {
   render(<PagesDemo />);
-  expect(screen.getByRole("heading", {name:"运营首页"})).toBeTruthy();
+  expect(screen.getByRole("heading", {name:"连锁管理总览"})).toBeTruthy();
   expect(screen.queryByRole("heading", {name:"预约日程"})).toBeNull();
+  expect(within(screen.getByRole("main")).queryAllByRole("link")).toHaveLength(0);
   fireEvent.click(screen.getByRole("button", {name:"门诊运营"}));
   fireEvent.click(screen.getByRole("link", {name:"预约日历"}));
   fireEvent.click(screen.getByRole("button", {name:"列表"}));
@@ -29,10 +30,10 @@ test("store and schedule filters lead to synthetic appointment evidence", () => 
 test("the operating report previews a selected analysis and links to the same source data", () => {
   render(<PagesDemo />);
   fireEvent.click(screen.getByRole("button", {name:"经营与配置"}));
-  fireEvent.click(screen.getByRole("link", {name:"经营概览"}));
-  expect(screen.getByRole("heading", {name:"经营概览"})).toBeTruthy();
+  fireEvent.click(screen.getByRole("link", {name:"经营报告"}));
+  expect(screen.getByRole("heading", {name:"经营报告"})).toBeTruthy();
   expect(screen.queryByRole("button", {name:"发送"})).toBeNull();
-  fireEvent.click(screen.getByRole("link", {name:"AI 分析"}));
+  fireEvent.click(screen.getByRole("link", {name:"经营智能助手"}));
   fireEvent.click(screen.getByRole("button", {name:"对比两店实际就诊率"}));
   expect(screen.queryByText("−25 个百分点")).toBeNull();
   fireEvent.click(screen.getByRole("button", {name:"发送"}));
@@ -47,7 +48,7 @@ test("the operating report previews a selected analysis and links to the same so
 test("the time chart filters the agenda and date changes refresh the same ledger", () => {
   render(<PagesDemo />);
   fireEvent.click(screen.getByRole("button", {name:"门诊运营"}));
-  fireEvent.click(screen.getByRole("link", {name:"预约趋势"}));
+  fireEvent.click(screen.getByRole("link", {name:"今日门诊"}));
   fireEvent.click(screen.getByRole("button", {name:"16 时，1 笔预约"}));
   expect(screen.queryByRole("button", {name:/陈晓雨/})).toBeNull();
   expect(screen.getByRole("button", {name:/许言/})).toBeTruthy();
@@ -71,16 +72,16 @@ test("home and four expandable groups show the matching route on deep links", ()
   expect(within(categories).getByRole("link", {name:"首页"})).toBeTruthy();
   expect(within(categories).getByRole("button", {name:"经营与配置"}).getAttribute("aria-expanded")).toBe("true");
   const tabs = screen.getByRole("list", {name:"经营与配置子功能"});
-  expect(within(tabs).getByRole("link", {name:"AI 分析"}).getAttribute("aria-current")).toBe("page");
+  expect(within(tabs).getByRole("link", {name:"经营智能助手"}).getAttribute("aria-current")).toBe("page");
   fireEvent.click(within(tabs).getByRole("link", {name:"门店对比"}));
   expect(window.location.hash).toBe("#operations/compare");
-  expect(screen.getByRole("heading", {name:"两店样例指标"})).toBeTruthy();
+  expect(screen.getByRole("heading", {name:"两期门店指标"})).toBeTruthy();
   act(() => {
     window.history.replaceState({}, "", "/#operations/overview");
     window.dispatchEvent(new PopStateEvent("popstate"));
   });
-  expect(screen.getByRole("heading", {name:"经营概览"})).toBeTruthy();
-  expect(screen.getByRole("link", {name:"经营概览"}).getAttribute("aria-current")).toBe("page");
+  expect(screen.getByRole("heading", {name:"经营报告"})).toBeTruthy();
+  expect(screen.getByRole("link", {name:"经营报告"}).getAttribute("aria-current")).toBe("page");
 });
 
 test("schedule resources and the financial queue expose actual linked records", () => {
@@ -135,4 +136,66 @@ test("the demo assistant keeps two textual turns and offers evidence links", () 
   expect(within(conversation).getByText("−25 个百分点")).toBeTruthy();
   expect(within(conversation).getByText("那诊疗净实收呢？")).toBeTruthy();
   expect(within(conversation).getByText("+40 元")).toBeTruthy();
+});
+
+test("sample staff can draft, submit, accept and publish a schedule through the shared board", async () => {
+  window.history.replaceState({}, "", "/#desk/staff");
+  render(<PagesDemo />);
+  const role=screen.getByLabelText("样例身份");
+  fireEvent.change(role,{target:{value:"scheduler"}});
+  fireEvent.click(await screen.findByRole("button",{name:"拟排班次"}));
+  const form=screen.getByRole("form",{name:"拟排班次"});
+  fireEvent.change(within(form).getByLabelText("开始"),{target:{value:"2026-11-28T09:00"}});
+  fireEvent.change(within(form).getByLabelText("结束"),{target:{value:"2026-11-28T11:00"}});
+  fireEvent.click(within(form).getByRole("button",{name:"保存草案"}));
+  fireEvent.click(await screen.findByRole("button",{name:"提交牙医确认"}));
+  await screen.findByRole("button",{name:/09:00.*中心口腔门诊.*待牙医确认/});
+  fireEvent.change(role,{target:{value:"dentist"}});
+  fireEvent.click(await screen.findByRole("button",{name:/09:00.*中心口腔门诊.*待牙医确认/}));
+  fireEvent.click(screen.getByRole("button",{name:"提交答复"}));
+  await screen.findByRole("button",{name:/09:00.*中心口腔门诊.*已接受/});
+  fireEvent.change(role,{target:{value:"scheduler"}});
+  fireEvent.click(await screen.findByRole("button",{name:/09:00.*中心口腔门诊.*已接受/}));
+  fireEvent.click(screen.getByLabelText("已与牙医核对跨店路线可行"));
+  fireEvent.change(screen.getByLabelText("路线核验依据"),{target:{value:"合成跨店路线确认"}});
+  fireEvent.click(screen.getByRole("button",{name:"复查并发布"}));
+  expect(await screen.findByRole("button",{name:/09:00.*中心口腔门诊.*已发布/})).toBeTruthy();
+});
+
+test("the access workspace permits role writes for the sample administrator only", async () => {
+  window.history.replaceState({}, "", "/#operations/access");
+  render(<PagesDemo />);
+  expect(screen.getByRole("heading",{name:"当前页面无权访问"})).toBeTruthy();
+  const role=screen.getByLabelText("样例身份");
+  fireEvent.change(role,{target:{value:"admin"}});
+  fireEvent.click(await screen.findByRole("button",{name:"陈晓前"}));
+  fireEvent.change(screen.getByLabelText("授权门店"),{target:{value:"river"}});
+  fireEvent.change(screen.getByLabelText("预设角色"),{target:{value:"FRONT_DESK"}});
+  fireEvent.change(screen.getByLabelText("授权变更原因"),{target:{value:"滨江临时支援"}});
+  fireEvent.click(screen.getByRole("button",{name:"授予角色"}));
+  expect(await screen.findByText("门店授权已更新。")).toBeTruthy();
+  expect(await screen.findByRole("heading",{name:"权限变更记录"})).toBeTruthy();
+  fireEvent.change(role,{target:{value:"front"}});
+  expect(screen.getByRole("heading",{name:"当前页面无权访问"})).toBeTruthy();
+  expect(screen.queryByRole("button",{name:"授予角色"})).toBeNull();
+});
+
+test("quarter review uses versions and changes available actions when switching duties", async () => {
+  window.history.replaceState({}, "", "/#operations/quarter");
+  render(<PagesDemo />);
+  const role=screen.getByLabelText("样例身份");
+  fireEvent.change(role,{target:{value:"calculate"}});
+  fireEvent.click(await screen.findByRole("button",{name:"2026 年第 4 季度"}));
+  fireEvent.click(await screen.findByRole("button",{name:"运行试算"}));
+  expect(await screen.findByRole("heading",{name:/第 1 版 · 待核对/})).toBeTruthy();
+  fireEvent.change(role,{target:{value:"review"}});
+  const version=await screen.findByLabelText("查看版本");
+  fireEvent.change(version,{target:{value:"1"}});
+  fireEvent.change(await screen.findByLabelText("复核理由"),{target:{value:"核过合成总账和分摊依据"}});
+  fireEvent.click(screen.getByRole("button",{name:"提交复核"}));
+  expect(await screen.findByText(/核过合成总账和分摊依据/)).toBeTruthy();
+  fireEvent.change(role,{target:{value:"confirm"}});
+  fireEvent.change(await screen.findByLabelText("查看版本"),{target:{value:"1"}});
+  fireEvent.click(await screen.findByRole("button",{name:"确认第 1 版"}));
+  expect(await screen.findByRole("heading",{name:"第 1 版 · 正式确认"})).toBeTruthy();
 });

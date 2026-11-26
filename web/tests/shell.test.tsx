@@ -66,7 +66,7 @@ test("reconciliation filters survive switching to billing and back", async () =>
   }})));
   render(<AppShell />);
   const workTabs = await screen.findByRole("navigation", {name:"收费与日结"});
-  const otherTab = within(workTabs).getByRole("link", {name:"结算", exact:true});
+  const otherTab = within(workTabs).getByRole("link", {name:"结算队列", exact:true});
   fireEvent.click(otherTab);
   expect(window.location.pathname).toBe("/billing");
   expect(window.location.search).toBe("");

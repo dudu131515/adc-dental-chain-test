@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { WorkArea } from "../../shared/AppShell";
 import { hasRole, performanceRoles } from "../../shared/navigation";
+import { ClinicComparison } from "./ClinicComparison";
 import { ExpensesPage } from "./ExpensesPage";
 import { OperationsReport } from "./OperationsReport";
 import { QuarterReview } from "./QuarterReview";
@@ -13,12 +14,14 @@ export function OperationsPage({ identity, clinicId, path, open, showTabs = true
   const canExpense = canManageClinic || canQuarter;
   const initial = canReport ? "report" : canManageClinic ? "expenses" : "quarters";
   const active = path.split("/")[2] || initial;
+  const [reportNavigation, setReportNavigation] = useState(0);
   const [visitedReport, setVisitedReport] = useState(active === "report");
   useEffect(() => {
     if (active === "report") setVisitedReport(true);
   }, [active]);
   const sections = [
     { id: "report", label: "经营报告", enabled: canReport },
+    { id: "compare", label: "门店对比", enabled: canReport },
     { id: "assistant", label: "经营智能助手", enabled: canReport },
     { id: "expenses", label: "费用登记", enabled: canExpense },
     { id: "quarters", label: "季度核算", enabled: canQuarter },
@@ -34,9 +37,13 @@ export function OperationsPage({ identity, clinicId, path, open, showTabs = true
         }}>{section.label}</button>)}
     </div>}
     {(visitedReport || active === "report") && canReport && <div hidden={active !== "report"}>
-      <OperationsReport identity={identity} clinicId={clinicId} inlineAssistantActive={active !== "assistant"}
+      <OperationsReport key={reportNavigation} identity={identity} clinicId={clinicId} inlineAssistantActive={active !== "assistant"}
         open={target => { setVisitedReport(true); open(target); }} />
     </div>}
+    {selected?.id === "compare" && <ClinicComparison identity={identity} open={target=>{
+      setReportNavigation(value=>value+1);
+      open(target);
+    }} />}
     {selected?.id === "assistant" && <OperationsReport identity={identity} clinicId={clinicId} open={open} assistantWorkspace/>}
     {selected?.id === "expenses" && <ExpensesPage identity={identity} clinicId={clinicId} />}
     {selected?.id === "quarters" && <QuarterReview identity={identity} periodId={path.split("/")[3]} open={open} />}

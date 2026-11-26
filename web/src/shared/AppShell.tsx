@@ -1,8 +1,10 @@
 import { MouseEvent, ReactNode, useEffect, useRef, useState } from "react";
 import { LoginPage } from "../features/login/LoginPage";
 import { ApiError, request } from "./api";
+import { localDay } from "./format";
+import { useRead } from "./useRead";
 import { Brand, Icon } from "./Icons";
-import { allowedSections, canSeeDailyReconciliation, groupedNavigation, navigation, roleNames, workspaceTabs } from "./navigation";
+import { allowedSections, canSeeDailyReconciliation, dailyRoles, groupedNavigation, hasRole, roleNames, workspaceTabs } from "./navigation";
 import type { StaffIdentity } from "./navigation";
 
 export type { StaffIdentity } from "./navigation";
@@ -102,6 +104,15 @@ export function AppShell({ renderWorkArea }: { renderWorkArea?: (area: WorkArea)
     if (event.button || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
     event.preventDefault(); open(path);
   }
+  const alertQuery = new URLSearchParams({date:localDay()});
+  if (clinicId) alertQuery.set("clinic_id", clinicId);
+  const pendingWork = useRead<Record<string,boolean>>(identity && hasRole(identity,dailyRoles,clinicId)
+    ? "/workbench/alerts?" + alertQuery : undefined);
+  const alerts = pendingWork.fault ? undefined : pendingWork.data;
+  const pendingGroups:Record<string,boolean> = {
+    desk:Boolean(alerts?.schedule), care:Boolean(alerts?.clinical),
+    cashier:Boolean(alerts?.billing || alerts?.reconciliation || alerts?.corrections),
+  };
   const path = location.split("?")[0];
   const choices = identity ? allowedSections(identity, clinicId) : [];
   const canUseRoute = !isUnder(path, "/billing/reconciliation") || (identity && canSeeDailyReconciliation(identity, clinicId));
@@ -160,7 +171,9 @@ export function AppShell({ renderWorkArea }: { renderWorkArea?: (area: WorkArea)
           return <div key={group.id}>
             <button type="button" className="rail-nav-item" data-active={current} aria-expanded={expanded}
               aria-controls={listId} onClick={() => setDisclosures(previous => ({...previous, [group.id]: !expanded}))}>
-              <Icon name={group.icon}/><span>{group.label}</span><Icon name="chevron" size={14}/>
+              <Icon name={group.icon}/><span>{group.label}</span>
+              {pendingGroups[group.id] && <><i className="rail-pending-dot" aria-hidden="true"/><span className="sr-only">有待办</span></>}
+              <Icon name="chevron" size={14}/>
             </button>
             <ul id={listId} className="rail-subnav" hidden={!expanded}>
               {workspaceTabs(group, identity, clinicId).map(tab => <li key={tab.path}><a href={tab.path}

@@ -73,12 +73,16 @@ export function workspaceTabs(group: ReturnType<typeof groupedNavigation>[number
       {path: "/schedule/today", label: "今日门诊"},
       ...scheduleViews(identity, clinic).map(view => ({path: "/schedule?view=" + view.id, label: view.label})),
     ];
+    if (section.path === "/clinical") return [
+      {path:"/clinical",label:"接诊队列"}, {path:"/clinical/records",label:"诊疗记录"},
+    ];
     if (section.path === "/billing") return [
-      {path: "/billing", label: "结算"},
+      ...(hasRole(identity, ["FRONT_DESK"], clinic) ? [{path: "/billing", label: "结算队列"}, {path: "/billing/invoices", label: "账单与收退"}] : []),
       ...(canSeeDailyReconciliation(identity, clinic) ? [{path: "/billing/reconciliation", label: "日结对账"}] : []),
+      ...(hasRole(identity, ["FRONT_DESK","DENTIST","CLINIC_MANAGER"], clinic) ? [{path: "/billing/corrections", label: "更正与审批"}] : []),
     ];
     if (section.path === "/operations") return [
-      ...(canReport ? [{path: "/operations/report", label: "经营报告"}, {path: "/operations/assistant", label: "经营智能助手"}] : []),
+      ...(canReport ? [{path: "/operations/report", label: "经营报告"}, {path: "/operations/compare", label: "门店对比"}, {path: "/operations/assistant", label: "经营智能助手"}] : []),
       ...(!canReport && canQuarter && !hasRole(identity, ["CLINIC_MANAGER"], clinic)
         ? [{path: "/operations/quarters", label: "季度核算"}, {path: "/operations/expenses", label: "费用登记"}]
         : [

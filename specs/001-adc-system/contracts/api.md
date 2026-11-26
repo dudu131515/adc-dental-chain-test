@@ -74,7 +74,7 @@
 | --- | --- | --- | --- |
 | POST `/appointments/{id}/check-in` | F | `expected_claim_id` 和身份核实信息 → 签到时点、就诊条件及可选下一步 | FR-301、FR-302 |
 | GET `/appointments/{id}/chair-options`；POST `/appointments/{id}/assign-chair` | F | 可行同店牙椅列表。提交 `expected_claim_id,chair_id` → 当前牙椅及签到结果。换椅仍走同一命令并保存历史 | FR-302 |
-| GET `/clinical/queue`；GET `/appointments/{id}/clinical-context` | D | 本人接诊队列、相关病史、过敏及特殊需求，分椅和有效预约状态 | FR-301、FR-303 |
+| GET `/clinical/queue`（`view=history` 为最近 100 笔本人已结束或中止就诊）；GET `/appointments/{id}/clinical-context` | D | 本人接诊队列、相关病史、过敏及特殊需求，分椅和有效预约状态 | FR-301、FR-303 |
 | POST `/appointments/{id}/start-visit`；GET `/visits/{id}` | D；F 可查看结算必需投影 | `expected_claim_id` → 唯一就诊、开始时间、已接诊和原预约金退款义务。详情提供授权已实施项目、耗材和费用快照，并按本店前台和就诊状态返回 can_issue_invoice | FR-303 至 FR-305、FR-308 |
 | POST `/visits/{id}/additional-decisions` | D | 项目、患者同意或拒绝、必要证据 → 不计费的决定引用。可在随后实际治疗项关联已同意记录 | FR-003、FR-306 |
 | GET `/clinical/materials`；POST `/visits/{id}/treatment-items` | D | 读取可用耗材和履职所需凭据引用。记录实际项目、实施时间、数量、同意引用及耗材用量和成本凭据 → 冻结治疗、有效单价及成本快照和暂计结果 | FR-305、FR-306、FR-503 |
@@ -170,3 +170,5 @@
 | FR-606、FR-607 | GET /reports/operations/assistant/analysis | 使用 analysis_id 回查本账号当前范围仍有效的分析。 |
 | FR-607 | GET /reports/operations/assistant/analysis/by-action | 传原 Idempotency-Key。按原账号和现行授权回查；处理中、已过期或同键异载荷分别返回明确状态。 |
 | FR-607 | GET /reports/operations/assistant/report | 使用本地签名 reference 打开原报表。快照失效时，在权限允许的前提下按原筛选重新查询并标注新旧截止。 |
+
+权限管理页的 GET /admin/access/employees/{id}/history 仅允许总部权限管理账号读取，返回指定员工最近 50 条授权或账号状态变更，包含原因、操作者、时间及白名单中的变更前后值。对应 FR-011。

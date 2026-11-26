@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Icon } from "../src/shared/Icons";
 import { AppointmentList } from "./AppointmentDetails";
-import { type Appointment, type Clinic, accessRows, approvals, catalog, clinics, days, funds, invoices, money } from "./fixtures";
+import { type Appointment, type Clinic, approvals, clinics, days, funds, invoices, money } from "./fixtures";
 import type { Route } from "./workspace";
 
 export function Billing({date, clinic}: {date:(typeof days)[number]; clinic:Clinic | "all"}) {
@@ -73,24 +73,4 @@ export function FinanceWorkspace({route,rows,clinic,onOpen}: {
       <td>{money(invoice.outstanding)}</td><td><button className="pd-link" aria-label={"查看 "+id}
         onClick={event=>onOpen(row,event.currentTarget,true)}>查看<Icon name="chevron" size={14}/></button></td></tr>)}</tbody>
     </table></div>:<p className="pd-empty">当前筛选下没有诊疗费用单。</p>}</section>;
-}
-
-export function BusinessDirectory({route}:{route:Route}) {
-  const [lookup,setLookup]=useState("");
-  if(route==="operations/catalog") return <section className="pd-panel">
-    <div className="pd-panel-title"><div><h2>项目标准与生效价</h2></div>
-      <label className="pd-search">项目搜索<input value={lookup} onChange={event=>setLookup(event.target.value)} placeholder="名称或编码"/></label></div>
-    <div className="pd-table-wrap"><table className="pd-table"><thead><tr><th>项目编号</th><th>项目</th><th>基准价格</th><th>预估用时</th><th>生效日期</th></tr></thead>
-      <tbody>{catalog.filter(item=>(item.code+item.name).toLowerCase().includes(lookup.trim().toLowerCase())).map(item=>
-        <tr key={item.code}><th scope="row">{item.code}</th><td>{item.name}</td><td>{money(item.price)}</td><td>{item.duration} 分钟</td><td>{item.date}</td></tr>)}</tbody></table></div></section>;
-  if(route==="operations/access") return <section className="pd-panel">
-    <div className="pd-panel-title"><div><h2>门店角色与业务范围</h2></div></div>
-    <div className="pd-table-wrap"><table className="pd-table"><thead><tr><th>职责</th><th>门店范围</th><th>业务入口</th></tr></thead><tbody>
-      {accessRows.map(item=><tr key={item.role}><th scope="row">{item.role}</th><td>{item.scope}</td><td>{item.actions}</td></tr>)}
-    </tbody></table></div></section>;
-  return <section className="pd-panel"><div className="pd-panel-title"><div><h2>核算周期</h2><p>核对费用、试算、复核与确认进度</p></div></div>
-    <div className="pd-table-wrap"><table className="pd-table"><thead><tr><th>季度</th><th>门店范围</th><th>费用登记</th><th>核算版本</th><th>当前状态</th></tr></thead><tbody>
-      <tr><th scope="row">2026 年第三季度</th><td>两家门店</td><td>已核对</td><td>确认版 V1</td><td>已确认</td></tr>
-      <tr><th scope="row">2026 年第四季度</th><td>两家门店</td><td>待本季度结束</td><td>—</td><td>未确认</td></tr>
-    </tbody></table></div></section>;
 }

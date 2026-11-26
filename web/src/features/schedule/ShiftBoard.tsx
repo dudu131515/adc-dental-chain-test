@@ -1,7 +1,9 @@
 import { FormEvent, useEffect, useRef, useState } from "react";
 
 import type { StaffIdentity } from "../../shared/AppShell";
-import { ApiError, request } from "../../shared/api";
+import { canWorkAt, hasRole } from "../../shared/navigation";
+import { ApiError } from "../../shared/api";
+import { useApiRequest } from "../../shared/ApiTransport";
 import { AffectedAppointments } from "./ResourceImpactPanel";
 import type { Demand } from "./ShiftDemandForm";
 import { addDays, AppointmentSummary, Dentist, localDate, localTime, Shift, shiftLabels, toOffset } from "./types";
@@ -21,10 +23,12 @@ function currentLocalTime(value?: string) {
 }
 
 function ShiftEditor({
-  identity, clinicId, dentists, shift, onSave,
-}: Context & { dentists: Dentist[]; shift?: Shift; onSave: (shift: Shift) => void }) {
+  identity, clinicId, dentists, shift, onSave, draftDay,
+}: Context & { dentists: Dentist[]; shift?: Shift; onSave: (shift: Shift) => void; draftDay?: string }) {
+  const request = useApiRequest();
   const [demands, setDemands] = useState<Demand[]>([]);
-  const [clinic, setClinic] = useState(shift?.clinic_id || clinicId || identity.clinics[0]?.clinic_id || "");
+  const editableClinics = identity.clinics.filter(item => canWorkAt(identity, "HQ_SCHEDULER", item.clinic_id));
+  const [clinic, setClinic] = useState(shift?.clinic_id || clinicId || editableClinics[0]?.clinic_id || "");
   const [pending, setPending] = useState(false);
   const [error, setError] = useState("");
 
@@ -63,9 +67,9 @@ function ShiftEditor({
     }
   }
 
-  return <form className="schedule-form" onSubmit={save}>
+  return <form className="schedule-form" aria-label={shift ? "调整班次" : "拟排班次"} onSubmit={save}>
     <label>门店<select value={clinic} onChange={event => setClinic(event.target.value)} required>
-      {identity.clinics.map(item => <option value={item.clinic_id} key={item.clinic_id}>{item.name}</option>)}
+      {editableClinics.map(item => <option value={item.clinic_id} key={item.clinic_id}>{item.name}</option>)}
     </select></label>
     <label>牙医<select name="dentist_id" defaultValue={shift?.dentist_id} required>
       {dentists.map(person => <option key={person.dentist_id} value={person.dentist_id}>{person.name}</option>)}
@@ -76,8 +80,8 @@ function ShiftEditor({
         {localDate(item.start_at)} {localTime(item.start_at)}–{localTime(item.end_at)} · {item.required_count} 人
       </option>)}
     </select></label>
-    <label>开始<input name="start_at" type="datetime-local" defaultValue={currentLocalTime(shift?.start_at)} required /></label>
-    <label>结束<input name="end_at" type="datetime-local" defaultValue={currentLocalTime(shift?.end_at)} required /></label>
+    <label>开始<input name="start_at" type="datetime-local" defaultValue={currentLocalTime(shift?.start_at) || (draftDay ? draftDay + "T09:00" : "")} required /></label>
+    <label>结束<input name="end_at" type="datetime-local" defaultValue={currentLocalTime(shift?.end_at) || (draftDay ? draftDay + "T12:00" : "")} required /></label>
     {shift && <label>调整原因<input name="reason" required /></label>}
     <button className="button primary" disabled={pending || !dentists.length}>{shift ? "保存调整" : "保存草案"}</button>
     {error && <p className="error-text" role="alert">{error}</p>}
@@ -90,13 +94,14 @@ function ShiftDetails({ shift, identity, clinicId, dentists, onUpdate, onClose, 
   onUpdate: (shift: Shift) => void;
   onClose: () => void;
 }) {
+  const request = useApiRequest();
   const [error, setError] = useState("");
   const [affected, setAffected] = useState<AppointmentSummary[]>();
   const [pending, setPending] = useState(false);
   const close = useRef<HTMLButtonElement>(null);
-  const scheduler = identity.capabilities.includes("HQ_SCHEDULER");
+  const scheduler = canWorkAt(identity, "HQ_SCHEDULER", shift.clinic_id);
   const dentist = identity.capabilities.includes("DENTIST") && identity.employee_id === shift.dentist_id;
-  const canCoordinate = scheduler || identity.capabilities.includes("CLINIC_MANAGER");
+  const canCoordinate = scheduler || canWorkAt(identity, "CLINIC_MANAGER", shift.clinic_id);
   const doctor = dentists.find(item => item.dentist_id === shift.dentist_id);
 
   useEffect(() => { close.current?.focus(); }, []);
@@ -184,8 +189,9 @@ function ShiftDetails({ shift, identity, clinicId, dentists, onUpdate, onClose, 
   </aside>;
 }
 
-export function ShiftBoard({ identity, clinicId, onAppointment }: Context) {
-  const [week, setWeek] = useState(weekStart);
+export function ShiftBoard({ identity, clinicId, onAppointment, initialWeek }: Context & {initialWeek?: string}) {
+  const request = useApiRequest();
+  const [week, setWeek] = useState(() => initialWeek ?? weekStart());
   const [listView, setListView] = useState(false);
   const [shifts, setShifts] = useState<Shift[]>([]);
   const [dentists, setDentists] = useState<Dentist[]>([]);
@@ -194,8 +200,8 @@ export function ShiftBoard({ identity, clinicId, onAppointment }: Context) {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const origin = useRef<HTMLButtonElement | null>(null);
-  const scheduler = identity.capabilities.includes("HQ_SCHEDULER");
-  const directory = scheduler || identity.capabilities.includes("CLINIC_MANAGER");
+  const scheduler = hasRole(identity, ["HQ_SCHEDULER"], clinicId);
+  const directory = hasRole(identity, ["HQ_SCHEDULER", "CLINIC_MANAGER"], clinicId);
   const days = Array.from({ length: 7 }, (_, i) => addDays(week, i));
 
   useEffect(() => {
@@ -207,7 +213,7 @@ export function ShiftBoard({ identity, clinicId, onAppointment }: Context) {
     Promise.all([
       request<{ shifts: Shift[] }>("/schedule/board?" + params.toString(), { signal: controller.signal }),
       directory
-        ? request<{ items: Dentist[] }>("/schedule/dentists", { signal: controller.signal })
+        ? request<{ items: Dentist[] }>("/schedule/dentists" + (clinicId ? "?clinic_id=" + encodeURIComponent(clinicId) : ""), { signal: controller.signal })
         : Promise.resolve({ items: [] }),
     ]).then(([board, people]) => {
       setShifts(board.shifts);
@@ -218,12 +224,12 @@ export function ShiftBoard({ identity, clinicId, onAppointment }: Context) {
       if (!controller.signal.aborted) setLoading(false);
     });
     return () => controller.abort();
-  }, [week, clinicId, directory]);
+  }, [week, clinicId, directory, request]);
 
   function go(date: string) {
     const query = new URLSearchParams(window.location.search);
     query.set("week", date);
-    window.history.replaceState({}, "", window.location.pathname + "?" + query.toString());
+    if (!initialWeek) window.history.replaceState({}, "", window.location.pathname + "?" + query.toString());
     setSelected(undefined);
     setWeek(date);
   }
@@ -239,6 +245,11 @@ export function ShiftBoard({ identity, clinicId, onAppointment }: Context) {
   }
 
   function updated(shift: Shift) {
+    const date = localDate(shift.start_at);
+    if (!days.includes(date)) {
+      const weekday = new Date(date + "T00:00:00Z").getUTCDay();
+      go(addDays(date, -((weekday + 6) % 7)));
+    }
     setShifts(old => [...old.filter(item => item.shift_id !== shift.shift_id), shift]);
     setSelected(shift);
     setCreating(false);
@@ -262,10 +273,13 @@ export function ShiftBoard({ identity, clinicId, onAppointment }: Context) {
         <label>周起始日期 <input aria-label="周起始日期" type="date" value={week} onChange={event => event.target.value && go(event.target.value)} /></label>
         <button className="button" onClick={() => go(addDays(week, 7))}>下一周</button>
         <button className="button" onClick={() => setListView(value => !value)}>{listView ? "周视图" : "列表"}</button>
-        {scheduler && <button className="button primary" onClick={() => setCreating(value => !value)}>拟排班次</button>}
+        {scheduler && <button className="button primary" disabled={loading || !dentists.length}
+          aria-expanded={creating} onClick={() => setCreating(value => !value)}>{creating ? "收起草案表单" : "拟排班次"}</button>}
       </div>
     </div>
-    {creating && <ShiftEditor identity={identity} clinicId={clinicId} dentists={dentists} onSave={updated} />}
+    {!scheduler && <p className="muted">拟排、提交和发布由总部排班负责。牙医可在本人待确认班次内答复。</p>}
+    {scheduler && !loading && !error && !dentists.length && <p role="status">当前范围没有可排牙医，请检查人员的门店授权。</p>}
+    {creating && <ShiftEditor identity={identity} clinicId={clinicId} dentists={dentists} draftDay={week} onSave={updated} />}
     {error && <p role="alert" className="error-text">{error}</p>}
     {loading ? <p className="muted">正在读取周排班…</p> : listView ? (
       <ul className="compact-list">{shifts.map(shift => <li key={shift.shift_id}>

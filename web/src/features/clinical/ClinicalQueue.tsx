@@ -6,17 +6,21 @@ import { dateTime } from "../../shared/format";
 import { useAction } from "../../shared/useAction";
 import { useRead } from "../../shared/useRead";
 import { Appointment, Chair, appointmentStates } from "../schedule/appointmentTypes";
-import { ClinicalContext, Visit } from "./clinicalTypes";
+import { ClinicalContext, Visit, visitStates } from "./clinicalTypes";
 import { PatientContext } from "./PatientContext";
 
-type QueueEntry = Appointment & { chair: Chair | null; visit_id: string | null; check_in_at?: string };
+type QueueEntry = Appointment & { chair: Chair | null; visit_id: string | null; check_in_at?: string;
+  ended_at?:string;visit_status?:string };
+
 
 export function ClinicalQueue({ clinicId, path, open }: WorkArea) {
   const preview = path.match(/^\/clinical\/appointments\/(\d+)$/)?.[1];
+  const history = path === "/clinical/records";
+  const [filter,setFilter]=useState("");
   const [checked, setChecked] = useState(false);
   const action = useAction();
   const [sequence, setSequence] = useState(0);
-  const queue = useRead<{ items: QueueEntry[] }>(preview ? undefined : "/clinical/queue");
+  const queue = useRead<{ items: QueueEntry[] }>(preview ? undefined : "/clinical/queue"+(history?"?view=history":""));
   const context = useRead<ClinicalContext>(preview ? "/appointments/" + preview + "/clinical-context" : undefined, sequence);
 
   function start(entry: ClinicalContext) {
@@ -30,21 +34,26 @@ export function ClinicalQueue({ clinicId, path, open }: WorkArea) {
     });
   }
 
-  const entries = queue.data?.items.filter(row => !clinicId || row.clinic.clinic_id === clinicId) ?? [];
+  const entries = queue.fault ? [] : queue.data?.items.filter(row=>
+    (!clinicId || row.clinic.clinic_id === clinicId) &&
+    (!history || ((row.patient_display?.name??"")+row.appointment_no).toLowerCase().includes(filter.trim().toLowerCase()))) ?? [];
   return <div className="operations-sections">
     {!preview ? <section className="schedule-panel">
-      <h1>接诊队列</h1>
-      {queue.loading && <p role="status">正在读取接诊队列…</p>}
+      <div className="schedule-heading"><div><h1>{history?"诊疗记录":"接诊队列"}</h1>
+        {history&&<p className="muted">最近 100 笔本人结束或中止的授权就诊</p>}</div>
+        {history&&<label>姓名或预约号<input type="search" value={filter} onChange={event=>setFilter(event.target.value)}/></label>}
+      </div>
+      {queue.loading && <p role="status">正在读取就诊记录…</p>}
       {queue.fault && <p className="error-text" role="alert">{queue.fault}</p>}
-      {queue.data && !entries.length && <p>当前门店没有待接诊或正在诊疗的预约。</p>}
+      {queue.data && !queue.fault && !entries.length && <p>{history?"当前门店没有符合条件的诊疗记录。":"当前门店没有待接诊或正在诊疗的预约。"}</p>}
       <ul className="compact-list">{entries.map(entry => <li key={entry.appointment_id}>
         <button className="text-action" onClick={() => {
           setChecked(false);
           open(entry.visit_id ? "/clinical/visits/" + entry.visit_id : "/clinical/appointments/" + entry.appointment_id);
         }}>{entry.patient_display?.name ?? entry.appointment_no}</button>
-        <span>{entry.clinic.name} · {dateTime(entry.start_at)}</span>
+        <span>{entry.clinic.name} · {dateTime(entry.ended_at || entry.start_at)}</span>
         <span className="status-tag" data-state={entry.status}>
-          {entry.status === "CHECKED_IN" && !entry.chair ? "已签到 · 待分椅" : appointmentStates[entry.status]}
+          {entry.visit_status ? visitStates[entry.visit_status] : entry.status === "CHECKED_IN" && !entry.chair ? "已签到 · 待分椅" : appointmentStates[entry.status]}
         </span>
         {entry.chair && <span>牙椅 {entry.chair.chair_no}</span>}
       </li>)}</ul>

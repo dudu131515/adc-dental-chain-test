@@ -202,9 +202,33 @@ def employee_account_status(request, employee_id):
         return change_result(event)
 
 
+@api_view(["GET"])
+def employee_history(request, employee_id):
+    request.user.require(ACCESS_ADMIN_ROLE)
+    get_object_or_404(Employee, pk=employee_id)
+    fields = {
+        "EMPLOYEE_SCOPE_CHANGED": ("clinic_id", "role_code", "granted"),
+        "EMPLOYEE_ACCOUNT_STATUS_CHANGED": ("status",),
+    }
+    events = AuditLog.objects.filter(
+        action__in=fields, target_type="employee", target_id=employee_id,
+    ).order_by("-occurred_at", "-pk")[:50]
+    return success({"items": [
+        {
+            "audit_id": str(event.pk), "action": event.action,
+            "occurred_at": event.occurred_at.isoformat(),
+            "actor_account_id": str(event.account_id) if event.account_id is not None else None,
+            "before": {key: event.before_value[key] for key in fields[event.action] if key in (event.before_value or {})},
+            "after": {key: event.after_value[key] for key in (*fields[event.action], "reason") if key in (event.after_value or {})},
+        }
+        for event in events
+    ]})
+
+
 urlpatterns = [
     path("admin/clinics", clinics),
     path("admin/access", access_directory),
     path("admin/access/employees/<int:employee_id>/grants", employee_grants),
+    path("admin/access/employees/<int:employee_id>/history", employee_history),
     path("admin/access/employees/<int:employee_id>/account-status", employee_account_status),
 ]

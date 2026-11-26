@@ -1,6 +1,6 @@
 import { FormEvent, useEffect, useState } from "react";
 
-import { request } from "../../shared/api";
+import { useApiRequest } from "../../shared/ApiTransport";
 
 type Price = {
   price_id: string;
@@ -10,6 +10,7 @@ type Price = {
 };
 
 export function PriceVersions({ treatmentId, onChange, canEdit }: { treatmentId: string; onChange: () => void; canEdit: boolean }) {
+  const request = useApiRequest();
   const [versions, setVersions] = useState<Price[]>([]);
   const [revision, setRevision] = useState(0);
   const [error, setError] = useState("");

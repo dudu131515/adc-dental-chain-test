@@ -1,3 +1,5 @@
+/// <reference types="vite/client" />
+
 type Failure = {
   code: string;
   message: string;
@@ -57,6 +59,9 @@ async function send<T>(path: string, details: RequestDetails, csrf?: string): Pr
 }
 
 export async function request<T>(path: string, details: RequestDetails = {}): Promise<T> {
+  if (import.meta.env.VITE_ADC_STATIC_PREVIEW === "1") {
+    throw new ApiError(0, {code:"PREVIEW_TRANSPORT_REQUIRED",message:"此页面需要合成演示适配器。"});
+  }
   if (!details.method || details.method === "GET") return send<T>(path, details);
   const { csrf_token } = await send<{ csrf_token: string }>("/auth/web/csrf", {});
   return send<T>(path, details, csrf_token);

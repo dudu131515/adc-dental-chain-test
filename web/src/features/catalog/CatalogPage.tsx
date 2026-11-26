@@ -1,6 +1,6 @@
 import { FormEvent, useEffect, useRef, useState } from "react";
 
-import { request } from "../../shared/api";
+import { useApiRequest } from "../../shared/ApiTransport";
 import { PriceVersions } from "./PriceVersions";
 import "./catalog.css";
 
@@ -22,6 +22,7 @@ function StandardForm({ treatment, qualifications, onSave }: {
   qualifications: Qualification[];
   onSave: (item: Treatment) => void;
 }) {
+  const request = useApiRequest();
   const [pending, setPending] = useState(false);
   const [error, setError] = useState("");
 
@@ -67,6 +68,7 @@ function StandardForm({ treatment, qualifications, onSave }: {
 }
 
 export function CatalogPage({canEdit = true}: {canEdit?: boolean}) {
+  const request = useApiRequest();
   const [rows, setRows] = useState<Treatment[]>([]);
   const [qualifications, setQualifications] = useState<Qualification[]>([]);
   const [selected, setSelected] = useState<Treatment>();
