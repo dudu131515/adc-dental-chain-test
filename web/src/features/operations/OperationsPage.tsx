@@ -20,15 +20,15 @@ export function OperationsPage({ identity, clinicId, path, open, showTabs = true
     if (active === "report") setVisitedReport(true);
   }, [active]);
   const sections = [
-    { id: "report", label: "经营报告", enabled: canReport },
+    { id: "report", label: "经营总览", enabled: canReport },
     { id: "compare", label: "门店对比", enabled: canReport },
-    { id: "assistant", label: "经营智能助手", enabled: canReport },
-    { id: "expenses", label: "费用登记", enabled: canExpense },
-    { id: "quarters", label: "季度核算", enabled: canQuarter },
+    { id: "assistant", label: "经营智能分析", enabled: canReport },
+    { id: "expenses", label: "费用管理", enabled: canExpense },
+    { id: "quarters", label: "绩效管理", enabled: canQuarter },
   ];
   const selected = sections.find(section => section.id === active && section.enabled);
   return <div className="operations-sections">
-    <h1>经营</h1>
+    <h1>经营与绩效</h1>
     {showTabs && <div className="schedule-tabs" aria-label="经营页面">
       {sections.filter(section => section.enabled).map(section => <button className="button" key={section.id}
         aria-pressed={active === section.id} onClick={() => {

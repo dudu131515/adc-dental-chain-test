@@ -23,11 +23,12 @@ def rows(statement, parameters):
 def appointment_facts(date_from, date_to, cutoff, clinics, dentists):
     return rows(
         """
-        SELECT f.*, a.appointment_no,
+        SELECT f.*, a.appointment_no, sc.start_at AS slot_start_at,
                EXISTS (SELECT 1 FROM visit v WHERE v.appointment_id = f.appointment_id AND v.started_at <= %s) AS actual,
                EXISTS (SELECT 1 FROM appointment_change c WHERE c.appointment_id = f.appointment_id
                        AND c.change_type = 'NO_SHOW') AS verified_no_show
         FROM appointment_reporting_fact f JOIN appointment a ON a.appointment_id = f.appointment_id
+        JOIN slot_claim sc ON sc.claim_id = a.claim_id
         WHERE f.service_date BETWEEN %s AND %s AND f.slot_end_at <= %s AND f.clinic_id = ANY(%s)
           AND (%s OR f.dentist_id = ANY(%s))
         ORDER BY f.service_date, f.slot_end_at, f.appointment_id

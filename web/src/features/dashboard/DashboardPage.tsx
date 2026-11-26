@@ -25,10 +25,10 @@ const shortcuts: Shortcut[] = [
   {label:"跨店排班", description:"查看班次与回应", path:"/schedule?view=shifts", icon:"calendar", roles:["CLINIC_MANAGER","HQ_SCHEDULER","DENTIST"]},
   {label:"排班需求", description:"查看门店用人需求", path:"/schedule?view=demands", icon:"layers", roles:["CLINIC_MANAGER","HQ_SCHEDULER"]},
   {label:"更正与审批", description:"核对就诊更正", path:"/billing/corrections", icon:"check", alert:"corrections", roles:["CLINIC_MANAGER","DENTIST"]},
-  {label:"费用登记", description:"核对门店运营费用", path:"/operations/expenses", icon:"receipt", roles:["CLINIC_MANAGER"]},
+  {label:"费用管理", description:"核对门店运营费用", path:"/operations/expenses", icon:"receipt", roles:["CLINIC_MANAGER"]},
   {label:"项目与价格", description:"维护标准与价格版本", path:"/catalog", icon:"catalog", roles:["HQ_CATALOG"]},
-  {label:"经营报告", description:"查询指标及来源", path:"/operations/report", icon:"chart", roles:["HQ_OPERATIONS_QUERY"]},
-  {label:"季度核算", description:"查看季度与历史版本", path:"/operations/quarters", icon:"layers", roles:performanceRoles},
+  {label:"经营总览", description:"查看收入成本与效率", path:"/operations/report", icon:"chart", roles:["HQ_OPERATIONS_QUERY"]},
+  {label:"绩效管理", description:"查看季度核算与版本", path:"/operations/quarters", icon:"layers", roles:performanceRoles},
 ];
 
 function WorkLinks({identity, clinicId, open, alerts, day}: WorkArea & {alerts?: WorkbenchAlerts; day?: string}) {

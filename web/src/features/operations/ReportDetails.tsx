@@ -11,6 +11,10 @@ const labels: Record<string, string> = {
   qualification_code: "资格编码", qualification_name: "资格", period_id: "季度编号", revision_no: "确认版本",
   revenue: "应计", material_cost: "耗材", operating_cost: "运营费用", net_profit: "净利润",
   dentist: "牙医", scope: "费用归属", attributed: "已归属", unallocated: "未分配",
+  clinic_name: "门店", dentist_name: "牙医", material_name: "耗材", quantity: "数量", unit_cost: "单位成本",
+  recorded_amount: "登记金额", expense_category: "费用类别", period: "期间", work_id: "计时编号",
+  minutes: "分钟", active_chairs: "可用牙椅", capacity_minutes: "可用分钟",
+  occupied_minutes: "占用分钟", utilization: "利用率",
 };
 const statuses: Record<string, string> = {
   CONFIRMED: "已确认", CHECKED_IN: "已签到", IN_TREATMENT: "诊疗中", COMPLETED: "已完成", CANCELLED: "已取消",

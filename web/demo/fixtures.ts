@@ -119,6 +119,22 @@ export const offices = Object.keys(clinics) as Clinic[];
 export const dailyFacts:Daily[] = offices.flatMap(clinic => storeDaily[clinic].map(
   ([arrived,total,unresolved,net],index) => ({clinic,day:reportDays[index],arrived,total,unresolved,net}),
 ));
+const historyDay = (offset:number) => {
+  const day = new Date(days[0] + "T00:00:00Z");
+  day.setUTCDate(day.getUTCDate() - offset);
+  return day.toISOString().slice(5,10);
+};
+const historyOffsets = [...Array.from({length:4},(_,index)=>index+2), ...Array.from({length:67},(_,index)=>index+9)]
+  .filter(offset => offset !== 23 && offset !== 24);
+for (const offset of historyOffsets) {
+  for (const [clinicIndex, clinic] of offices.entries()) {
+    const total = 4 + ((offset * 3 + clinicIndex * 2) % 5);
+    const arrived = Math.max(2, total - ((offset + clinicIndex) % 3));
+    const unresolved = (offset + clinicIndex) % 5 === 0 ? 1 : 0;
+    const net = 420 + ((offset * 173 + clinicIndex * 131) % 11) * 85;
+    dailyFacts.push({clinic, day:historyDay(offset), arrived, total, unresolved, net});
+  }
+}
 export function sumFacts(rows:Daily[]) {
   return rows.reduce((sum,row) => ({
     arrived:sum.arrived+row.arrived,total:sum.total+row.total,unresolved:sum.unresolved+row.unresolved,net:sum.net+row.net,

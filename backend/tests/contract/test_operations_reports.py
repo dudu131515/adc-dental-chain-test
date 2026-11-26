@@ -8,9 +8,10 @@ from django.test import Client, TestCase, override_settings
 from adc.billing.models import Invoice, InvoiceAdjustment, InvoiceLine, InvoicePayment, TreatmentCorrection
 from adc.booking.models import Appointment, AppointmentChange, DepositPayment, SlotClaim
 from adc.catalog.models import TreatmentType
-from adc.clinical.models import TreatmentItem, Visit
+from adc.clinical.models import DentistWorkSession, Material, MaterialUsage, TreatmentItem, Visit
 from adc.identity.models import EmployeeRole
-from adc.scheduling.models import Shift
+from adc.reporting.models import OperatingExpense, PerformancePeriod
+from adc.scheduling.models import DentalChair, Shift
 from tests.fixtures.scenarios import load_synthetic_base
 
 
@@ -178,3 +179,54 @@ class OperationsContractTests(TestCase):
         })
         details = client.get("/api/v1/reports/operations/details", {"report_token": report["report_token"], "metric": "outstanding"})
         self.assertEqual([row["invoice_id"] for row in details.json()["data"]["items"]], [str(unpaid.pk)])
+
+    def test_operating_overview_links_revenue_cost_workload_and_resource_use(self):
+        project = TreatmentType.objects.create(treatment_code="ADC-OVERVIEW", treatment_name="合成经营项目", standard_unit="次")
+        start = datetime.fromisoformat("2031-06-03T08:00:00+08:00")
+        shift = Shift.objects.create(clinic_id=1, dentist_id=1, start_at=start, end_at=start + timedelta(hours=4), status="PUBLISHED")
+        appointment = self.make_appointment(shift, project, 0, "COMPLETED")
+        visit = Visit.objects.get(appointment=appointment)
+        item = TreatmentItem.objects.create(
+            visit=visit, treatment_type=project, performing_dentist_id=1, units=1, unit_name_snapshot="次",
+            unit_price_snapshot=100, amount=100, recorded_at=start + timedelta(minutes=10),
+        )
+        material = Material.objects.create(material_code="ADC-OVERVIEW-MAT", material_name="合成耗材", standard_unit="克")
+        MaterialUsage.objects.create(
+            treatment_item=item, material=material, quantity=2, unit_cost_snapshot=10,
+            material_name_snapshot=material.material_name, unit_name_snapshot=material.standard_unit,
+        )
+        invoice = Invoice.objects.create(
+            visit=visit, invoice_no="ADC-OVERVIEW-INV", original_total=100, status="ISSUED", issued_at=visit.ended_at,
+        )
+        InvoicePayment.objects.create(
+            invoice=invoice, payment_kind="PAYMENT", amount=100, status="SUCCEEDED", idempotency_key="overview-payment",
+            paid_at=start + timedelta(minutes=20),
+        )
+        DentistWorkSession.objects.create(
+            visit=visit, dentist_id=1, started_at=start, ended_at=start + timedelta(minutes=15), duration_minutes=15,
+        )
+        DentalChair.objects.create(clinic_id=1, chair_no="OVERVIEW-01")
+        period = PerformancePeriod.objects.create(perf_year=2031, perf_quarter=2, status="OPEN")
+        OperatingExpense.objects.create(
+            clinic_id=1, period=period, expense_category="合成经营费用", amount=30, scope="SHARED",
+        )
+        client = self.login()
+        cutoff = datetime.fromisoformat("2031-06-04T00:00:00+08:00")
+        with patch("adc.reporting.operations_api.now", return_value=cutoff):
+            response = client.get("/api/v1/reports/operations", {"date_from": "2031-06-03", "date_to": "2031-06-03", "clinic_ids": "1"})
+        self.assertEqual(response.status_code, 200, response.content)
+        data = response.json()["data"]
+        self.assertEqual(data["operations"]["revenue"], "100.00")
+        self.assertEqual(data["operations"]["material_cost"], "20.00")
+        self.assertEqual(data["operations"]["operating_cost"], "0.33")
+        self.assertEqual(data["operations"]["net_profit"], "79.67")
+        self.assertEqual(data["workload"]["total_minutes"], "15")
+        self.assertEqual(data["resources"]["chair_utilization"]["numerator"], 15)
+        self.assertEqual(data["resources"]["chair_utilization"]["denominator"], 240)
+        self.assertEqual(data["clinics"][0]["revenue"], "100.00")
+        self.assertEqual(data["trend"]["granularity"], "day")
+        self.assertEqual(data["trend"]["points"][0]["revenue"], "100.00")
+        details = client.get("/api/v1/reports/operations/details", {
+            "report_token": data["report_token"], "metric": "material_cost",
+        })
+        self.assertEqual(details.json()["data"]["items"][0]["material_name"], "合成耗材")

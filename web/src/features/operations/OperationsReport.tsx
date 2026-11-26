@@ -4,23 +4,9 @@ import { canWorkAt, StaffIdentity } from "../../shared/AppShell";
 import { useApiRequest } from "../../shared/ApiTransport";
 import { dateTime, errorMessage, money } from "../../shared/format";
 import { AssistantDrilldown, AssistantPanel } from "./AssistantPanel";
+import { OverviewDashboard } from "./OverviewDashboard";
 import { ReportDetails } from "./ReportDetails";
-
-type Rate = { numerator: number; denominator: number; value: string | null; availability: string };
-type Counts = Record<"attended" | "patient_cancelled" | "no_show" | "unprocessed" | "clinic_cancelled", number>;
-type OfficialVersion = { period_id: string; year: number; quarter: number; revision_no: number; company?: Record<string, string> };
-type Report = {
-  date_from: string; date_to: string; as_of: string; report_token: string;
-  scope: { clinic_ids: string[]; dentist_ids: string[] };
-  appointments: Counts & { denominator: number; attendance_rate: Rate; cancellation_rate: Rate; by_clinic: (Counts & { clinic_id: string })[] };
-  clinical: { actual_starts: number; normal_completions: number; actual_treatments: number };
-  standard_coverage: Rate;
-  financial: Record<"accrued" | "received" | "refunded" | "net_received" | "outstanding", string>;
-  skills: { code: string; name: string; dentists: number }[];
-  performance: OfficialVersion[];
-  sources: Record<string, string>;
-  snapshot_refreshed?: boolean; original_as_of?: string;
-};
+import type { Report } from "./operationsTypes";
 
 const appointmentGroups = [
   ["attended", "实际接诊"], ["patient_cancelled", "患者主动取消"], ["no_show", "已核实爽约"],
@@ -33,15 +19,33 @@ const financialGroups = [
   ["accrued", "应计收入"], ["received", "实收"], ["refunded", "退款"], ["net_received", "净实收"], ["outstanding", "欠款"],
 ] as const;
 
-function ratio(rate: Rate) {
+function ratio(rate: Report["standard_coverage"]) {
   if (rate.availability === "MISSING") return "缺少数据";
   if (rate.value === null) return "不适用";
   return new Intl.NumberFormat("zh-CN", { style: "percent", maximumFractionDigits: 2 }).format(Number(rate.value));
 }
 
+function shiftDay(value: string, days: number) {
+  const day = new Date(value + "T00:00:00Z");
+  day.setUTCDate(day.getUTCDate() + days);
+  return day.toISOString().slice(0, 10);
+}
+
+function presetRanges(today: string) {
+  const [year, month] = today.split("-").map(Number);
+  const quarterMonth = Math.floor((month - 1) / 3) * 3 + 1;
+  const quarter = year + "-" + String(quarterMonth).padStart(2, "0") + "-01";
+  return [
+    { id: "week", label: "近 7 天", from: shiftDay(today, -6), to: today },
+    { id: "month", label: "近 30 天", from: shiftDay(today, -29), to: today },
+    { id: "quarter", label: "本季度", from: quarter, to: today },
+    { id: "year", label: "本年", from: year + "-01-01", to: today },
+  ];
+}
+
 export function OperationsReport({ identity, clinicId, open, assistantWorkspace = false, inlineAssistantActive = true, initialQuery, assistantLink }: {
-  identity: StaffIdentity; clinicId: string; open: (path: string) => void; assistantWorkspace?:boolean; inlineAssistantActive?:boolean;
-  initialQuery?:string; assistantLink?:string;
+  identity: StaffIdentity; clinicId: string; open: (path: string) => void; assistantWorkspace?: boolean; inlineAssistantActive?: boolean;
+  initialQuery?: string; assistantLink?: string;
 }) {
   const { router, workday } = useWorkspaceRuntime();
   const request = useApiRequest();
@@ -66,9 +70,13 @@ export function OperationsReport({ identity, clinicId, open, assistantWorkspace 
     return identity.clinics.find(row => row.clinic_id === id)?.name ?? id;
   }
 
-  function select(button: HTMLButtonElement, key: string, label: string, office?: string) {
+  function select(button: HTMLButtonElement | null, key: string, label: string, office?: string) {
     trigger.current = button;
     setSelected({ key, label, clinic: office });
+  }
+
+  function showDetail(key: string, label: string, office?: string) {
+    select(null, key, label, office);
   }
 
   function close() {
@@ -76,10 +84,14 @@ export function OperationsReport({ identity, clinicId, open, assistantWorkspace 
     trigger.current?.focus();
   }
 
-  const query = new URLSearchParams({ date_from: from, date_to: to });
-  if (clinic) query.set("clinic_ids", clinic);
-  if (dentist.trim()) query.set("dentist_ids", dentist.trim().replaceAll("，", ",").replaceAll(/\s+/g, ""));
-  const context = query.toString();
+  function filterQuery(fromValue = from, toValue = to, clinicValue = clinic, dentistValue = dentist) {
+    const query = new URLSearchParams({ date_from: fromValue, date_to: toValue });
+    if (clinicValue) query.set("clinic_ids", clinicValue);
+    if (dentistValue.trim()) query.set("dentist_ids", dentistValue.trim().replaceAll("，", ",").replaceAll(/\s+/g, ""));
+    return query.toString();
+  }
+
+  const context = filterQuery();
 
   function changeFilter(key: string, value: string, setter: (value: string) => void) {
     setter(value);
@@ -96,6 +108,13 @@ export function OperationsReport({ identity, clinicId, open, assistantWorkspace 
     void loadReport("/reports/operations?" + context);
   }
 
+  function applyPreset(fromValue: string, toValue: string) {
+    setFrom(fromValue);
+    setTo(toValue);
+    setReport(undefined);
+    void loadReport("/reports/operations?" + filterQuery(fromValue, toValue));
+  }
+
   function resetOriginal() {
     abort.current?.abort();
     trigger.current = null;
@@ -106,9 +125,16 @@ export function OperationsReport({ identity, clinicId, open, assistantWorkspace 
   }
 
   useEffect(() => {
-    if (initial.has("date_from") && initial.has("date_to") && !assistantWorkspace) {
+    if (assistantWorkspace) return;
+    if (initial.has("date_from") && initial.has("date_to")) {
       void loadReport("/reports/operations?" + initial.toString());
+      return;
     }
+    const startClinic = initial.get("clinic_ids") ?? clinic;
+    const startDentist = initial.get("dentist_ids") ?? dentist;
+    void loadReport("/reports/operations?" + filterQuery(from, to, startClinic, startDentist));
+    // The initial view is intentionally loaded once from the opening filters.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   function openOriginal(reference: string, button: HTMLButtonElement, detail?: AssistantDrilldown) {
@@ -136,17 +162,27 @@ export function OperationsReport({ identity, clinicId, open, assistantWorkspace 
     }
   }
 
+  const presets = presetRanges(today);
   return <div className="operations-sections">
-    {!assistantWorkspace && <section className="schedule-panel">
+    {!assistantWorkspace && <section className="schedule-panel ops-filter-panel">
       <div className="schedule-heading">
-        <h2 ref={heading} tabIndex={-1}>查询经营报告</h2>
+        <div>
+          <h2 ref={heading} tabIndex={-1}>经营总览</h2>
+          <p className="muted">收入、成本、效率与绩效的统一视图。点击指标可查看同次查询的数据来源。</p>
+        </div>
         {assistantLink ? <a className="button" href={assistantLink}>打开经营智能助手</a> : inlineAssistantActive &&
         identity.capabilities.includes("HQ_OPERATIONS_QUERY") && <button type="button" className="button"
           aria-expanded={assistantOpen} aria-controls="operations-assistant" onClick={() => setAssistantOpen(value => !value)}>
           经营分析助手
         </button>}
       </div>
-      <form className="schedule-form" onSubmit={submit}>
+      <div className="ops-presets" aria-label="快捷统计期间">
+        {presets.map(preset => <button type="button" className="button" key={preset.id}
+          aria-pressed={from === preset.from && to === preset.to} onClick={() => applyPreset(preset.from, preset.to)}>
+          {preset.label}
+        </button>)}
+      </div>
+      <form className="schedule-form ops-filter-form" onSubmit={submit}>
         <label>开始日期<input type="date" required value={from} onChange={event => changeFilter("date_from", event.target.value, setFrom)} /></label>
         <label>结束日期<input type="date" required min={from} value={to} onChange={event => changeFilter("date_to", event.target.value, setTo)} /></label>
         <label>统计门店<select value={clinic} onChange={event => changeFilter("clinic_ids", event.target.value, setClinic)}>
@@ -156,7 +192,7 @@ export function OperationsReport({ identity, clinicId, open, assistantWorkspace 
         <label>牙医编号<input placeholder="全部，多个编号用逗号分隔" value={dentist} onChange={event => changeFilter("dentist_ids", event.target.value, setDentist)} /></label>
         <button className="button primary" disabled={busy}>查询</button>
       </form>
-      {busy && <p role="status">正在生成报告…</p>}
+      {busy && <p role="status">正在生成经营总览…</p>}
       {fault && <p className="error-text" role="alert">{fault}</p>}
       {report && <p className="report-scope">
         {report.date_from} 至 {report.date_to} · {report.scope.clinic_ids.map(clinicName).join("、") || "无门店"}
@@ -176,8 +212,9 @@ export function OperationsReport({ identity, clinicId, open, assistantWorkspace 
       {report?.snapshot_refreshed && <p role="status">原分析快照已过期，已按原筛选重新查询。原截止 {dateTime(report.original_as_of)}，新截止 {dateTime(report.as_of)}。</p>}
     </section>}
     {report && <>
+      {report.operations && <OverviewDashboard report={report} onDetail={showDetail} onCompare={() => open("/operations/compare")} />}
       <section className="schedule-panel">
-        <h2>预约履约</h2>
+        <div className="schedule-heading"><h2>预约履约</h2><p className="muted">预约数量、履约与取消的共同分母。</p></div>
         <p className="muted">{report.sources.appointments}。两项比率共用 {report.appointments.denominator} 笔正式预约。</p>
         <div className="report-metrics">
           {([["实际就诊率", "attended", report.appointments.attendance_rate],

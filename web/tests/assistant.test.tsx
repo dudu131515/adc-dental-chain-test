@@ -59,7 +59,7 @@ test("assistant suggestions fill editable filters and only an explicit submissio
   expect((screen.getByLabelText("本期开始") as HTMLInputElement).value).toBe("2030-10-15");
   fireEvent.change(screen.getByLabelText("本期开始"), { target: { value: "2030-10-14" } });
   fireEvent.click(screen.getByRole("checkbox", { name: "合成乙店" }));
-  expect(fetcher.mock.calls.map(([path]) => path).every(path => path.includes("/suggestions?"))).toBe(true);
+  expect(fetcher.mock.calls.some(([path]) => path.endsWith("/analysis"))).toBe(false);
   fireEvent.click(screen.getByRole("button", { name: "开始分析" }));
   expect(await screen.findByText("按正式预约口径核对实际就诊率。")).toBeTruthy();
   const submission = fetcher.mock.calls.find(([path]) => path.endsWith("/analysis"));

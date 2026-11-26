@@ -10,13 +10,13 @@ from adc.clinical.models import Visit
 from adc.common.http import ApiProblem
 from adc.identity.models import Clinic, EmployeeRole
 from adc.reporting import fact_queries
+from adc.reporting.business_metrics import APPOINTMENT_GROUPS, appointment_group, collect
 from adc.reporting.models import DentistPerformance
 from adc.reporting.period_locks import BUSINESS_ZONE
 from adc.reporting.permissions import QUERY, filter_clinics, includes_company, visible_scope
 from adc.scheduling.models import EmployeeQualification, Shift
 
 
-APPOINTMENT_GROUPS = ("attended", "patient_cancelled", "no_show", "unprocessed", "clinic_cancelled", "unclassified")
 MONEY = ("revenue", "material_cost", "operating_cost", "net_profit")
 
 
@@ -51,20 +51,6 @@ def authorized_filters(principal, filters):
         if dentists - staffed:
             raise ApiProblem(403, "PERMISSION_DENIED", "查询包含当前范围无法访问的牙医。")
     return sorted(clinics), sorted(dentists)
-
-
-def appointment_group(row):
-    if row["clinic_cancelled"]:
-        return "clinic_cancelled"
-    if row["actual"]:
-        return "attended"
-    if row["patient_cancelled"]:
-        return "patient_cancelled"
-    if row["status"] == "NO_SHOW" and row["verified_no_show"]:
-        return "no_show"
-    if row["status"] in {"CONFIRMED", "CHECKED_IN"} and not row["is_attended"]:
-        return "unprocessed"
-    return "unclassified"
 
 
 def appointment_metrics(first, last, cutoff, clinics, dentists, details):
@@ -263,6 +249,11 @@ def report(principal, filters, cutoff):
             "skills": "查询截止日的有效资格", "performance": "自然季度内最新已确认版本",
         },
     }
+    business, business_details = collect(
+        first, last, start, end, cutoff, clinics, dentists, cutoff.astimezone(BUSINESS_ZONE).date(),
+    )
+    details.update(business_details)
+    metadata["sources"].update(business["sources"])
     results = {
         "appointments": appointment_metrics(first, last, cutoff, clinics, dentists, details),
         "clinical": visit_metrics(visit_query, start, end, cutoff, clinics, dentists, details),
@@ -270,6 +261,7 @@ def report(principal, filters, cutoff):
         "financial": financial_metrics(visit_query, start, end, cutoff, clinics, dentists, details),
         "skills": qualification_metrics(clinics, dentists, cutoff.astimezone(BUSINESS_ZONE).date(), details),
         "performance": performance_metrics(first, last, clinics, dentists, details),
+        **business,
         "detail_metrics": list(details),
     }
     return metadata, results, details

@@ -149,7 +149,7 @@ test("one headquarters employee uses scheduling and operations in the same accou
   fireEvent.click(within(nav).getByRole("link", {name:"跨店排班"}));
   expect(screen.getByText("/schedule 员工 42")).toBeTruthy();
   fireEvent.click(within(nav).getByRole("button", {name:"经营与配置"}));
-  fireEvent.click(within(nav).getByRole("link", {name:"经营报告"}));
+  fireEvent.click(within(nav).getByRole("link", {name:"经营总览"}));
   expect(screen.getByText("/operations 员工 42")).toBeTruthy();
   expect(within(nav).queryByRole("link", {name:"员工与权限"})).toBeNull();
   fireEvent.change(screen.getByRole("combobox", {name:"工作门店"}), {target:{value:"2"}});

@@ -46,6 +46,11 @@ export function ExpensesPage({ identity, clinicId }: { identity: StaffIdentity; 
     return period ? period.year + " 年第 " + period.quarter + " 季度" : id;
   };
   const clinicName = (id: string) => identity.clinics.find(row => row.clinic_id === id)?.name ?? id;
+  const totalAmount = items.reduce((sum, row) => sum + Number(row.amount), 0);
+  const sharedAmount = items.filter(row => row.scope === "SHARED").reduce((sum, row) => sum + Number(row.amount), 0);
+  const directAmount = totalAmount - sharedAmount;
+  const categoryTotals = [...items.reduce((totals, row) => totals.set(row.expense_category, (totals.get(row.expense_category) ?? 0) + Number(row.amount)), new Map<string, number>())]
+    .sort((left, right) => right[1] - left[1]).slice(0, 6);
 
   async function submit(event: FormEvent) {
     event.preventDefault();
@@ -69,7 +74,8 @@ export function ExpensesPage({ identity, clinicId }: { identity: StaffIdentity; 
 
   return <div className="operations-sections">
     <section className="schedule-panel">
-      <h2>运营费用</h2>
+      <div className="schedule-heading"><div><h2>费用管理</h2>
+        <p className="muted">按季度登记运营费用；共同费用按牙医实际计时分钟分摊，直接费用归属指定牙医。</p></div></div>
       {fault && <p className="error-text" role="alert">{fault}</p>}
       {message && <p role="status">{message}</p>}
       {manager && (clinicId ? periods.length ? <form className="schedule-form" onSubmit={submit}>
@@ -94,6 +100,15 @@ export function ExpensesPage({ identity, clinicId }: { identity: StaffIdentity; 
           <option value="">全部季度</option>{periods.map(row => <option key={row.period_id} value={row.period_id}>{quarterName(row.period_id)}</option>)}
         </select></label>
       </div>
+      {!loading && !!items.length && <div className="ops-expense-summary">
+        <div><span>费用合计</span><strong>{money(totalAmount.toFixed(2))}</strong><small>{items.length} 笔</small></div>
+        <div><span>共同费用</span><strong>{money(sharedAmount.toFixed(2))}</strong><small>按工时分钟分摊</small></div>
+        <div><span>直接费用</span><strong>{money(directAmount.toFixed(2))}</strong><small>归属指定牙医</small></div>
+        <div className="ops-expense-categories"><span>主要类别</span>
+          {categoryTotals.length ? categoryTotals.map(([category, amount]) => <small key={category}>{category} {money(amount.toFixed(2))}</small>)
+            : <small>暂无类别</small>}
+        </div>
+      </div>}
       {loading ? <p role="status">正在读取费用…</p> : items.length ? <div className="schedule-scroll"><table className="report-table">
         <thead><tr>{["门店", "季度", "费用类别", "金额", "费用归属", "凭据"].map(label => <th scope="col" key={label}>{label}</th>)}</tr></thead>
         <tbody>{items.map(row => <tr key={row.expense_id}><td>{clinicName(row.clinic_id)}</td><td>{quarterName(row.period_id)}</td>

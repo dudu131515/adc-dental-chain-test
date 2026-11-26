@@ -23,7 +23,7 @@ test("the four standard roles are separated from special accounts and headquarte
   fireEvent.change(roles, {target:{value:"scheduler"}});
   const nav = await screen.findByRole("navigation", {name:"业务导航"});
   fireEvent.click(within(nav).getByRole("button", {name:/经营与配置/}));
-  for (const name of ["经营报告", "项目与价格", "季度核算"]) {
+  for (const name of ["经营总览", "项目与价格", "绩效管理"]) {
     expect(within(nav).getByRole("link", {name})).toBeTruthy();
   }
   expect(within(nav).queryByRole("link", {name:"员工与权限"})).toBeNull();

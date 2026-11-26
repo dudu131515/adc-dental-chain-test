@@ -12,7 +12,7 @@ from django.utils import timezone
 from adc.billing.models import CorrectionApproval, Invoice, InvoiceAdjustment, InvoiceLine, InvoicePayment, TreatmentCorrection
 from adc.booking.models import Appointment, AppointmentChange, DepositPayment, DepositRefund, SlotClaim
 from adc.catalog.models import TreatmentPrice, TreatmentType
-from adc.clinical.models import ChairUsage, DentistWorkSession, Material, MaterialCost, PatientAllergy, TreatmentItem, Visit
+from adc.clinical.models import ChairUsage, DentistWorkSession, Material, MaterialCost, MaterialUsage, PatientAllergy, TreatmentItem, Visit
 from adc.identity.audit import record_event
 from adc.identity.models import AppRole, Clinic, Employee, EmployeeRole, Patient, UserAccount
 from adc.common.idempotency import OperationKey
@@ -67,13 +67,15 @@ def seed():
     EmployeeRole.objects.create(employee=doctor, role_id=grant.role_id, scope_clinic_id=1)
     chairs = [DentalChair.objects.create(clinic_id=1, chair_no=f"A-{number:02d}") for number in range(1, 5)]
     branch_chair = DentalChair.objects.create(clinic_id=2, chair_no="B-01")
+    materials = []
     for code, name, unit, cost in (
         ("ADC-MAT-RESIN", "光固化复合树脂", "克", "48.00"),
         ("ADC-MAT-SALIVA", "一次性吸唾管", "支", "1.50"),
         ("ADC-MAT-POLISH", "牙面抛光膏", "克", "6.50"),
     ):
         material = Material.objects.create(material_code=code, material_name=name, standard_unit=unit)
-        MaterialCost.objects.create(material=material, unit_cost=cost, effective_from=today - timedelta(days=120))
+        priced = MaterialCost.objects.create(material=material, unit_cost=cost, effective_from=today - timedelta(days=120))
+        materials.append((material, priced))
     for pk, name in enumerate(("陈晓雨", "孟子安"), 1):
         Patient.objects.filter(pk=pk).update(patient_no=f"ADC-P{pk:04d}", full_name=name)
     for number, name in enumerate(("赵青", "许言", "罗珊", "宋晨", "王安琪", "吴天", "程歌", "李嘉"), 3):
@@ -197,19 +199,46 @@ def seed():
                     preview_visits[clinic_index] = Visit.objects.get(appointment=record)
 
     current_quarter = today.year * 4 + (today.month - 1) // 3
-    for offset, stage in ((3, "confirmed"), (2, "confirmed"), (1, "review")):
+    for offset in range(1, 31):
+        day = today - timedelta(days=offset)
+        for branch, chair, dentist in (
+            (1, chairs[0], 1 if offset % 2 else doctor.pk),
+            (2, branch_chair, doctor.pk if offset % 2 else 1),
+        ):
+            if Shift.objects.filter(
+                dentist_id=dentist, start_at__lt=at(day, 23, 59), end_at__gt=at(day, 0, 0),
+            ).exists() or ChairUsage.objects.filter(
+                chair=chair, assigned_at__lt=at(day, 23, 59), released_at__gt=at(day, 0, 0),
+            ).exists():
+                continue
+            work = shift(day, branch, dentist, 8, 18)
+            for position in range(2 + offset % 3):
+                number = 5000 + offset * 10 + branch * 4 + position
+                project = projects[(offset + position + branch) % len(projects)]
+                record = appointment(number, work, at(day, 9 + position * 2), 1 + number % 10,
+                                     project, "COMPLETED", chair)
+                visit = Visit.objects.get(appointment=record)
+                invoice = preview_invoice(visit, "ISSUED", materials)
+                if position % 4 != 3:
+                    InvoicePayment.objects.create(
+                        invoice=invoice, payment_kind="PAYMENT", amount=invoice.original_total, status="SUCCEEDED",
+                        paid_at=invoice.issued_at + timedelta(minutes=2), idempotency_key=f"preview-history-{number}",
+                    )
+    for offset, stage in ((3, "confirmed"), (2, "confirmed"), (1, "review"), (0, "open")):
         year, quarter_index = divmod(current_quarter - offset, 4)
         period = lock_period(year, quarter_index + 1)
         for idx, expense_name in enumerate(("设备维保", "诊室租赁", "院感耗材", "前台统筹")):
             clinic = 1 if idx % 2 == 0 else 2
             item = OperatingExpense.objects.create(
                 clinic_id=clinic, period=period, expense_category=expense_name,
-                amount=Decimal(18 + idx * 6), scope="SHARED",
+                amount=Decimal(2600 + idx * 900) if stage == "open" else Decimal(150 + idx * 50), scope="SHARED",
             )
             proof = {"evidence_ref": f"ADC-DEMO-Q{year}-{quarter_index + 1}-{idx + 1}",
                      "clinic_id": str(clinic), "period_id": str(period.pk)}
             record_event(account_id=roles[f"demo.manager-{'a' if clinic == 1 else 'b'}"], action="EXPENSE_RECORDED",
                          target_type="operating_expense", target_id=item.pk, visible_fields=proof.keys(), after=proof)
+        if stage == "open":
+            continue
         for index, day_of_month in enumerate((5, 12, 19)):
             day = today.replace(year=year, month=quarter_index * 3 + 1, day=day_of_month)
             for branch, chair, hour in ((1, chairs[0], 9), (2, branch_chair, 14)):
@@ -219,7 +248,7 @@ def seed():
                     record = appointment(number, work, at(day, hour, 30 * position), 1 + number % 10,
                                          projects[(index + position + branch) % len(projects)], "COMPLETED", chair)
                     visit = Visit.objects.get(appointment=record)
-                    preview_invoice(visit, "ISSUED")
+                    preview_invoice(visit, "ISSUED", materials)
         seed_performance_version(period, roles, stage)
 
     for i in range(4):
@@ -227,8 +256,8 @@ def seed():
         branch = 1 if i % 2 == 0 else 2
         ShiftDemand.objects.create(clinic_id=branch, start_at=at(future, 9), end_at=at(future, 12), required_count=1 + i % 2)
 
-    seed_treatment_bill(preview_visits[0], roles["demo.front-a"])
-    seed_branch_refund(preview_visits[1])
+    seed_treatment_bill(preview_visits[0], roles["demo.front-a"], materials)
+    seed_branch_refund(preview_visits[1], materials)
     start, end = today-timedelta(days=8), today+timedelta(days=21)
     days = [(start+timedelta(days=off)).isoformat() for off in range((end-start).days+1)]
     calendar = {key:{"valid_from":start.isoformat(),"valid_to":end.isoformat(),
@@ -251,8 +280,14 @@ def seed_performance_version(period, roles, stage):
                 OperationKey(approver.account_id, "performance_confirm", target, "preview-confirm"))
 
 
-def preview_invoice(visit, status):
+def preview_invoice(visit, status, materials):
     item = TreatmentItem.objects.select_related("treatment_type").get(visit=visit)
+    for position, (material, priced) in enumerate(materials[:2]):
+        MaterialUsage.objects.create(
+            treatment_item=item, material=material,
+            quantity=Decimal("1.500") + Decimal(position), unit_cost_snapshot=priced.unit_cost,
+            material_name_snapshot=material.material_name, unit_name_snapshot=material.standard_unit,
+        )
     invoice = Invoice.objects.create(
         invoice_no=visit.appointment.appointment_no.replace("ADC-DEMO-", "ADC-DEMO-INV-"),
         visit=visit, original_total=item.amount, status=status, issued_at=visit.ended_at + timedelta(minutes=1),
@@ -264,8 +299,8 @@ def preview_invoice(visit, status):
     return invoice
 
 
-def seed_treatment_bill(visit, clerk_id):
-    invoice = preview_invoice(visit, "PART_PAID")
+def seed_treatment_bill(visit, clerk_id, materials):
+    invoice = preview_invoice(visit, "PART_PAID", materials)
     issued = invoice.issued_at
     record_event(account_id=clerk_id, action="INVOICE_ISSUED", target_type="invoice", target_id=invoice.pk,
                  visible_fields=("visit_id", "original_total", "line_count"),
@@ -282,8 +317,8 @@ def seed_treatment_bill(visit, clerk_id):
         type(event).objects.filter(pk=event.pk).update(occurred_at=requested)
 
 
-def seed_branch_refund(visit):
-    invoice = preview_invoice(visit, "SETTLED")
+def seed_branch_refund(visit, materials):
+    invoice = preview_invoice(visit, "SETTLED", materials)
     issued = invoice.issued_at
     collection = InvoicePayment.objects.create(
         invoice=invoice, payment_kind="PAYMENT", amount=invoice.original_total, status="SUCCEEDED",
