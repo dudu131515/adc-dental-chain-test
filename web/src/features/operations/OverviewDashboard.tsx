@@ -75,7 +75,7 @@ export function OverviewDashboard({ report, onDetail, onCompare }: {
         <span>净利润</span><strong>{money(operations.net_profit)}</strong>
         <small>利润率 {percent(operations.profit_margin)}</small>
       </button>
-      <button className="ops-kpi" data-tone="appointments" onClick={() => onDetail("attended", "已履约预约")}>
+      <button className="ops-kpi" data-tone="appointments" onClick={() => onDetail("appointments", "预约数量")}>
         <span>预约数量</span><strong>{report.appointments.denominator}</strong>
         <small>已履约 {report.appointments.attended} 笔 · 履约率 {percent(report.appointments.attendance_rate)}</small>
       </button>

@@ -55,12 +55,14 @@ def authorized_filters(principal, filters):
 
 def appointment_metrics(first, last, cutoff, clinics, dentists, details):
     for row in fact_queries.appointment_facts(first, last, cutoff, clinics, dentists):
-        details[appointment_group(row)].append({
+        record = {
             "appointment_id": str(row["appointment_id"]), "appointment_no": row["appointment_no"],
             "clinic_id": str(row["clinic_id"]), "dentist_id": str(row["dentist_id"]),
             "service_date": row["service_date"].isoformat(), "slot_end_at": row["slot_end_at"].isoformat(),
             "status": row["status"],
-        })
+        }
+        details[appointment_group(row)].append(record)
+        details["appointments"].append(record)
     counts = {key: len(details[key]) for key in APPOINTMENT_GROUPS}
     denominator = sum(counts[key] for key in APPOINTMENT_GROUPS[:4])
     return {
@@ -236,7 +238,7 @@ def report(principal, filters, cutoff):
     if dentists:
         visit_query = visit_query.filter(main_dentist_id__in=dentists)
     details = {key: [] for key in (
-        *APPOINTMENT_GROUPS, "actual_starts", "normal_completions", "actual_treatments", "coverage", "accrued",
+        *APPOINTMENT_GROUPS, "appointments", "actual_starts", "normal_completions", "actual_treatments", "coverage", "accrued",
         "outstanding", "received", "refunded", "net_received", "skills", "performance", "expenses",
     )}
     metadata = {

@@ -230,3 +230,7 @@ class OperationsContractTests(TestCase):
             "report_token": data["report_token"], "metric": "material_cost",
         })
         self.assertEqual(details.json()["data"]["items"][0]["material_name"], "合成耗材")
+        appointments = client.get("/api/v1/reports/operations/details", {
+            "report_token": data["report_token"], "metric": "appointments",
+        })
+        self.assertEqual(appointments.json()["data"]["total"], 1)
