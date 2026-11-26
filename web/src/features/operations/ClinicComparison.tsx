@@ -56,7 +56,8 @@ function format(value: number | null, metric: MetricId) {
 function diff(now: number | null, old: number | null, metric: MetricId) {
   if (now === null || old === null) return "不可比";
   const delta = now - old;
-  const signed = delta > 0 ? "+" : delta < 0 ? "−" : "";
+  if (delta === 0) return "持平";
+  const signed = delta > 0 ? "+" : "−";
   if (metric === "attendance" || metric === "chair") return signed + oneDecimal.format(Math.abs(delta) * 100) + " 个百分点";
   return signed + format(Math.abs(delta), metric);
 }

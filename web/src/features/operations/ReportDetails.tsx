@@ -14,18 +14,25 @@ const labels: Record<string, string> = {
   clinic_name: "门店", dentist_name: "牙医", material_name: "耗材", quantity: "数量", unit_cost: "单位成本",
   recorded_amount: "登记金额", expense_category: "费用类别", period: "期间", work_id: "计时编号",
   minutes: "分钟", active_chairs: "可用牙椅", capacity_minutes: "可用分钟",
-  occupied_minutes: "占用分钟", utilization: "利用率",
+  occupied_minutes: "占用分钟", utilization: "利用率", hours: "小时", visits: "接诊次数",
+  treatments: "诊疗项目",
 };
 const statuses: Record<string, string> = {
   CONFIRMED: "已确认", CHECKED_IN: "已签到", IN_TREATMENT: "诊疗中", COMPLETED: "已完成", CANCELLED: "已取消",
   NO_SHOW: "已核实爽约", TERMINATED: "已中止", IN_PROGRESS: "诊疗中", PAYMENT: "收款", REFUND: "退款",
   DIRECT: "直接", SHARED: "共同",
 };
-type Row = Record<string, string | number | boolean>;
+type Rate = { value: string | null; availability: string };
+type Row = Record<string, string | number | boolean | Rate>;
 type DetailPage = { as_of: string; items: Row[]; next_cursor: string | null; total: number };
 
 function valueLabel(key: string, value: Row[string]) {
   if (typeof value === "boolean") return value ? "是" : "否";
+  if (value && typeof value === "object") {
+    if (value.availability === "MISSING") return "缺少数据";
+    if (value.value === null) return "不适用";
+    return new Intl.NumberFormat("zh-CN", { style: "percent", maximumFractionDigits: 1 }).format(Number(value.value));
+  }
   if (typeof value === "string" && key.endsWith("_at")) return dateTime(value);
   return statuses[String(value)] ?? String(value);
 }

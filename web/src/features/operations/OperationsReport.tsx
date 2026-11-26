@@ -112,6 +112,12 @@ export function OperationsReport({ identity, clinicId, open, assistantWorkspace 
     setFrom(fromValue);
     setTo(toValue);
     setReport(undefined);
+    if (initialQuery === undefined) {
+      const url = new URL(router.read().url, window.location.origin);
+      url.searchParams.set("date_from", fromValue);
+      url.searchParams.set("date_to", toValue);
+      router.write(url.pathname + url.search);
+    }
     void loadReport("/reports/operations?" + filterQuery(fromValue, toValue));
   }
 

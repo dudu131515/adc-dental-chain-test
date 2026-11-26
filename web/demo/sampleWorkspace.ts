@@ -424,9 +424,7 @@ export function createSampleWorkspace() {
     function operatingMetrics(items: ReportItem[], from: string, to: string, selectedClinics: string[]) {
       const dayExpense: Record<string, number> = {central: 240, river: 180};
       const materialRate = 0.26;
-      const activeStates = new Set(["COMPLETED", "IN_TREATMENT", "CONFIRMED", "CHECKED_IN"]);
-      const attendedStates = new Set(["COMPLETED", "IN_TREATMENT"]);
-      const rateData = (numerator: number, denominator: number) => ({numerator, denominator,
+      const attendedStates = new Set(["COMPLETED", "IN_TREATMENT"]);      const rateData = (numerator: number, denominator: number) => ({numerator, denominator,
         availability: denominator ? "AVAILABLE" : "NOT_APPLICABLE",
         value: denominator ? (numerator / denominator).toFixed(6) : null});
       const moneyValue = (value: number) => value.toFixed(2);
