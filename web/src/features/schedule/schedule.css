@@ -67,3 +67,25 @@
   .schedule-panel, .schedule-drawer { padding: 12px; }
   .schedule-drawer { top: 0; }
 }
+
+.appointment-day { display: grid; gap: 10px; }
+.appointment-day > p { margin: 0 0 4px; }
+.appointment-day-key { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px; font-size: 13px; }
+.appointment-day-key > span::before { content: ""; display: inline-block; width: 8px; height: 8px; margin-right: 6px; border-radius: 3px; background: #3f699b; }
+.appointment-day-key > span:nth-of-type(2)::before { background: #278872; }
+.appointment-day-key > span:nth-of-type(3)::before { background: #96a6b0; }
+.appointment-lane { display: grid; grid-template-columns: minmax(125px, 150px) minmax(0, 1fr); border: 1px solid #dce7eb; border-radius: 10px; }
+.appointment-lane-dentist { padding: 13px; background: #f5f9fa; border-radius: 10px 0 0 10px; }
+.appointment-lane-dentist h3 { margin: 0 0 6px; font-size: 15px; }
+.appointment-lane-dentist span { display: block; font-size: 13px; color: #455c68; font-variant-numeric: tabular-nums; }
+.appointment-lane-detail { padding: 10px 12px; }
+.appointment-lane-detail p { margin: 4px 0; }
+.appointment-lane-times { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(158px, 100%), 1fr)); gap: 7px; list-style: none; padding: 0; margin: 0; }
+.appointment-lane-times > li > * { width: 100%; height: 100%; }
+.appointment-lane-times .appointment-candidate { background: #eef8f3; border: 1px dashed #7eaf9e; color: #226552; font-size: 13px; }
+.appointment-lane-times button.appointment-candidate:hover { background: #def1e9; }
+.appointment-lane-detail .appointment-unavailable { color: #526973; font-size: 12px; margin-top: 7px; }
+@media (max-width: 540px) {
+  .appointment-lane { grid-template-columns: minmax(0, 1fr); }
+  .appointment-lane-dentist { border-radius: 10px 10px 0 0; }
+}

@@ -7,6 +7,7 @@ import { useAction } from "../../shared/useAction";
 import { useRead } from "../../shared/useRead";
 import { Candidate, fundingStates, FundsStatus } from "./appointmentTypes";
 import { localTime } from "./types";
+import type { BookingPreference } from "./DaySchedule";
 
 export type Patient = { patient_id: string; patient_no: string; full_name: string; birth_date: string; phone: string };
 type Project = { treatment_type_id: string; treatment_name: string; default_slot_minutes: number | null; active: boolean };
@@ -162,7 +163,7 @@ function DepositStep({ hold, resumed, onOpen, onReset }: {
 }
 
 type BookingProps = {
-  identity: StaffIdentity; clinic: string; date: string; initialPatient?: Patient; onAppointment: (id: string) => void;
+  identity: StaffIdentity; clinic: string; date: string; initialPatient?: Patient; preference?: BookingPreference; onAppointment: (id: string) => void;
 };
 
 export function BookingForm(props: BookingProps) {
@@ -170,15 +171,15 @@ export function BookingForm(props: BookingProps) {
   return <BookingWorkflow key={storageKey} {...props} storageKey={storageKey} />;
 }
 
-function BookingWorkflow({ identity, clinic, date, onAppointment, initialPatient, storageKey }: BookingProps & { storageKey: string }) {
+function BookingWorkflow({ identity, clinic, date, onAppointment, initialPatient, preference, storageKey }: BookingProps & { storageKey: string }) {
   const [text, setText] = useState("");
   const [criteria, setCriteria] = useState<string>();
   const [patient, setPatient] = useState<Patient | undefined>(initialPatient);
   const [project, setProject] = useState("");
-  const [dentist, setDentist] = useState("");
+  const [dentist, setDentist] = useState(preference?.dentistId ?? "");
   const [minutes, setMinutes] = useState("");
   const [evidence, setEvidence] = useState("");
-  const [preferred, setPreferred] = useState("");
+  const [preferred, setPreferred] = useState(preference?.time ?? "");
   const [note, setNote] = useState("");
   const [query, setQuery] = useState<string>();
   const [change, setChange] = useState(0);
