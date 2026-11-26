@@ -9,11 +9,11 @@ type Project = { treatment_type_id: string; treatment_name: string; standard_uni
 type MaterialOption = { material_id: string; material_name: string; standard_unit: string; cost_references: string[] };
 type MaterialUse = { material_id: string; quantity: string; cost_evidence_ref: string };
 
-export function TreatmentForm({ visit, onChange }: { visit: Visit; onChange: () => void }) {
+export function TreatmentForm({ visit, onChange, initialProject }: { visit: Visit; onChange: (project?: string) => void; initialProject?: string }) {
   const projects = useRead<{ items: Project[] }>("/catalog/treatments");
   const materials = useRead<{ items: MaterialOption[] }>("/clinical/materials");
   const selected = projects.data?.items.filter(row => row.active) ?? [];
-  const [item, selectItem] = useState(visit.planned_treatment_type_id);
+  const [item, selectItem] = useState(initialProject ?? visit.planned_treatment_type_id);
   const [proposed, setProposed] = useState("");
   const [decision, setDecision] = useState("ACCEPTED");
   const [consentReference, setConsentReference] = useState("");
@@ -32,7 +32,7 @@ export function TreatmentForm({ visit, onChange }: { visit: Visit; onChange: () 
     event.preventDefault();
     action.execute(base + "/additional-decisions", { treatment_type_id: proposed, decision, evidence_ref: consentReference }, () => {
       setConsentReference("");
-      onChange();
+      onChange(decision === "ACCEPTED" ? proposed : undefined);
     });
   }
 

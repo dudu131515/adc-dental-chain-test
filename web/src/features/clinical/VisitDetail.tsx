@@ -11,7 +11,7 @@ import { AllergyHistory } from "./AllergyReview";
 import { TreatmentForm } from "./TreatmentForm";
 import "./clinical.css";
 
-export function VisitDetail({ id, open }: { id: string; open: (target: string) => void }) {
+export function VisitDetail({ id, open, returnTo = "/clinical" }: { id: string; open: (target: string) => void; returnTo?: string }) {
   const [sequence, setSequence] = useState(0);
   const base = "/visits/" + id;
   const read = useRead<Visit>(base, sequence);
@@ -19,6 +19,7 @@ export function VisitDetail({ id, open }: { id: string; open: (target: string) =
   const ongoing = current?.status === "IN_PROGRESS";
   const context = useRead<ClinicalContext>(ongoing && current.main_dentist_id ? "/appointments/" + current.appointment_id + "/clinical-context" : undefined, sequence);
   const [notes, setNotes] = useState("");
+  const [nextProject, setNextProject] = useState<string>();
   const [ending, setEnding] = useState<"finish" | "terminate">("finish");
   const [reason, setReason] = useState("");
   const action = useAction();
@@ -35,9 +36,9 @@ export function VisitDetail({ id, open }: { id: string; open: (target: string) =
   }
 
   return <div className="operations-sections">
-    <div className="schedule-toolbar"><button className="button" onClick={() => open("/clinical")}>返回接诊队列</button></div>
+    <div className="schedule-toolbar"><button className="button" onClick={() => open(returnTo)}>{returnTo === "/clinical/records" ? "返回诊疗记录" : "返回接诊队列"}</button></div>
     {read.loading && <p role="status">正在读取诊疗详情…</p>}
-    {read.fault && <p className="error-text" role="alert">{read.fault}</p>}
+    {read.fault && <p className="error-text" role="alert">{read.fault} <button className="button" onClick={() => setSequence(value => value + 1)}>重试</button></p>}
     {current && !current.main_dentist_id && <p role="alert">仅负责本次就诊的牙医可查看诊疗详情。</p>}
     {current?.main_dentist_id && <>
       <section className="schedule-panel">
@@ -79,7 +80,9 @@ export function VisitDetail({ id, open }: { id: string; open: (target: string) =
         </li>)}</ul> : <p>暂无实际耗材记录。</p>}
       </section>
       {ongoing && <>
-        <TreatmentForm visit={current} onChange={() => setSequence(value => value + 1)} />
+        <TreatmentForm visit={current} initialProject={nextProject} onChange={project => {
+          setNextProject(project); setSequence(value => value + 1);
+        }} />
         <section className="schedule-panel">
           <h2>结束诊疗</h2>
           <ActionFeedback {...action} />

@@ -3,12 +3,16 @@ import { canWorkAt, type WorkArea } from "../../shared/AppShell";
 import { dateTime, localDay } from "../../shared/format";
 import { useRead } from "../../shared/useRead";
 import { RegisterPatient, type Patient } from "../schedule/BookingForm";
+import { invoiceStates } from "../billing/billingTypes";
+import { visitStates } from "../clinical/clinicalTypes";
 import { appointmentStates } from "../schedule/appointmentTypes";
 import "./patients.css";
 
 type PageInfo = { page: number; page_size: number; total: number };
 type Directory = PageInfo & { items: (Patient & { next_start: string | null })[] };
-type History = { appointment_id: string; appointment_no: string; start_at: string; treatment: string; dentist: string; status: string };
+type History = { appointment_id: string; appointment_no: string; start_at: string; treatment: string; dentist: string; status: string;
+  visit?: { visit_id: string; status: string }; invoice?: { invoice_id: string; invoice_no: string; status: string };
+};
 type Profile = PageInfo & { patient: Patient; appointments: History[] };
 
 function Pager({ result, choose }: { result: PageInfo; choose: (n: number) => void }) {
@@ -47,14 +51,23 @@ function PatientRecord({ clinic, id, open, directory }: {
           <dl className="patient-facts"><div><dt>出生日期</dt><dd>{patient.birth_date}</dd></div>
             <div><dt>联系电话</dt><dd><a href={"tel:" + patient.phone}>{patient.phone}</a></dd></div></dl>
         </section>
-        <section className="patient-card"><div className="patient-heading"><h2>本店预约记录</h2><span>{read.data.total} 笔</span></div>
+        <section className="patient-card"><div className="patient-heading"><h2>本店预约、就诊与费用</h2><span>{read.data.total} 笔</span></div>
           {!read.data.total && <p className="patient-empty">患者已建档，可以从上方为其安排首次预约。</p>}
           <ol className="patient-timeline">{read.data.appointments.map(row => <li key={row.appointment_id}>
             <time dateTime={row.start_at}>{dateTime(row.start_at)}</time>
             <p><strong>{row.treatment}</strong><span className="status-tag" data-state={row.status}>{appointmentStates[row.status] ?? row.status}</span></p>
             <span>{row.dentist} · {row.appointment_no}</span>
-            <button className="patient-link" onClick={() => open("/schedule/appointments/" + row.appointment_id + "?" +
-              new URLSearchParams({ clinic, date: localDay(new Date(row.start_at)) }))}>查看预约详情 ›</button>
+            <div className="patient-visit-links">
+              <button className="patient-link" onClick={() => open("/schedule/appointments/" + row.appointment_id + "?" +
+                new URLSearchParams({ clinic, date: localDay(new Date(row.start_at)) }))}>查看预约详情 ›</button>
+              {row.visit && <>
+                <span>就诊 {row.visit.visit_id} · {visitStates[row.visit.status] ?? row.visit.status}</span>
+                {row.invoice ? <button className="patient-link" onClick={() => open("/billing/invoices/" + row.invoice!.invoice_id)}>
+                  {invoiceStates[row.invoice.status] ?? row.invoice.status} · {row.invoice.invoice_no} ›
+                </button> : row.visit.status !== "IN_PROGRESS" && <button className="patient-link"
+                  onClick={() => open("/billing/visits/" + row.visit!.visit_id)}>查看待开单 ›</button>}
+              </>}
+            </div>
           </li>)}</ol><Pager result={read.data} choose={setPage} />
         </section>
       </div>
@@ -66,9 +79,9 @@ export function PatientsPage({ identity, clinicId, path, open }: WorkArea) {
   const params = new URLSearchParams(window.location.search);
   const choices = identity.clinics.filter(row => canWorkAt(identity, "FRONT_DESK", row.clinic_id));
   const selected = clinicId || (choices.find(row => row.clinic_id === params.get("clinic")) || choices[0])?.clinic_id || "";
-  const allowed = choices.some(row => row.clinic_id === selected);
   const [clinic, setClinic] = useState(selected);
-  const [search, setSearch] = useState(params.get("q") || "");
+  const allowed = choices.some(row => row.clinic_id === clinic);
+  const [search, setSearch] = useState("");
   const [submitted, setSubmitted] = useState(search);
   const [page, setPage] = useState(1);
   const [register, setRegister] = useState(false);
@@ -79,17 +92,16 @@ export function PatientsPage({ identity, clinicId, path, open }: WorkArea) {
   const storeName = choices.find(row => row.clinic_id === clinic)?.name;
   function directory() {
     const args = new URLSearchParams({ clinic });
-    if (submitted) args.set("q", submitted);
     open("/patients?" + args);
     setRefresh(v => v + 1);
   }
   function show(record: Patient) {
     setRegister(false);
-    open("/patients/" + record.patient_id + "?" + new URLSearchParams({ clinic, q: submitted }));
+    open("/patients/" + record.patient_id + "?" + new URLSearchParams({ clinic }));
   }
   function searchDirectory(event: FormEvent) {
     event.preventDefault(); setSubmitted(search.trim()); setPage(1);
-    window.history.replaceState({}, "", "/patients?" + new URLSearchParams({ clinic, q: search.trim() }));
+    window.history.replaceState({}, "", "/patients?" + new URLSearchParams({ clinic }));
   }
   if (!allowed) return <section className="patient-page"><h1>患者档案</h1><p>请选择具备前台权限的门店。</p></section>;
   if (id) return <PatientRecord key={clinic + ":" + id} clinic={clinic} id={id} open={open} directory={directory} />;
@@ -101,7 +113,7 @@ export function PatientsPage({ identity, clinicId, path, open }: WorkArea) {
     <div className="patient-card patient-roster">
       <div className="patient-heading"><h2>患者名册</h2>{read.data && <span>{read.data.total} 位患者</span>}</div>
       <form className="patient-filter" onSubmit={searchDirectory}>
-        {!clinicId && choices.length > 1 && <label>门店<select value={clinic} onChange={e => { setClinic(e.target.value); setPage(1); setRegister(false); }}>{choices.map(row =>
+        {!clinicId && choices.length > 1 && <label>门店<select value={clinic} onChange={e => { setClinic(e.target.value); setPage(1); setRegister(false); setSearch(""); setSubmitted(""); }}>{choices.map(row =>
           <option key={row.clinic_id} value={row.clinic_id}>{row.name}</option>)}</select></label>}
         <label><span className="patient-reader">查找患者</span><input type="search" placeholder="输入姓名、完整手机号或患者编号" value={search} onChange={e => setSearch(e.target.value)} /></label>
         <button className="button">查询</button>
@@ -109,6 +121,7 @@ export function PatientsPage({ identity, clinicId, path, open }: WorkArea) {
       </form>
       {read.loading && <p role="status">正在读取名册…</p>}
       {read.fault && <div role="alert">{read.fault} <button className="button" onClick={() => setRefresh(v => v + 1)}>重试</button></div>}
+      {submitted && (read.data?.items.length ?? 0) > 1 && <p className="muted">找到多份档案，请按患者编号、出生日期和联系方式分别核对。</p>}
       {read.data && (read.data.items.length ? <div className="patient-table-wrap"><table className="patient-table">
         <thead><tr><th>患者</th><th>出生日期</th><th>联系电话</th><th>下次预约</th><th><span className="patient-reader">档案</span></th></tr></thead>
         <tbody>{read.data.items.map(row => <tr key={row.patient_id}><td><button className="patient-person" onClick={() => show(row)}>

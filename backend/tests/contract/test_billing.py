@@ -94,6 +94,22 @@ class BillingContractTests(TestCase):
         return visit, invoice
 
 
+
+    def test_patient_record_links_front_desk_to_billing_without_clinical_text(self):
+        visit, invoice = self.issued_invoice()
+        visit.clinical_notes = "前台档案不显示的合成诊疗记录"
+        visit.save(update_fields=("clinical_notes",))
+        route = f"/api/v1/clinics/1/patients/{visit.appointment.claim.patient_id}"
+        response = self.front.get(route)
+        self.assertEqual(response.status_code, 200, response.content)
+        entry, = response.json()["data"]["appointments"]
+        self.assertEqual(entry["visit"], {"visit_id": str(visit.pk), "status": "COMPLETED"})
+        self.assertEqual(entry["invoice"], {
+            "invoice_id": invoice["invoice_id"], "invoice_no": invoice["invoice_no"], "status": "ISSUED",
+        })
+        self.assertNotIn(visit.clinical_notes, response.content.decode())
+        self.assertEqual(self.other_store.get(route).status_code, 403)
+
     def test_queue_searches_billing_identifiers_within_front_desk_scope(self):
         visit, invoice = self.issued_invoice()
         patient = visit.appointment.claim.patient

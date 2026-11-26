@@ -39,3 +39,7 @@
 .patient-empty { padding:18px 0; line-height:1.6; color:var(--secondary) }
 .patient-reader { position:absolute; width:1px; height:1px; overflow:hidden; clip-path:inset(50%) }
 @media(max-width:760px){.patient-profile-grid{grid-template-columns:1fr}.patient-card,.patient-record-head{padding:16px}.patient-record-head .primary{margin-left:0}.patient-filter input{min-width:0}.patient-table th,.patient-table td{padding:10px 6px}}
+
+.patient-visit-links { display:flex; flex-wrap:wrap; align-items:center; gap:4px 12px; margin-top:7px }
+.patient-visit-links > span { color:var(--secondary); font-size:.84rem }
+.patient-timeline .patient-visit-links .patient-link { margin:0; overflow-wrap:anywhere }

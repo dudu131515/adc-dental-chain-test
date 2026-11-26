@@ -26,7 +26,7 @@ export type ClinicalContext = {
   appointment: Appointment; chair: Chair | null; special_requirement: string | null;
   allergies: AllergyEntry[];
   allergy_review: AllergyReviewState;
-  history: { visit_id: string; status: string; ended_at: string; treatments?: string[] }[];
+  history: { visit_id: string; status: string; ended_at: string; treatments?: string[]; can_open_detail?: boolean }[];
 };
 
 export const visitStates: Record<string, string> = { IN_PROGRESS: "诊疗中", COMPLETED: "正常结束", TERMINATED: "已中止" };

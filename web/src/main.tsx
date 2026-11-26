@@ -6,8 +6,7 @@ import { DailyReconciliation } from "./features/billing/DailyReconciliation";
 import { DashboardPage, ManagementHome } from "./features/dashboard/DashboardPage";
 import { PatientsPage } from "./features/patients/PatientsPage";
 import { CatalogPage } from "./features/catalog/CatalogPage";
-import { ClinicalQueue } from "./features/clinical/ClinicalQueue";
-import { VisitDetail } from "./features/clinical/VisitDetail";
+import { ClinicalWorkspace } from "./features/clinical/ClinicalQueue";
 import { OperationsPage } from "./features/operations/OperationsPage";
 import { SchedulePage } from "./features/schedule/SchedulePage";
 import { AppShell } from "./shared/AppShell";
@@ -28,10 +27,7 @@ createRoot(root).render(
       if (area.section === "/operations") return <OperationsPage {...area} showTabs={false} />;
       if (area.section === "/billing") return area.path === "/billing/reconciliation"
         ? <DailyReconciliation {...area} /> : <BillingPage {...area} />;
-      if (area.section === "/clinical") {
-        const visit = area.path.match(/^\/clinical\/visits\/(\d+)$/)?.[1];
-        return visit ? <VisitDetail id={visit} open={area.open} /> : <ClinicalQueue {...area} />;
-      }
+      if (area.section === "/clinical") return <ClinicalWorkspace {...area} />;
       return null;
     }} />
   </StrictMode>,

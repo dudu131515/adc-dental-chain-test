@@ -129,18 +129,26 @@ def patient_directory(request, pk):
     }))
 
 
+def registered_appointment(row):
+    visit = getattr(row, "visit", None)
+    invoice = getattr(visit, "invoice", None)
+    return {
+        "appointment_id": str(row.pk), "appointment_no": row.appointment_no, "status": row.status,
+        "start_at": row.claim.start_at.isoformat(), "dentist": row.claim.dentist.full_name,
+        "treatment": row.claim.requested_treatment_type.treatment_name,
+        "visit": {"visit_id": str(visit.pk), "status": visit.status} if visit else None,
+        "invoice": {"invoice_id": str(invoice.pk), "invoice_no": invoice.invoice_no, "status": invoice.status} if invoice else None,
+    }
+
+
 @api_view(["GET"])
 def patient_record(request, pk, patient_id):
     patient = get_object_or_404(front_registry(request, pk), pk=patient_id)
     page = values(DirectoryFilters, request.query_params)["page"]
     history = Appointment.objects.filter(claim__patient=patient, claim__clinic_id=pk).select_related(
-        "claim__requested_treatment_type", "claim__dentist",
+        "claim__requested_treatment_type", "claim__dentist", "visit__invoice",
     ).order_by("-claim__start_at", "-pk")
-    result = page_result(history, page, lambda row: {
-        "appointment_id": str(row.pk), "appointment_no": row.appointment_no, "status": row.status,
-        "start_at": row.claim.start_at.isoformat(), "dentist": row.claim.dentist.full_name,
-        "treatment": row.claim.requested_treatment_type.treatment_name,
-    })
+    result = page_result(history, page, registered_appointment)
     return success({"patient": front_patient_projection(patient), "appointments": result.pop("items"), **result})
 
 

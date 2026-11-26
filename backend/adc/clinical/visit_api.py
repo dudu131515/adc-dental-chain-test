@@ -15,6 +15,10 @@ from adc.common.serializers import ID, values
 from adc.identity.models import AuditLog
 
 
+class ClinicalQueueFilters(serializers.Serializer):
+    clinic_id = ID(required=False)
+
+
 class StartVisit(serializers.Serializer):
     expected_claim_id = ID()
 
@@ -113,6 +117,10 @@ def queue(request):
         claim__dentist_id=request.user.employee_id,
         claim__clinic_id__in=request.user.clinic_scope("DENTIST"),
     )
+    clinic = values(ClinicalQueueFilters, request.query_params).get("clinic_id")
+    if clinic is not None:
+        request.user.require("DENTIST", clinic)
+        scope = scope.filter(claim__clinic_id=clinic)
     if history:
         visits = Visit.objects.filter(
             appointment__in=scope, main_dentist_id=request.user.employee_id,
@@ -145,7 +153,7 @@ def context(request, pk):
     history = list(Visit.objects.filter(
         appointment__claim__patient_id=claim.patient_id, appointment__claim__clinic_id=claim.clinic_id,
         status__in=("COMPLETED", "TERMINATED"),
-    ).only("visit_id", "status", "ended_at").order_by("-ended_at", "-pk"))
+    ).only("visit_id", "status", "ended_at", "main_dentist_id").order_by("-ended_at", "-pk"))
     items = list(TreatmentItem.objects.filter(visit__in=history).select_related("treatment_type").order_by("item_id"))
     snapshots = name_snapshots(items)
     treatments = {}
@@ -158,7 +166,8 @@ def context(request, pk):
         **allergy_context(claim.patient_id, claim.clinic_id),
         "history": [
             {"visit_id": str(row.pk), "status": row.status, "ended_at": row.ended_at.isoformat(),
-             "treatments": list(dict.fromkeys(treatments.get(row.pk, [])))}
+             "treatments": list(dict.fromkeys(treatments.get(row.pk, []))),
+             "can_open_detail": row.main_dentist_id == request.user.employee_id}
             for row in history
         ],
     })
