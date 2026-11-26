@@ -1,5 +1,7 @@
 import { type MouseEvent, useEffect, useMemo, useRef, useState } from "react";
 import { Brand, Icon } from "../src/shared/Icons";
+import { hasAccessAdministration, inferredJob } from "../src/shared/navigation";
+import "../src/features/schedule/schedule.css";
 import {
   type Appointment, type Clinic, type Status, appointments, clinics, days, statusLabels,
 } from "./fixtures";
@@ -137,11 +139,11 @@ export function PagesDemo() {
     }
   }
   function showAppointment(id:string){
-    const row=appointments.find(item=>item.id===id);
+    const row=sample.getAppointment(id);
     if(row) setSelected({row,bill:false});
   }
-  function inspect(row:Appointment, button:HTMLButtonElement, bill=false) {
-    trigger.current = button;
+  function inspect(row:Appointment, button:HTMLButtonElement | undefined, bill=false) {
+    trigger.current = button ?? null;
     setSelected({row,bill});
   }
   function dismiss() {
@@ -178,7 +180,7 @@ export function PagesDemo() {
           </ul>
         </div>)}
       </nav>
-      <div className="pd-rail-footer"><Icon name="clinic" size={19}/><span>安德鲁牙科连锁</span></div>
+      <div className="pd-rail-footer"><Icon name="clinic" size={19}/><span>{role==="visitor"?"安德鲁牙科连锁":inferredJob(identity.capabilities)}{hasAccessAdministration(identity) && <small> · 管理员权限</small>}</span></div>
     </aside>
     <div className="pd-content">
       <header className="pd-top"><div><span>管理中心</span><b>/</b>{group?.name ?? "首页"}</div>
@@ -199,13 +201,14 @@ export function PagesDemo() {
         </div>}
         {route === "home" && <ManagementHome section="/dashboard" path="/dashboard" summaryDay={date} identity={managementIdentity} clinicId={allowedScope} open={openShared}/>}
         {route === "desk/home" && <Dashboard key={clinic+date} rows={rows} onOpen={inspect} onCalendar={event=>open(event,"desk/calendar")}/>}
-        {route === "desk/calendar" && <AppointmentCalendar key={clinic+date} rows={rows} clinic={clinic} onOpen={inspect}/>}
+        {route === "desk/calendar" && <AppointmentCalendar key={role+clinic+date} rows={rows} clinic={clinic} date={date} identity={identity} visitor={role==="visitor"}
+          onOpen={inspect} onAppointment={showAppointment}/>}
         {route === "desk/staff" && <ShiftBoard key={role+allowedScope} initialWeek="2026-11-23" identity={identity} clinicId={allowedScope} onAppointment={showAppointment}/>}
         {route === "desk/demands" && <ShiftDemandForm key={role+allowedScope} identity={identity} clinicId={allowedScope}/>}
         {route === "desk/chairs" && <ResourceImpactPanel key={role+allowedScope} identity={identity} clinicId={allowedScope} onAppointment={showAppointment}/>}
         {group?.id === "patients" && <PatientWorkspace key={route} route={route} rows={rows} scoped={scoped} onOpen={inspect}/>}
         {route === "billing/reconcile" && <Billing date={date} clinic={clinic}/>}
-        {group?.id === "billing" && route!=="billing/reconcile" && <FinanceWorkspace key={route} route={route} rows={rows} clinic={clinic} onOpen={inspect}/>}
+        {group?.id === "billing" && route!=="billing/reconcile" && <FinanceWorkspace key={role+route+clinic+date} route={route} rows={rows} clinic={clinic} date={date} onOpen={inspect}/>}
         {route === "operations/overview" && <>
           {!reportQuery && <OperationsOverview clinic={clinic}/>}
           <OperationsReport key={reportQuery||clinic} identity={managementIdentity} clinicId={clinic==="all"?"":clinic}

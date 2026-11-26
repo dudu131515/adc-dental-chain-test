@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import { ApiTransport, useApiRequest } from "../src/shared/ApiTransport";
+import { BillingQueue, emptyFilters } from "../src/features/billing/BillingPage";
 import { Icon } from "../src/shared/Icons";
-import { AppointmentList } from "./AppointmentDetails";
-import { type Appointment, type Clinic, approvals, clinics, days, funds, invoices, money } from "./fixtures";
+import { type Appointment, type Clinic, approvals, clinics, days, funds, money } from "./fixtures";
 import type { Route } from "./workspace";
 
 export function Billing({date, clinic}: {date:(typeof days)[number]; clinic:Clinic | "all"}) {
@@ -32,12 +33,20 @@ export function Billing({date, clinic}: {date:(typeof days)[number]; clinic:Clin
 }
 
 
-type Inspect = (row:Appointment, button:HTMLButtonElement, bill?:boolean) => void;
+type Inspect = (row:Appointment, button:HTMLButtonElement | undefined, bill?:boolean) => void;
 
-export function FinanceWorkspace({route,rows,clinic,onOpen}: {
-  route:Route; rows:Appointment[]; clinic:Clinic|"all"; onOpen:Inspect;
+export function FinanceWorkspace({route,rows,clinic,date,onOpen}: {
+  route:Route; rows:Appointment[]; clinic:Clinic|"all"; date:(typeof days)[number]; onOpen:Inspect;
 }) {
-  const [state,setState]=useState("all");
+  const [filters,setFilters]=useState(emptyFilters);
+  const original = useApiRequest();
+  const request = useMemo<typeof original>(() => (path, details) => {
+    if (!path.startsWith("/billing/queue")) return original(path,details);
+    const [route,search] = path.split("?");
+    const query = new URLSearchParams(search);
+    query.set("date",date);
+    return original(route+"?"+query,details);
+  }, [original,date]);
   if (route==="billing/approvals") {
     const records=approvals.filter(item => (clinic==="all" || item.clinic===clinic) && rows.some(row=>row.id===item.appointment));
     return <section className="pd-panel"><div className="pd-panel-title"><div><h2>诊疗更正记录</h2><p>查看原预约与审批结果</p></div></div>
@@ -48,29 +57,14 @@ export function FinanceWorkspace({route,rows,clinic,onOpen}: {
             <td>{money(item.amount)}</td><td>{item.status}</td><td>{row ? <button className="pd-link" onClick={event=>onOpen(row,event.currentTarget)}>{item.appointment}</button>:item.appointment}</td></tr>;
         })}</tbody></table></div>{!records.length && <p className="pd-empty">所选门店暂无更正记录。</p>}</section>;
   }
-  const closed=rows.filter(row=>row.status==="done");
-  const issued=closed.filter(row=>row.invoice);
-  if (route==="billing/queue") {
-    const queue=closed.filter(row=>state==="all" || (state==="issued" ? Boolean(row.invoice) : !row.invoice));
-    return <section className="pd-panel"><div className="pd-panel-title"><div><h2>已结束就诊</h2>
-      <p>{closed.length-issued.length} 笔待开单 · {issued.length} 笔已开单</p></div>
-      <label className="pd-search">开单状态<select value={state} onChange={event=>setState(event.target.value)}>
-        <option value="all">全部</option><option value="pending">待开单</option><option value="issued">已开单</option>
-      </select></label></div><AppointmentList rows={queue} onOpen={onOpen}/></section>;
-  }
-  const bills=issued.flatMap(row => {
-    const id=row.invoice as keyof typeof invoices;
-    return id && invoices[id] ? [{row,id,invoice:invoices[id]}]:[];
-  }).filter(item=>state==="all" || (state==="due" ? item.invoice.outstanding > 0 : item.invoice.outstanding===0));
-  return <section className="pd-panel"><div className="pd-panel-title"><div><h2>诊疗费用单</h2><p>查看原主单、实际收退和欠款</p></div>
-    <label className="pd-search">收款状态<select value={state} onChange={event=>setState(event.target.value)}>
-      <option value="all">全部</option><option value="due">有欠款</option><option value="settled">已结清</option>
-    </select></label></div>
-    {bills.length ? <div className="pd-table-wrap"><table className="pd-table"><thead><tr>
-      <th>主单编号</th><th>患者</th><th>当前应缴</th><th>成功收款</th><th>成功退款</th><th>欠款</th><th>详情</th>
-    </tr></thead><tbody>{bills.map(({id,row,invoice})=><tr key={id}><th scope="row">{id}</th>
-      <td>{row.patient}</td><td>{money(invoice.due)}</td><td>{money(invoice.received)}</td><td>{money(invoice.refunded)}</td>
-      <td>{money(invoice.outstanding)}</td><td><button className="pd-link" aria-label={"查看 "+id}
-        onClick={event=>onOpen(row,event.currentTarget,true)}>查看<Icon name="chevron" size={14}/></button></td></tr>)}</tbody>
-    </table></div>:<p className="pd-empty">当前筛选下没有诊疗费用单。</p>}</section>;
+  return <ApiTransport.Provider value={request}>
+    <BillingQueue clinicId={clinic==="all"?"":clinic} invoicesOnly={route!=="billing/queue"} filters={filters}
+      update={setFilters} open={path => {
+        const id=path.split("/").at(-1);
+        const bill=path.startsWith("/billing/invoices/");
+        const row=rows.find(item=>bill?item.invoice===id:item.id===id);
+        const active=document.activeElement;
+        if (row) onOpen(row,active instanceof HTMLButtonElement?active:undefined,bill);
+      }}/>
+  </ApiTransport.Provider>;
 }

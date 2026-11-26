@@ -27,14 +27,14 @@ function label(time: number, dayEnd: number) {
   return time === dayEnd ? "24:00" : localTime(new Date(time).toISOString());
 }
 
-export function DaySchedule({ board, names, date, status, onAppointment, onCandidate }: {
+export function DaySchedule({ board, names, date, status, onAppointment, onCandidate, asOf = Date.now() }: {
   board: CalendarBoard; names: ReadonlyMap<string, string>; date: string; status: string;
-  onAppointment: (id: string) => void; onCandidate?: (selection: BookingPreference) => void;
+  asOf?: number; onAppointment: (id: string) => void; onCandidate?: (selection: BookingPreference) => void;
 }) {
   const bounds = { start: Date.parse(date + "T00:00:00+08:00"), end: Date.parse(addDays(date, 1) + "T00:00:00+08:00") };
   const published = board.shifts.filter(row => row.status === "PUBLISHED");
   const dentists = [...new Set([...published, ...board.appointments].map(row => row.dentist_id))];
-  const today = Math.ceil(Date.now() / minute) * minute;
+  const today = Math.ceil(asOf / minute) * minute;
   const range = (time: Interval) => label(time.start, bounds.end) + "–" + label(time.end, bounds.end);
   if (!dentists.length) return <p>所选门店与日期暂无已发布班次或预约。</p>;
   return <div className="appointment-day">

@@ -36,9 +36,9 @@ const billingStates = {
 } as const;
 
 type QueueFilters = { text: string; status: string; cursors: (string | null)[] };
-const emptyFilters: QueueFilters = { text: "", status: "", cursors: [null] };
+export const emptyFilters: QueueFilters = { text: "", status: "", cursors: [null] };
 
-function Queue({ clinicId, open, filters, update, invoicesOnly }: Pick<WorkArea, "clinicId" | "open"> & {
+export function BillingQueue({ clinicId, open, filters, update, invoicesOnly }: Pick<WorkArea, "clinicId" | "open"> & {
   invoicesOnly: boolean; filters: QueueFilters; update: (filters: QueueFilters) => void;
 }) {
   const [text, setText] = useState(filters.text);
@@ -92,7 +92,7 @@ function Queue({ clinicId, open, filters, update, invoicesOnly }: Pick<WorkArea,
           {Number(row.pending_refund) > 0 && <div>处理中 {money(row.pending_refund)}</div>}
           {Number(row.refund_remaining) > 0 && <div>待退 {money(row.refund_remaining)}</div>}
         </> : row.outstanding !== null ? money(row.outstanding) : "—"}</td>
-        <td><button className="text-action" onClick={() => open(row.invoice_id
+        <td><button className="text-action" aria-label={row.invoice_no ? "查看 " + row.invoice_no : undefined} onClick={() => open(row.invoice_id
           ? "/billing/invoices/" + row.invoice_id : "/billing/visits/" + row.visit_id)}>{row.invoice_no ?? "开立主单"}</button></td>
       </tr>)}</tbody>
     </table></div>}
@@ -120,7 +120,7 @@ export function BillingPage({ identity, clinicId, path, open }: WorkArea) {
   return <div className="operations-sections">
     <h1>结算</h1>
     {corrections ? <CorrectionReview clinic={clinicId} open={open} />
-      : <Queue key={path} clinicId={clinicId} open={destination => { setReturnTo(path); open(destination); }}
+      : <BillingQueue key={path} clinicId={clinicId} open={destination => { setReturnTo(path); open(destination); }}
         invoicesOnly={invoices} filters={invoices ? invoiceFilters : queueFilters}
         update={invoices ? setInvoiceFilters : setQueueFilters} />}
   </div>;

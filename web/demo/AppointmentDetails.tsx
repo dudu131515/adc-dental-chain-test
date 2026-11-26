@@ -30,7 +30,7 @@ type Pane = "summary" | "history" | "allergies" | "bill";
 export function VisitDrawer({visit, initialBill, dismiss}: {visit: Appointment; initialBill:boolean; dismiss: () => void}) {
   const [pane,setPane]=useState<Pane>(initialBill?"bill":"summary");
   const ref = useRef<HTMLDialogElement>(null);
-  const related=appointments.filter(row=>row.patient===visit.patient).sort((a,b)=>b.date.localeCompare(a.date));
+  const related=appointments.filter(row=>row.patientId===visit.patientId && row.clinic===visit.clinic).sort((a,b)=>b.date.localeCompare(a.date));
   const invoiceId=visit.invoice ?? related.find(row=>row.invoice)?.invoice;
   const invoice=invoiceId ? invoices[invoiceId as keyof typeof invoices] : undefined;
   const refundDue=invoice ? Math.max(0, invoice.received-invoice.refunded-invoice.due) : 0;

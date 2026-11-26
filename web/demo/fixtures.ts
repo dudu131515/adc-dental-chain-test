@@ -7,28 +7,28 @@ export const statusLabels = {
 } as const;
 export type Status = keyof typeof statusLabels;
 export type Appointment = {
-  id: string; date: (typeof days)[number]; clinic: Clinic; time: string; patient: string;
+  id: string; date: (typeof days)[number]; clinic: Clinic; time: string; patient: string; patientId: string;
   service: string; doctor: string; status: Status; allergy?: string; invoice?: string;
 };
 const today = days[0];
 const tomorrow = days[1];
 export const appointments: Appointment[] = [
-  {id:"ADC-DEMO-001", date:today, clinic:"central", time:"08:30", patient:"赵青", service:"口腔检查", doctor:"林明远", status:"done"},
-  {id:"ADC-DEMO-002", date:today, clinic:"central", time:"09:00", patient:"陈晓雨", service:"洁牙护理", doctor:"林明远", status:"done", allergy:"乳胶", invoice:"ADC-DEMO-INV-120"},
-  {id:"ADC-DEMO-003", date:today, clinic:"central", time:"09:30", patient:"罗珊", service:"树脂充填", doctor:"林明远", status:"missed"},
-  {id:"ADC-DEMO-004", date:today, clinic:"central", time:"10:30", patient:"宋晨", service:"洁牙护理", doctor:"林明远", status:"cancelled"},
-  {id:"ADC-DEMO-005", date:today, clinic:"central", time:"11:00", patient:"孟子安", service:"口腔检查", doctor:"周宁", status:"booked"},
-  {id:"ADC-DEMO-006", date:today, clinic:"central", time:"13:30", patient:"王安琪", service:"树脂充填", doctor:"周宁", status:"booked"},
-  {id:"ADC-DEMO-007", date:today, clinic:"central", time:"14:00", patient:"吴天", service:"洁牙护理", doctor:"周宁", status:"booked"},
-  {id:"ADC-DEMO-008", date:today, clinic:"central", time:"14:30", patient:"程歌", service:"口腔检查", doctor:"周宁", status:"booked"},
-  {id:"ADC-DEMO-009", date:today, clinic:"central", time:"15:00", patient:"李嘉", service:"口腔检查", doctor:"周宁", status:"treating"},
-  {id:"ADC-DEMO-010", date:today, clinic:"central", time:"16:00", patient:"许言", service:"树脂充填", doctor:"林明远", status:"arrived", allergy:"青霉素"},
-  {id:"ADC-DEMO-021", date:today, clinic:"river", time:"09:00", patient:"顾晓宁", service:"洁牙护理", doctor:"何可", status:"done", invoice:"ADC-DEMO-INV-131"},
-  {id:"ADC-DEMO-022", date:today, clinic:"river", time:"10:00", patient:"梁菲", service:"口腔检查", doctor:"何可", status:"done"},
-  {id:"ADC-DEMO-023", date:today, clinic:"river", time:"14:00", patient:"沈淮", service:"树脂充填", doctor:"顾然", status:"arrived"},
-  {id:"ADC-DEMO-024", date:today, clinic:"river", time:"15:30", patient:"许晓秋", service:"口腔检查", doctor:"顾然", status:"booked"},
-  {id:"ADC-DEMO-011", date:tomorrow, clinic:"central", time:"10:30", patient:"陈晓雨", service:"口腔检查", doctor:"林明远", status:"booked", allergy:"乳胶"},
-  {id:"ADC-DEMO-025", date:tomorrow, clinic:"river", time:"15:00", patient:"沈淮", service:"洁牙护理", doctor:"顾然", status:"booked"},
+  {id:"ADC-DEMO-001", date:today, clinic:"central", time:"08:30", patient:"赵青", patientId:"3", service:"口腔检查", doctor:"林明远", status:"done"},
+  {id:"ADC-DEMO-002", date:today, clinic:"central", time:"09:00", patient:"陈晓雨", patientId:"1", service:"洁牙护理", doctor:"林明远", status:"done", allergy:"乳胶", invoice:"ADC-DEMO-INV-120"},
+  {id:"ADC-DEMO-003", date:today, clinic:"central", time:"09:30", patient:"罗珊", patientId:"5", service:"树脂充填", doctor:"林明远", status:"missed"},
+  {id:"ADC-DEMO-004", date:today, clinic:"central", time:"10:30", patient:"宋晨", patientId:"6", service:"洁牙护理", doctor:"林明远", status:"cancelled"},
+  {id:"ADC-DEMO-005", date:today, clinic:"central", time:"11:00", patient:"孟子安", patientId:"2", service:"口腔检查", doctor:"周宁", status:"booked"},
+  {id:"ADC-DEMO-006", date:today, clinic:"central", time:"13:30", patient:"王安琪", patientId:"7", service:"树脂充填", doctor:"周宁", status:"booked"},
+  {id:"ADC-DEMO-007", date:today, clinic:"central", time:"14:00", patient:"吴天", patientId:"8", service:"洁牙护理", doctor:"周宁", status:"booked"},
+  {id:"ADC-DEMO-008", date:today, clinic:"central", time:"14:30", patient:"程歌", patientId:"9", service:"口腔检查", doctor:"周宁", status:"booked"},
+  {id:"ADC-DEMO-009", date:today, clinic:"central", time:"15:00", patient:"李嘉", patientId:"10", service:"口腔检查", doctor:"周宁", status:"treating"},
+  {id:"ADC-DEMO-010", date:today, clinic:"central", time:"16:00", patient:"许言", patientId:"4", service:"树脂充填", doctor:"林明远", status:"arrived", allergy:"青霉素"},
+  {id:"ADC-DEMO-021", date:today, clinic:"river", time:"09:00", patient:"顾晓宁", patientId:"11", service:"洁牙护理", doctor:"何可", status:"done", invoice:"ADC-DEMO-INV-131"},
+  {id:"ADC-DEMO-022", date:today, clinic:"river", time:"10:00", patient:"梁菲", patientId:"12", service:"口腔检查", doctor:"何可", status:"done"},
+  {id:"ADC-DEMO-023", date:today, clinic:"river", time:"14:00", patient:"沈淮", patientId:"13", service:"树脂充填", doctor:"顾然", status:"arrived"},
+  {id:"ADC-DEMO-024", date:today, clinic:"river", time:"15:30", patient:"许晓秋", patientId:"14", service:"口腔检查", doctor:"顾然", status:"booked"},
+  {id:"ADC-DEMO-011", date:tomorrow, clinic:"central", time:"10:30", patient:"陈晓雨", patientId:"1", service:"口腔检查", doctor:"林明远", status:"booked", allergy:"乳胶"},
+  {id:"ADC-DEMO-025", date:tomorrow, clinic:"river", time:"15:00", patient:"沈淮", patientId:"13", service:"洁牙护理", doctor:"顾然", status:"booked"},
 ].sort((a,b) => a.time.localeCompare(b.time)) as Appointment[];
 const samplePatients=["梁语","俞静","龚婷","夏言","郭帆","杜思彤","罗杏","苏怡","柳明","欧阳欣","于航","韩茵"];
 const sampleDoctors={central:["林明远","周宁"],river:["何可","顾然"]};
@@ -39,7 +39,7 @@ for(const [dayIndex,date] of days.slice(2).entries()){
     const clinic=i%2===0?"central":"river";
     const status=sampleStatuses[(i+dayIndex)%sampleStatuses.length];
     const number=100+dayIndex*20+i;
-    appointments.push({id:"ADC-DEMO-"+number,date,clinic,patient,doctor:sampleDoctors[clinic][(i+dayIndex)%2],
+    appointments.push({id:"ADC-DEMO-"+number,date,clinic,patient,patientId:String(15+i),doctor:sampleDoctors[clinic][(i+dayIndex)%2],
       time:String(8+Math.floor(i/2)).padStart(2,"0")+":"+(i%2?"30":"00"),
       service:sampleServices[i%sampleServices.length],status,
       allergy:i%5===0?"乳胶":i%7===0?"青霉素":undefined,
@@ -47,14 +47,15 @@ for(const [dayIndex,date] of days.slice(2).entries()){
   }
 }
 
-export const invoices:Record<string,{status:string;due:number;received:number;refunded:number;outstanding:number}> = {
+export const invoices:Record<string,{status:string;due:number;received:number;refunded:number;outstanding:number;pendingRefund?:number}> = {
   "ADC-DEMO-INV-120": {status:"部分收款", due:180, received:80, refunded:0, outstanding:100},
   "ADC-DEMO-INV-131": {status:"已结清", due:150, received:180, refunded:20, outstanding:0},
 };
 for(const [index,row] of appointments.filter(item=>item.invoice&&!invoices[item.invoice]).entries()){
   const due=180+index*50;
-  const received=index%2===0?due:80;
-  invoices[row.invoice!]={status:received===due?"已结清":"部分收款",due,received,refunded:0,outstanding:due-received};
+  const received=index===0?0:index===1?due+60:index%2===0?due:80;
+  invoices[row.invoice!]={status:index===1?"退款处理中":received===0?"待收款":received===due?"已结清":"部分收款",
+    due,received,refunded:0,outstanding:Math.max(0,due-received),pendingRefund:index===1?30:undefined};
 }
 
 type Fund = {clinic: Clinic; date: (typeof days)[number]; id: string; label: string; type: "deposit" | "treatment"; kind: "received" | "refund" | "pending"; value: number; time: string};

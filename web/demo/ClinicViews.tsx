@@ -1,5 +1,10 @@
 import { useState } from "react";
 import { Icon } from "../src/shared/Icons";
+import { canWorkAt, type StaffIdentity } from "../src/shared/navigation";
+import { useRead } from "../src/shared/useRead";
+import { DaySchedule, type BookingPreference, type CalendarBoard } from "../src/features/schedule/DaySchedule";
+import { BookingForm } from "../src/features/schedule/BookingForm";
+import { ScheduleDrawer } from "../src/features/schedule/AppointmentDrawer";
 import { AppointmentList, StatusBadge } from "./AppointmentDetails";
 import { type Appointment, type Clinic, type Status, chairs, clinics, days, staffShifts, statusLabels } from "./fixtures";
 import type { Route } from "./workspace";
@@ -7,10 +12,22 @@ import type { Route } from "./workspace";
 type Inspect = (row:Appointment, button:HTMLButtonElement) => void;
 type Scope = {rows:Appointment[]; clinic:Clinic|"all"};
 
-export function AppointmentCalendar({rows,clinic,onOpen}: Scope & {onOpen:Inspect}) {
+export function AppointmentCalendar({rows,clinic,onOpen,date,identity,visitor,onAppointment}: Scope & {
+  onOpen:Inspect; date: (typeof days)[number]; identity: StaffIdentity; visitor: boolean; onAppointment: (id: string) => void;
+}) {
   const [mode,setMode]=useState<"chair"|"doctor"|"list">("doctor");
   const [status,setStatus]=useState<Status|"all">("all");
   const [query,setQuery]=useState("");
+  const [booking, setBooking] = useState<BookingPreference>();
+  const [revision, setRevision] = useState(0);
+  const boardQuery = new URLSearchParams({clinic_id:clinic,date_from:date,date_to:date,view:"day"});
+  const showDay = clinic !== "all" && mode === "doctor" && !query.trim();
+  const board = useRead<CalendarBoard>(showDay ? "/schedule/board?" + boardQuery : undefined, revision);
+  const dentists = useRead<{items:{dentist_id:string;name:string}[]}>(showDay ? "/schedule/dentists?clinic_id=" + clinic : undefined);
+  const names = new Map(dentists.data?.items.map(item => [item.dentist_id,item.name]));
+  const mayBook = clinic !== "all" && (visitor || canWorkAt(identity,"FRONT_DESK",clinic));
+  const statusCodes = {all:"",booked:"CONFIRMED",arrived:"CHECKED_IN",treating:"IN_TREATMENT",
+    done:"COMPLETED",missed:"NO_SHOW",cancelled:"CANCELLED"};
   const scopedChairs=chairs.filter(item=>clinic==="all"||item.clinic===clinic);
   const columns=mode==="chair"
     ? scopedChairs.map(item=>({id:item.code,title:item.code,description:clinics[item.clinic]+" · "+item.room}))
@@ -35,7 +52,11 @@ export function AppointmentCalendar({rows,clinic,onOpen}: Scope & {onOpen:Inspec
         <option value="all">全部状态</option>{Object.entries(statusLabels).map(([id,label])=><option key={id} value={id}>{label}</option>)}
       </select></label>
     </div>
-    {mode==="list" ? <AppointmentList rows={selected} onOpen={onOpen}/> : <div className="pd-table-wrap pd-calendar-wrap">
+    {showDay && board.loading && <p role="status">正在读取排班示例…</p>}
+    {showDay && board.fault && <p role="alert">{board.fault}</p>}
+    {showDay && board.data && <DaySchedule board={board.data} names={names} date={date} asOf={Date.parse(date + "T07:00:00+08:00")}
+      status={statusCodes[status]} onAppointment={onAppointment} onCandidate={mayBook ? setBooking : undefined}/>}
+    {mode!=="chair" ? ((!showDay || !board.data) && <AppointmentList rows={selected} onOpen={onOpen}/>) : <div className="pd-table-wrap pd-calendar-wrap">
       <table className="pd-table pd-calendar"><thead><tr><th scope="col">时间</th>{columns.map(column=>
         <th scope="col" key={column.id}><strong>{column.title}</strong><small>{column.description}</small></th>)}</tr></thead>
         <tbody>{Array.from({length:10},(_,i)=>String(i+8).padStart(2,"0")).map(hour=><tr key={hour}>
@@ -44,7 +65,12 @@ export function AppointmentCalendar({rows,clinic,onOpen}: Scope & {onOpen:Inspec
             className="pd-event" onClick={event=>onOpen(row,event.currentTarget)}>
             <span>{row.time}<strong>{row.patient}</strong></span><small>{row.service} · {statusLabels[row.status]}</small></button>)}
         </td>)}</tr>)}</tbody></table></div>}
-    {mode!=="list" && selected.length===0 && <p className="pd-empty">所选范围没有预约。</p>}
+    {mode==="chair" && selected.length===0 && <p className="pd-empty">所选范围没有预约。</p>}
+    {booking && mayBook && <ScheduleDrawer title="代办预约" onClose={() => setBooking(undefined)}>
+      <BookingForm identity={identity} clinic={clinic} date={date} preference={booking} onAppointment={id => {
+        setBooking(undefined); setRevision(value => value + 1); onAppointment(id);
+      }}/>
+    </ScheduleDrawer>}
   </section>;
 }
 
@@ -79,7 +105,7 @@ export function PatientWorkspace({route,rows,scoped,onOpen}: {route:Route;rows:A
   const isDirectory=route==="patients/directory";
   const isQueue=route==="patients/queue";
   const directory=[...new Map([...scoped].sort((a,b)=>a.date.localeCompare(b.date)).map(
-    row=>[row.patient,row],
+    row=>[row.clinic + ":" + row.patientId,row],
   )).values()].sort((a,b)=>a.patient.localeCompare(b.patient,"zh-CN"));
   const relevant=isDirectory ? directory : rows.filter(row=>row.status==="treating"||row.status===(isQueue?"arrived":"done"));
   const matches=relevant.filter(row=>(!allergy||row.allergy)&&

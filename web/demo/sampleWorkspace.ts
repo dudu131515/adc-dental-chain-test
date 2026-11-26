@@ -1,14 +1,16 @@
 import type { StaffIdentity } from "../src/shared/navigation";
+import { addDays, localDate as shanghaiDate, localTime } from "../src/features/schedule/types";
+import type { Candidate } from "../src/features/schedule/appointmentTypes";
 import type { Dentist, Shift } from "../src/features/schedule/types";
 import type { Demand } from "../src/features/schedule/ShiftDemandForm";
 import type { Company, Version } from "../src/features/operations/VersionComparison";
 import type { Period } from "../src/features/operations/ExpensesPage";
 import { ApiError } from "../src/shared/api";
-import { appointments, catalog, chairs, clinics, dailyFacts, staffShifts, sumFacts } from "./fixtures";
+import { appointments, catalog, chairs, clinics, dailyFacts, invoices, staffShifts, sumFacts, type Appointment, type Clinic } from "./fixtures";
 
 export const sampleRoles = {
   visitor: {label:"参观总览", employee:"0", roles:[]},
-  scheduler: {label:"总部排班", employee:"6", roles:["HQ_SCHEDULER"]},
+  scheduler: {label:"总部排班与经营", employee:"6", roles:["HQ_SCHEDULER","HQ_OPERATIONS_QUERY"]},
   dentist: {label:"牙医 · 林明远", employee:"1", roles:["DENTIST"]},
   dentist2: {label:"牙医 · 周宁", employee:"2", roles:["DENTIST"]},
   dentist3: {label:"牙医 · 何可", employee:"3", roles:["DENTIST"]},
@@ -53,6 +55,7 @@ const priceSamples = [...catalog,
 type Price={price_id:string;unit_price:string;effective_from:string;effective_to:string|null};
 type Audit={audit_id:string;action:string;occurred_at:string;actor_account_id:string;before:Record<string,unknown>;after:Record<string,unknown>};
 type Body = Record<string,unknown>;
+const shanghaiTime = (value: Date) => localTime(value.toISOString());
 const dateOf = (value:string) => value.slice(0,10);
 const at = (date:string,time:string) => date+"T"+time+":00+08:00";
 const finite = (value:unknown) => Number.isFinite(Number(value));
@@ -93,6 +96,12 @@ function version(period_id:string, revision_no:number, status:string, revenue:nu
 }
 
 export function createSampleWorkspace() {
+  const previewAppointments = appointments.map(row => ({...row}));
+  const newPatients = new Map<string,string>();
+  type Hold = Candidate & {patient_id:string;claim_id:string;status:string;server_time:string;expires_at:string;
+    payment:{deposit_id:string;amount:string;status:string}; appointment_id?:string;appointment_no?:string};
+  const holds = new Map<string,Hold>();
+  const holdActions = new Map<string,Hold>();
   const employees = originalEmployees.map(([employee_id,full_name,roles])=>({
     employee_id,employee_no:"ADC-E"+employee_id.padStart(3,"0"),full_name,
     employee_status:employee_id==="16"?"ON_LEAVE":"ACTIVE",account_status:employee_id==="16"?"INACTIVE":"ACTIVE",
@@ -206,15 +215,161 @@ export function createSampleWorkspace() {
     const confirmed=(rows:Version[])=>rows.filter(row=>row.status==="CONFIRMED").at(-1);
     const periodInfo=(p:Period)=>{const rows=revisions.get(p.period_id)??[]; const current=confirmed(rows);
       return {...p,status:rows.at(-1)?.status??"OPEN",latest_confirmed_revision_no:current?.revision_no};};
-    function dispatch(path:string, method:string, b:Body):unknown {
+    const appointmentStatus = {
+      booked: "CONFIRMED", arrived: "CHECKED_IN", treating: "IN_TREATMENT",
+      done: "COMPLETED", missed: "NO_SHOW", cancelled: "CANCELLED",
+    } as const;
+
+    function dayRows(q: URLSearchParams) {
+      return previewAppointments.filter(row =>
+        wanted(q.get("clinic_id"), row.clinic) && wanted(q.get("date"), row.date)
+        && (role === "visitor" || capability("FRONT_DESK", row.clinic) || capability("CLINIC_MANAGER", row.clinic)
+          || capability("HQ_SCHEDULER", row.clinic)
+          || (capability("DENTIST", row.clinic) && people.find(p => p.name === row.doctor)?.dentist_id === sampleRoles[role].employee)));
+    }
+
+    function bookingOptions(q: URLSearchParams) {
+      const clinic = q.get("clinic_id"), doctor = q.get("dentist_id"), date = q.get("date");
+      const project = standards.find(row => row.active && row.treatment_type_id === q.get("treatment_type_id"));
+      if (!clinic || !date || !project?.default_slot_minutes) return [];
+      if (role !== "visitor") need("FRONT_DESK", clinic);
+      const duration = project.default_slot_minutes * 60_000;
+      const preferred = q.get("preferred_start_at");
+      const candidates = [];
+      for (const shift of shifts.filter(row => row.status === "PUBLISHED" && row.clinic_id === clinic
+        && wanted(doctor, row.dentist_id) && dateOf(row.start_at) === date)) {
+        const dentist = people.find(p => p.dentist_id === shift.dentist_id);
+        if (!dentist || (project.required_qualification_id && !dentist.qualifications.some(item =>
+          item.qualification_id === project.required_qualification_id))) continue;
+        const first = preferred ? Date.parse(preferred) : Date.parse(shift.start_at);
+        const last = preferred ? first : Date.parse(shift.end_at) - duration;
+        for (let start = first; start <= last; start += duration) {
+          const start_at = new Date(start).toISOString(), end_at = new Date(start + duration).toISOString();
+          if (start < Date.parse(shift.start_at) || start + duration > Date.parse(shift.end_at)) continue;
+          if (previewAppointments.some(row => row.clinic === clinic && row.doctor === dentist.name && row.date === date
+            && ["booked", "arrived", "treating"].includes(row.status) && overlap(start_at, end_at, at(row.date, row.time),
+              new Date(Date.parse(at(row.date, row.time)) + 30 * 60_000).toISOString()))) continue;
+          if ([...holds.values()].some(hold => hold.status === "HOLD" && hold.dentist_id === shift.dentist_id
+            && Date.parse(hold.expires_at) > Date.now() && overlap(start_at, end_at, hold.start_at, hold.end_at))) continue;
+          candidates.push({clinic_id:clinic, dentist_id:shift.dentist_id, dentist_name:dentist.name,
+            shift_id:shift.shift_id, treatment_type_id:project.treatment_type_id, start_at, end_at});
+        }
+      }
+      return candidates;
+    }
+
+    function sampleBilling(q: URLSearchParams, raw: string) {
+      if (role !== "visitor") need("FRONT_DESK", q.get("clinic_id") ?? undefined);
+      const term = raw.trim().toLowerCase();
+      const filter = q.get("status");
+      const items = previewAppointments.filter(row => row.status === "done" && wanted(q.get("clinic_id"), row.clinic)
+        && wanted(q.get("date"), row.date) && (role === "visitor" || capability("FRONT_DESK", row.clinic)))
+        .flatMap(row => {
+          const bill = row.invoice ? invoices[row.invoice] : undefined;
+          const phone = "0000000" + row.patientId.padStart(4, "0");
+          if (term && phone !== term && ![row.patient, row.id, row.invoice ?? ""].some(value => value.toLowerCase().includes(term))) return [];
+          const due = bill ? Math.max(0, bill.received - bill.refunded - bill.due) : 0;
+          const pending = bill?.pendingRefund ?? 0;
+          const remaining = Math.max(0, due - pending);
+          const state = !bill ? "WAITING_INVOICE" : pending ? "REFUND_PENDING" : due ? "REFUND_DUE"
+            : !bill.outstanding ? "SETTLED" : bill.received > bill.refunded ? "PARTIAL_PAYMENT" : "WAITING_PAYMENT";
+          if (filter && !(filter === "INVOICED" ? bill : filter === "REFUND_DUE" ? remaining : filter === state)) return [];
+          return [{visit_id:row.id, appointment_no:row.id, clinic_id:row.clinic, clinic_name:clinics[row.clinic],
+            ended_at:at(row.date, row.time), status:"COMPLETED", invoice_id:row.invoice ?? null, invoice_no:row.invoice ?? null,
+            patient_display:{name:row.patient, phone_tail:phone.slice(-4)}, billing_state:state,
+            outstanding:bill?.outstanding.toFixed(2) ?? null, refund_remaining:remaining.toFixed(2), pending_refund:pending.toFixed(2)}];
+        }).sort((left, right) => right.ended_at.localeCompare(left.ended_at) || right.visit_id.localeCompare(left.visit_id));
+      const offset = Number(q.get("cursor") ?? "0");
+      return {items:items.slice(offset, offset + 20), next_cursor:offset + 20 < items.length ? String(offset + 20) : null};
+    }
+
+    function dispatch(path:string, method:string, b:Body, options:{queueSearch?:string;actionKey?:string}):unknown {
       const [route,search]=path.split("?");
       const q=new URLSearchParams(search);
       const selected=q.get("clinic_id");
       const read=method==="GET";
+      if(route==="/billing/queue") return sampleBilling(q, options.queueSearch ?? "");
+      if(route==="/booking/options") return {items:bookingOptions(q)};
+      const registry = route.match(/^\/clinics\/([^/]+)\/patients$/);
+      if (registry) {
+        const clinic = registry[1];
+        if (role !== "visitor") need("FRONT_DESK", clinic);
+        if (read) {
+          const term = (q.get("q") ?? "").trim();
+          return {items:[...new Map(previewAppointments.filter(row=>row.clinic === clinic).map(row=>[row.patientId,{
+            patient_id:row.patientId, patient_no:"ADC-P" + row.patientId.padStart(4, "0"), full_name:row.patient,
+            birth_date:"1998-06-01", phone:"0000000" + row.patientId.padStart(4, "0"),
+          }])).values()].filter(row => !term || row.full_name.includes(term) || row.patient_no === term || row.phone === term)};
+        }
+        const person = {patient_id:id(), patient_no:"ADC-PREVIEW-" + next, full_name:String(b.full_name),
+          birth_date:String(b.birth_date), phone:String(b.phone)};
+        newPatients.set(person.patient_id, person.full_name);
+        return person;
+      }
+      if (route === "/holds/by-action") {
+        const prior = holdActions.get(options.actionKey ?? "");
+        if (!prior || prior.clinic_id !== selected || prior.patient_id !== q.get("patient_id")) problem(404, "暂无该样例占位。");
+        if (role !== "visitor") need("FRONT_DESK", prior.clinic_id);
+        return prior;
+      }
+      if (route === "/holds" && !read) {
+        const clinic = String(b.clinic_id);
+        const incoming = new Date(String(b.start_at));
+        const date = shanghaiDate(incoming);
+        const prefer = new URLSearchParams({clinic_id:clinic, date, dentist_id:String(b.dentist_id),
+          treatment_type_id:String(b.treatment_type_id), preferred_start_at:incoming.toISOString()});
+        const selectedSlot = bookingOptions(prefer).find(item => item.shift_id === String(b.shift_id) && item.end_at === b.end_at);
+        if (!selectedSlot) problem(409, "该样例时段已不可用，请重新查询。");
+        const hold = {...selectedSlot, patient_id:String(b.patient_id), claim_id:id(), status:"HOLD",
+          server_time:new Date().toISOString(), expires_at:new Date(Date.now() + 300_000).toISOString(),
+          payment:{deposit_id:id(), amount:"50.00", status:"NOT_STARTED"}};
+        holds.set(hold.claim_id, hold);
+        if (options.actionKey) holdActions.set(options.actionKey, hold);
+        return hold;
+      }
+      const holdRoute = route.match(/^\/holds\/(\d+)(\/release)?$/);
+      if (holdRoute) {
+        const hold = holds.get(holdRoute[1]);
+        if (!hold) problem(404, "暂无该样例占位。");
+        if (role !== "visitor") need("FRONT_DESK", hold.clinic_id);
+        if (holdRoute[2] && hold.status === "HOLD") hold.status = "RELEASED";
+        return hold;
+      }
+      const depositRoute = route.match(/^\/deposit-payments\/(\d+)(\/simulate)?$/);
+      if (depositRoute) {
+        const hold = [...holds.values()].find(row => row.payment.deposit_id === depositRoute[1]);
+        if (!hold) problem(404, "暂无该样例预约金。");
+        if (role !== "visitor") need("FRONT_DESK", hold.clinic_id);
+        if (depositRoute[2] && hold.status !== "CONFIRMED") {
+          if (hold.status !== "HOLD" || Date.parse(hold.expires_at) <= Date.now()) problem(409, "样例占位已失效。");
+          const source = previewAppointments.find(row => row.patientId === hold.patient_id);
+          const name = source?.patient ?? newPatients.get(hold.patient_id);
+          if (!name) problem(404, "暂无该样例患者。");
+          hold.appointment_id = "ADC-PREVIEW-" + id();
+          hold.appointment_no = hold.appointment_id;
+          hold.status = "CONFIRMED"; hold.payment.status = "PAID";
+          previewAppointments.push({id:hold.appointment_id, date:shanghaiDate(new Date(hold.start_at)) as Appointment["date"],
+            time:shanghaiTime(new Date(hold.start_at)), clinic:hold.clinic_id as Clinic,
+            doctor:hold.dentist_name, patient:name, patientId:hold.patient_id, status:"booked",
+            service:standards.find(project=>project.treatment_type_id === hold.treatment_type_id)?.treatment_name ?? "口腔检查"});
+        }
+        return {...hold.payment, claim_status:hold.status, appointment_id:hold.appointment_id, appointment_no:hold.appointment_no};
+      }
       if(route==="/qualifications") return {items:qualifications};
       if(route==="/schedule/dentists") return {items:people.filter(p=>!selected||employees.some(e=>e.employee_id===p.dentist_id&&e.grants.some(g=>g.clinic_id===selected)))};
-      if(route==="/schedule/board") return {shifts:shifts.filter(row=>scheduleVisible(row)&&wanted(selected,row.clinic_id)
-        && dateOf(row.start_at)>=(q.get("date_from")??"")&&dateOf(row.start_at)<=(q.get("date_to")??"9999")),appointments:[]};
+      if(route==="/schedule/board") {
+        const dayspan = (start:string,end:string) => end > (q.get("date_from") ?? "") && start <= (q.get("date_to") ?? "9999");
+        return {shifts:shifts.filter(row=>scheduleVisible(row)&&wanted(selected,row.clinic_id)
+          && wanted(q.get("dentist_id"),row.dentist_id) && dayspan(dateOf(row.start_at), addDays(dateOf(row.end_at),1))),
+          appointments:dayRows(q).filter(row=>dayspan(row.date,addDays(row.date,1))).flatMap(row=>{
+            const doctor=people.find(item=>item.name===row.doctor);
+            if (!doctor || !wanted(q.get("dentist_id"),doctor.dentist_id)) return [];
+            const start_at=at(row.date,row.time);
+            return [{appointment_id:row.id,appointment_no:row.id,clinic_id:row.clinic,dentist_id:doctor.dentist_id,
+              start_at,end_at:new Date(Date.parse(start_at)+30*60_000).toISOString(),
+              status:appointmentStatus[row.status],patient_display:row.patient}];
+          })};
+      }
       if(route==="/shift-demands"){
         if(read) return {items:demands.filter(row=>wanted(selected,row.clinic_id))};
         const clinic_id=String(b.clinic_id); need("CLINIC_MANAGER",clinic_id);
@@ -440,16 +595,17 @@ export function createSampleWorkspace() {
       }
       problem(404,"此样例没有相应记录。");
     }
-    return async function request<T>(path:string, details:{method?:"GET"|"POST"|"PATCH";body?:unknown;actionKey?:string;signal?:AbortSignal}={}):Promise<T>{
+    return async function request<T>(path:string, details:{method?:"GET"|"POST"|"PATCH";body?:unknown;actionKey?:string;signal?:AbortSignal;queueSearch?:string}={}):Promise<T>{
       details.signal?.throwIfAborted();
       const signature=JSON.stringify([path,details.method,details.body]);
+      if(path.startsWith("/holds/by-action?")) return structuredClone(dispatch(path,"GET",{},details)) as T;
       const prior=details.actionKey ? processed.get(details.actionKey):undefined;
       if(prior&&prior.signature!==signature) problem(409,"该操作结果已登记，请查询原操作。");
       if(prior) return structuredClone(prior.result) as T;
-      const result=structuredClone(dispatch(path,details.method??"GET",(details.body??{}) as Body));
+      const result=structuredClone(dispatch(path,details.method??"GET",(details.body??{}) as Body,details));
       if(details.actionKey) processed.set(details.actionKey,{signature,result});
       return result as T;
     };
   }
-  return {identity,transport};
+  return {identity,transport, getAppointment:(id:string) => previewAppointments.find(row=>row.id===id)};
 }

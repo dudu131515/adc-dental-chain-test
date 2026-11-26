@@ -84,7 +84,7 @@ test("home and four expandable groups show the matching route on deep links", ()
   expect(screen.getByRole("link", {name:"经营报告"}).getAttribute("aria-current")).toBe("page");
 });
 
-test("schedule resources and the financial queue expose actual linked records", () => {
+test("schedule resources and the financial queue expose actual linked records", async () => {
   render(<PagesDemo />);
   fireEvent.click(screen.getByRole("button", {name:"门诊运营"}));
   fireEvent.click(screen.getByRole("link", {name:"预约日历"}));
@@ -93,7 +93,7 @@ test("schedule resources and the financial queue expose actual linked records", 
   expect(within(board).getByText("A-01")).toBeTruthy();
   fireEvent.click(screen.getByRole("button", {name:"收费与日结"}));
   fireEvent.click(screen.getByRole("link", {name:"账单与收退"}));
-  fireEvent.click(screen.getByRole("button", {name:"查看 ADC-DEMO-INV-120"}));
+  fireEvent.click(await screen.findByRole("button", {name:"查看 ADC-DEMO-INV-120"}));
   const bill=screen.getByRole("dialog", {name:"预约详情"});
   expect(within(bill).getByRole("heading", {name:"诊疗费用单"})).toBeTruthy();
   expect(within(bill).getByText(/100\.00/)).toBeTruthy();
@@ -198,4 +198,37 @@ test("quarter review uses versions and changes available actions when switching 
   fireEvent.change(await screen.findByLabelText("查看版本"),{target:{value:"1"}});
   fireEvent.click(await screen.findByRole("button",{name:"确认第 1 版"}));
   expect(await screen.findByRole("heading",{name:"第 1 版 · 正式确认"})).toBeTruthy();
+});
+
+test("the updated sample calendar contains published slots and opens the shared prefilling form", async () => {
+  window.history.replaceState({}, "", "/#desk/calendar");
+  render(<PagesDemo />);
+  fireEvent.change(screen.getByLabelText("门店"), {target:{value:"central"}});
+  const doctor = await screen.findByRole("region",{name:"林明远"});
+  fireEvent.click(within(doctor).getAllByRole("button",{name:/候选空档/})[0]);
+  const drawer = screen.getByRole("complementary",{name:"代办预约"});
+  await within(drawer).findByRole("option",{name:"林明远"});
+  expect((within(drawer).getByLabelText("牙医") as HTMLSelectElement).value).toBe("1");
+  expect((within(drawer).getByLabelText("意向开始时间") as HTMLInputElement).value).toMatch(/\d\d:\d\d/);
+  fireEvent.change(within(drawer).getByLabelText("查找本店患者"), {target:{value:"赵青"}});
+  fireEvent.click(within(drawer).getByRole("button",{name:"查找",exact:true}));
+  fireEvent.click(await within(drawer).findByRole("button",{name:/赵青.*ADC-P/}));
+  fireEvent.change(within(drawer).getByLabelText("主诊项目"), {target:{value:"1"}});
+  fireEvent.click(within(drawer).getByRole("button",{name:"查询可约时段"}));
+  fireEvent.click(await within(drawer).findByRole("button",{name:/\d\d:\d\d.*林明远/}));
+  fireEvent.click(within(drawer).getByRole("button",{name:"确认临时占位"}));
+  expect(await within(drawer).findByRole("heading",{name:"确认预约金"})).toBeTruthy();
+  fireEvent.click(within(drawer).getByRole("button",{name:"提交模拟预约金付款"}));
+  fireEvent.click(await within(drawer).findByRole("button",{name:/查看正式预约 ADC-PREVIEW-/}));
+  expect(within(await screen.findByRole("dialog",{name:"预约详情"})).getByText("赵青")).toBeTruthy();
+});
+
+test("the sample billing mirrors authorized queue search and state filtering", async () => {
+  window.history.replaceState({}, "", "/#billing/queue");
+  render(<PagesDemo />);
+  fireEvent.change(screen.getByRole("searchbox",{name:"搜索结算记录"}),{target:{value:"ADC-DEMO-002"}});
+  fireEvent.change(screen.getByLabelText("办理状态"),{target:{value:"PARTIAL_PAYMENT"}});
+  fireEvent.click(screen.getByRole("button",{name:"搜索",exact:true}));
+  expect(await screen.findByRole("button",{name:"查看 ADC-DEMO-INV-120"})).toBeTruthy();
+  expect(screen.queryByText("ADC-DEMO-001",{exact:true})).toBeNull();
 });

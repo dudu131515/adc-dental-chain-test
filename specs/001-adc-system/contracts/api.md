@@ -74,7 +74,7 @@
 | --- | --- | --- | --- |
 | POST `/appointments/{id}/check-in` | F | `expected_claim_id` 和身份核实信息 → 签到时点、就诊条件及可选下一步 | FR-301、FR-302 |
 | GET `/appointments/{id}/chair-options`；POST `/appointments/{id}/assign-chair` | F | 可行同店牙椅列表。提交 `expected_claim_id,chair_id` → 当前牙椅及签到结果。换椅仍走同一命令并保存历史 | FR-302 |
-| GET `/clinical/queue`（`view=history` 为最近 100 笔本人已结束或中止就诊）；GET `/appointments/{id}/clinical-context` | D | 本人接诊队列、相关病史、过敏及特殊需求，分椅和有效预约状态 | FR-301、FR-303 |
+| GET `/clinical/queue`（`view=history` 为最近 100 笔本人已结束或中止就诊）；GET `/appointments/{id}/clinical-context` | D | 本人接诊队列可按 clinic_id 限制门店。接诊上下文返回履职所需病史、过敏及特殊需求，分椅和有效预约状态 | FR-301、FR-303 |
 | POST `/appointments/{id}/start-visit`；GET `/visits/{id}` | D；F 可查看结算必需投影 | `expected_claim_id` → 唯一就诊、开始时间、已接诊和原预约金退款义务。详情提供授权已实施项目、耗材和费用快照，并按本店前台和就诊状态返回 can_issue_invoice | FR-303 至 FR-305、FR-308 |
 | POST `/visits/{id}/additional-decisions` | D | 项目、患者同意或拒绝、必要证据 → 不计费的决定引用。可在随后实际治疗项关联已同意记录 | FR-003、FR-306 |
 | GET `/clinical/materials`；POST `/visits/{id}/treatment-items` | D | 读取可用耗材和履职所需凭据引用。记录实际项目、实施时间、数量、同意引用及耗材用量和成本凭据 → 冻结治疗、有效单价及成本快照和暂计结果 | FR-305、FR-306、FR-503 |
@@ -145,10 +145,11 @@
 |---|---|
 | GET /appointments?date=&clinic_id= | 工作台复用预约读取权限，按 Asia/Shanghai 日期汇总。 |
 | GET /clinics/{clinic_id}/patient-directory?q=&page= | 本店前台。返回 items、total、page、page_size，条目包括最小身份联络字段及 next_start。姓名模糊匹配，编号和完整电话匹配。 |
-| GET /clinics/{clinic_id}/patients/{patient_id}?page= | 本店前台且患者与本店有关联。返回 patient、appointments、total、page、page_size。预约行含编号、时间、状态、牙医及主项目。 |
-| GET /appointments/{id}/clinical-context | 原临床投影兼容，增加 allergy_review 的 status、version、history。仅责任牙医。 |
+| GET /clinics/{clinic_id}/patients/{patient_id}?page= | 本店前台且患者与本店有关联。返回 patient、appointments、total、page、page_size。预约行含编号、时间、状态、牙医及主项目，以及有记录时的就诊标识、状态和主单编号。返回结算交接所需字段。 |
+| GET /appointments/{id}/clinical-context | 仅当次责任牙医。返回当前必要的过敏资料和当店核对历史，及同店历史就诊的状态、日期和实际项目摘要。历史临床原文依既有就诊详情授权读取。 |
 | POST /appointments/{id}/allergy-reviews | 责任牙医在签到至关单前提交，带动作键、expected_claim_id、expected_version、status、allergies。status 为 KNOWN 或 NONE_KNOWN。已知过敏须有 allergen，notes 可选。409 STALE_ALLERGY_REVIEW 重新读取。201 为新增，200 为同动作重放。 |
-| GET /visits/{id} | 临床投影增加本次 allergy_reviews 历史。 |
+| GET /visits/{id} | 责任牙医的临床投影返回该次就诊原文，以及接诊门店当次过敏核对。前台投影仅含结算交接数据。 |
+| GET /billing/queue | 本店前台按授权门店查询，支持 clinic_id、status、cursor。可选请求头 X-ADC-Queue-Search 使用 UTF-8 百分号编码传递姓名、完整手机号码、预约或主单编号。每页 20 笔，按结束时间和就诊编号倒序，响应包含 items 和 next_cursor，号码仅投影必要尾号。待退款可筛到仍有可退余额且另有退款在途的主单。 |
 | GET /appointments、GET /patients/me | 小程序复用患者范围、预约与本人资料。 |
 
 ## 课程补充接口
