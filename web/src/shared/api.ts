@@ -19,6 +19,7 @@ type RequestDetails = {
   body?: unknown;
   actionKey?: string;
   signal?: AbortSignal;
+  queueSearch?: string;
 };
 
 let sessionGeneration = 0;
@@ -33,6 +34,7 @@ async function send<T>(path: string, details: RequestDetails, generation: number
   if (body !== undefined) headers.set("Content-Type", "application/json");
   if (csrf) headers.set("X-CSRFToken", csrf);
   if (actionKey) headers.set("Idempotency-Key", actionKey);
+  if (details.queueSearch) headers.set("X-ADC-Queue-Search", encodeURIComponent(details.queueSearch));
   let response: Response;
   try {
     response = await fetch("/api/v1" + path, {

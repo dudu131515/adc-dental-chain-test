@@ -8,6 +8,7 @@ from rest_framework.decorators import api_view
 
 from adc.billing.invoice_service import create_payment, invoice_data, issue_invoice, payment_data
 from adc.billing.models import Invoice, InvoicePayment, TreatmentCorrection
+from adc.billing.queue_service import queue_data
 from adc.clinical.models import Visit
 from adc.common.http import ApiProblem, success
 from adc.common.idempotency import OperationKey
@@ -52,21 +53,7 @@ def front_invoice(principal, pk):
 
 @api_view(["GET"])
 def queue(request):
-    request.user.require("FRONT_DESK")
-    rows = Visit.objects.select_related("appointment__claim").filter(
-        appointment__claim__clinic_id__in=request.user.clinic_scope("FRONT_DESK"),
-        status__in=("COMPLETED", "TERMINATED"),
-    ).order_by("-ended_at", "-pk")
-    items = []
-    for row in rows:
-        invoice = Invoice.objects.filter(visit=row).first()
-        items.append({
-            "visit_id": str(row.pk), "appointment_no": row.appointment.appointment_no,
-            "clinic_id": str(row.appointment.claim.clinic_id), "ended_at": row.ended_at.isoformat(),
-            "status": row.status, "invoice_id": str(invoice.pk) if invoice else None,
-            "invoice_no": invoice.invoice_no if invoice else None,
-        })
-    return success({"items": items, "next_cursor": None})
+    return success(queue_data(request))
 
 
 @api_view(["POST"])

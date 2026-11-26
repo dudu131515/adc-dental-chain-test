@@ -1,6 +1,7 @@
 from dataclasses import replace
 from datetime import timedelta
 from decimal import Decimal
+from urllib.parse import quote
 
 from django.contrib.auth.hashers import make_password
 from django.test import Client, TestCase, override_settings
@@ -51,11 +52,11 @@ class BillingContractTests(TestCase):
             "/api/v1" + route, body or {}, content_type="application/json", HTTP_IDEMPOTENCY_KEY=key,
         )
 
-    def finished_visit(self, *, zero=False):
+    def finished_visit(self, *, zero=False, sequence=0):
         project = TreatmentType.objects.create(
-            treatment_code="ADC-BILLING", treatment_name="合成洁牙", standard_unit="次", default_slot_minutes=60,
+            treatment_code=f"ADC-BILLING-{sequence}", treatment_name="合成洁牙", standard_unit="次", default_slot_minutes=60,
         )
-        begin = timezone.now() - timedelta(hours=1)
+        begin = timezone.now() - timedelta(hours=1, days=sequence)
         end = begin + timedelta(minutes=30)
         shift = Shift.objects.create(clinic_id=1, dentist_id=1, start_at=begin, end_at=end, status="PUBLISHED")
         claim = SlotClaim.objects.create(
@@ -64,7 +65,7 @@ class BillingContractTests(TestCase):
         )
         deposit = DepositPayment.objects.create(claim=claim, status="PAID", paid_at=begin)
         booking = Appointment.objects.create(
-            claim=claim, deposit=deposit, status="COMPLETED", is_attended=True, appointment_no="ADC-BILLING-FIXTURE",
+            claim=claim, deposit=deposit, status="COMPLETED", is_attended=True, appointment_no=f"ADC-BILLING-FIXTURE-{sequence}",
         )
         visit = Visit.objects.create(
             appointment=booking, main_dentist_id=1, started_at=begin, ended_at=end,
@@ -92,11 +93,55 @@ class BillingContractTests(TestCase):
         self.assertEqual(repeated.json()["data"]["invoice_id"], invoice["invoice_id"])
         return visit, invoice
 
+
+    def test_queue_searches_billing_identifiers_within_front_desk_scope(self):
+        visit, invoice = self.issued_invoice()
+        patient = visit.appointment.claim.patient
+        route = "/api/v1/billing/queue"
+        for term in (patient.full_name, patient.phone, visit.appointment.appointment_no, invoice["invoice_no"]):
+            with self.subTest(term=term):
+                response = self.front.get(route, {"status": "WAITING_PAYMENT"}, HTTP_X_ADC_QUEUE_SEARCH=quote(term))
+                self.assertEqual(response.status_code, 200, response.content)
+                entry, = response.json()["data"]["items"]
+                self.assertEqual(entry["invoice_id"], invoice["invoice_id"])
+                self.assertEqual(entry["billing_state"], "WAITING_PAYMENT")
+                self.assertEqual(entry["patient_display"], {"name": patient.full_name, "phone_tail": patient.phone[-4:]})
+                self.assertNotIn(patient.phone, response.content.decode())
+        self.assertEqual(self.front.get(route, HTTP_X_ADC_QUEUE_SEARCH="DOES-NOT-MATCH").json()["data"]["items"], [])
+        self.assertEqual(self.front.get(route, {"status": "WAITING_INVOICE"}).json()["data"]["items"], [])
+        self.assertEqual(self.other_store.get(route, HTTP_X_ADC_QUEUE_SEARCH=quote(patient.phone)).json()["data"]["items"], [])
+        self.assertEqual(self.other_store.get(route, {"clinic_id": "1"}).status_code, 403)
+        self.assertEqual(self.dentist.get(route, HTTP_X_ADC_QUEUE_SEARCH=quote(patient.phone)).status_code, 403)
+
+    def test_queue_uses_a_filter_bound_cursor_and_keeps_every_record_once(self):
+        for index in range(21):
+            self.finished_visit(sequence=index)
+        route = "/api/v1/billing/queue"
+        filters = {"clinic_id": "1", "status": "WAITING_INVOICE"}
+        first = self.front.get(route, filters, HTTP_X_ADC_QUEUE_SEARCH="ADC-BILLING").json()["data"]
+        self.assertEqual(len(first["items"]), 20)
+        self.assertTrue(first["next_cursor"])
+        second = self.front.get(route, {**filters, "cursor": first["next_cursor"]},
+                               HTTP_X_ADC_QUEUE_SEARCH="ADC-BILLING").json()["data"]
+        self.assertEqual(len(second["items"]), 1)
+        self.assertIsNone(second["next_cursor"])
+        identities = [row["visit_id"] for row in first["items"] + second["items"]]
+        self.assertEqual(len(set(identities)), 21)
+        self.assertEqual(self.front.get(route, {**filters, "cursor": first["next_cursor"]},
+                                        HTTP_X_ADC_QUEUE_SEARCH="other").status_code, 400)
+
+    def queue_entry(self, status):
+        response = self.front.get("/api/v1/billing/queue", {"status": status})
+        self.assertEqual(response.status_code, 200, response.content)
+        entry, = response.json()["data"]["items"]
+        return entry
+
     def test_zero_treatment_termination_creates_one_zero_settled_invoice(self):
         _, invoice = self.issued_invoice(zero=True)
         self.assertEqual(invoice["original_total"], "0.00")
         self.assertEqual(invoice["lines"], [])
         self.assertEqual(invoice["status"], "SETTLED")
+        self.assertEqual(self.queue_entry("SETTLED")["invoice_id"], invoice["invoice_id"])
 
     def test_partial_collection_uses_one_successful_flow_and_excludes_deposit(self):
         _, invoice = self.issued_invoice()
@@ -112,6 +157,7 @@ class BillingContractTests(TestCase):
         self.assertEqual(result["net_received"], "60.00")
         self.assertEqual(result["outstanding"], "60.00")
         self.assertEqual(result["status"], "PART_PAID")
+        self.assertEqual(self.queue_entry("PARTIAL_PAYMENT")["outstanding"], "60.00")
         repeated = self.post(self.front, route + "/payments", "pay-1", {"amount": "60.00"})
         self.assertEqual(repeated.status_code, 200, repeated.content)
         self.assertEqual(self.front.get("/api/v1" + route).json()["data"]["net_received"], "60.00")
@@ -213,6 +259,7 @@ class BillingContractTests(TestCase):
         self.assertEqual(corrected["invoice_no"], invoice["invoice_no"])
         self.assertEqual(corrected["accrued"], "0.00")
         self.assertEqual(corrected["refund_due"], "60.00")
+        self.assertEqual(self.queue_entry("REFUND_DUE")["refund_remaining"], "60.00")
         by_action = "/api/v1" + route + "/refunds/by-action"
         self.assertEqual(self.front.get(by_action, HTTP_IDEMPOTENCY_KEY="reversal-refund").status_code, 404)
         with override_settings(ADC_SIMULATION_OUTCOMES={"invoice_refund": "FAILED"}):
@@ -269,6 +316,10 @@ class BillingContractTests(TestCase):
                     "source_payment_id": originals[0], "amount": "50.00",
                 })
             self.assertEqual(refund.status_code, 202, refund.content)
+            pending = self.queue_entry("REFUND_PENDING")
+            self.assertEqual(pending["pending_refund"], "50.00")
+            self.assertEqual(pending["refund_remaining"], "70.00")
+            self.assertEqual(self.queue_entry("REFUND_DUE")["visit_id"], str(visit.pk))
             too_large = self.post(self.front, route + "/refunds", "exceeds-first-origin", {
                 "source_payment_id": originals[0], "amount": "0.01",
             })

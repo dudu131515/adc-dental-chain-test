@@ -7,14 +7,14 @@ import { InvoiceFunds } from "./InvoiceFunds";
 import { ReceiptPanel } from "./ReceiptPanel";
 import { Invoice, invoiceStates } from "./billingTypes";
 
-export function InvoiceDetail({ id, accountId, open }: { id: string; accountId: string; open: (path: string) => void }) {
+export function InvoiceDetail({ id, accountId, open, returnTo = "/billing" }: { id: string; accountId: string; open: (path: string) => void; returnTo?: string }) {
   const [sequence, setSequence] = useState(0);
   const read = useRead<Invoice>("/invoices/" + id, sequence);
   const invoice = read.data;
   const refresh = () => setSequence(value => value + 1);
 
   return <div className="operations-sections">
-    <div className="schedule-toolbar"><button className="button" onClick={() => open("/billing")}>返回结算</button></div>
+    <div className="schedule-toolbar"><button className="button" onClick={() => open(returnTo)}>返回结算</button></div>
     {read.loading && <p role="status">正在读取结算主单…</p>}
     {read.fault && <p className="error-text" role="alert">{read.fault}</p>}
     {invoice && <>

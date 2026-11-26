@@ -17,6 +17,9 @@ export type Correction = {
   approval?: { decision: string; reviewer_id: string; decided_at: string; approved_signed_amount?: string; reason?: string };
 };
 export type BillingEntry = {
+  clinic_name: string; patient_display: { name: string; phone_tail: string | null };
+  billing_state: "WAITING_INVOICE" | "WAITING_PAYMENT" | "PARTIAL_PAYMENT" | "SETTLED" | "REFUND_DUE" | "REFUND_PENDING";
+  outstanding: string | null; refund_remaining: string; pending_refund: string;
   visit_id: string; appointment_no: string; clinic_id: string; ended_at: string; status: string;
   invoice_id: string | null; invoice_no: string | null;
 };

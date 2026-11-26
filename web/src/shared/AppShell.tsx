@@ -163,7 +163,7 @@ export function AppShell({ renderWorkArea }: { renderWorkArea?: (area: WorkArea)
   const alertQuery = new URLSearchParams({date:localDay()});
   if (clinicId) alertQuery.set("clinic_id", clinicId);
   const pendingWork = useRead<Record<string,boolean>>(identity && hasRole(identity,dailyRoles,clinicId)
-    ? "/workbench/alerts?" + alertQuery : undefined, 0, scope);
+    ? "/workbench/alerts?" + alertQuery : undefined, 0, { scope });
   const alerts = pendingWork.fault ? undefined : pendingWork.data;
   const pendingGroups:Record<string,boolean> = {
     desk:Boolean(alerts?.schedule), care:Boolean(alerts?.clinical),
