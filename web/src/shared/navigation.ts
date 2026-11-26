@@ -14,6 +14,23 @@ export const performanceRoles = ["HQ_OPERATIONS_QUERY", "HQ_PERFORMANCE_CALCULAT
 export const roleNames: Record<string, string> = { FRONT_DESK: "诊所前台", DENTIST: "责任牙医", CLINIC_MANAGER: "诊所主管",
   HQ_SCHEDULER: "总部排班", HQ_CATALOG: "项目管理", HQ_OPERATIONS_QUERY: "经营查询",
   HQ_PERFORMANCE_CALCULATE: "绩效核算", HQ_PERFORMANCE_REVIEW: "绩效复核", HQ_PERFORMANCE_CONFIRM: "绩效确认", HQ_ACCESS_ADMIN: "总部权限管理" };
+
+const jobRoles = [
+  { label: "总部管理人员", permissions: ["HQ_SCHEDULER", "HQ_CATALOG", ...performanceRoles] },
+  { label: "诊所主管", permissions: ["CLINIC_MANAGER"] },
+  { label: "前台", permissions: ["FRONT_DESK"] },
+  { label: "牙医", permissions: ["DENTIST"] },
+];
+
+export function inferredJob(capabilities: string[]) {
+  const jobs = jobRoles.filter(job => job.permissions.some(role => capabilities.includes(role)));
+  return jobs.length === 1 ? jobs[0].label : jobs.length ? "岗位待核对" : "员工";
+}
+
+export function hasAccessAdministration(identity: StaffIdentity) {
+  return identity.capabilities.includes("HQ_ACCESS_ADMIN") && identity.role_clinic_ids?.HQ_ACCESS_ADMIN === null;
+}
+
 export function hasRole(identity: StaffIdentity, roles: string[], clinic: string) {
   return roles.some(role => clinic ? canWorkAt(identity, role, clinic) : identity.capabilities.includes(role));
 }
@@ -30,7 +47,7 @@ export const navigation: Section[] = [
 ];
 export function allowedSections(identity: StaffIdentity, clinic = "") {
   return navigation.filter(section => section.path === "/admin"
-    ? identity.capabilities.includes("HQ_ACCESS_ADMIN")
+    ? hasAccessAdministration(identity)
     : (!section.roles || hasRole(identity, section.roles, clinic)));
 }
 

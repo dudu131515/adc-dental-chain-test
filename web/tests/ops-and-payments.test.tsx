@@ -30,8 +30,10 @@ test("reports show both rate numerators and open details using the same query to
   });
   vi.stubGlobal("fetch", fetcher);
   render(<OperationsReport clinicId="1" identity={{ account_id: "8", category: "staff", employee_id: "8",
-    capabilities: ["HQ_OPERATIONS_QUERY"], clinics: [{ clinic_id: "1", name: "合成甲店" }],
+    capabilities: ["HQ_OPERATIONS_QUERY", "HQ_SCHEDULER"], role_clinic_ids: { HQ_OPERATIONS_QUERY: ["1"], HQ_SCHEDULER: null },
+    clinics: [{ clinic_id: "1", name: "合成甲店" }, { clinic_id: "2", name: "合成乙店" }],
   }} open={() => {}} />);
+  expect(screen.queryByRole("option", { name: "合成乙店" })).toBeNull();
   fireEvent.click(screen.getByRole("button", { name: "查询", exact: true }));
   expect(await screen.findByText("4/8")).toBeTruthy();
   expect(screen.getByText("1/8")).toBeTruthy();

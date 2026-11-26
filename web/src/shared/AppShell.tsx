@@ -1,10 +1,10 @@
-import { MouseEvent, ReactNode, useEffect, useRef, useState } from "react";
+import { MouseEvent, ReactNode, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { LoginPage } from "../features/login/LoginPage";
 import { advanceSession, ApiError, request } from "./api";
 import { localDay } from "./format";
 import { useRead } from "./useRead";
 import { Brand, Icon } from "./Icons";
-import { allowedSections, canSeeDailyReconciliation, dailyRoles, groupedNavigation, hasRole, roleNames, workspaceTabs } from "./navigation";
+import { allowedSections, canSeeDailyReconciliation, dailyRoles, groupedNavigation, hasAccessAdministration, hasRole, inferredJob, roleNames, workspaceTabs } from "./navigation";
 import type { StaffIdentity } from "./navigation";
 
 export type { StaffIdentity } from "./navigation";
@@ -181,7 +181,7 @@ export function AppShell({ renderWorkArea }: { renderWorkArea?: (area: WorkArea)
       ? "appointments" : new URLSearchParams(location.split("?")[1]).get("view") || "appointments")) ?? tabs[1]
     : [...tabs].sort((a, b) => b.path.length - a.path.length).find(tab => isUnder(path, tab.path))
       ?? tabs.find(tab => chosen && isUnder(tab.path, chosen.path));
-  useEffect(() => {
+  useLayoutEffect(() => {
     const active = activeGroup?.id;
     if (active && active !== "home") setDisclosures(previous => ({...previous, [active]: true}));
   }, [activeGroup?.id, activeTab?.path]);
@@ -210,7 +210,6 @@ export function AppShell({ renderWorkArea }: { renderWorkArea?: (area: WorkArea)
     window.history.replaceState({}, "", target);
     setLocation(currentUrl());
   }
-  const roles = identity.capabilities.map(role => roleNames[role]).filter(Boolean).join(" · ");
   return <div className="app-layout">
     <a className="skip-link" href="#workspace">跳至工作区</a>
     <aside className={"side-rail" + (menu ? " rail-open" : "")}>
@@ -239,8 +238,27 @@ export function AppShell({ renderWorkArea }: { renderWorkArea?: (area: WorkArea)
           </div>;
         })}
       </nav>
-      <div className="rail-account"><span className="staff-avatar"><Icon name="user"/></span>
-        <div><strong title={roles}>{roles || "员工"}</strong><small>账号 {identity.account_id}</small></div></div>
+      <details className="rail-account">
+        <summary>
+          <span className="staff-avatar"><Icon name="user"/></span>
+          <span className="rail-account-name"><strong>{inferredJob(identity.capabilities)}</strong>
+            <small>账号 {identity.account_id}</small>
+            {hasAccessAdministration(identity) && <small className="rail-admin-label">管理员权限</small>}
+          </span>
+          <Icon name="chevron" size={13} />
+        </summary>
+        <div className="rail-permissions">
+          <strong>功能权限与门店范围</strong>
+          {identity.capabilities.length ? <dl>{identity.capabilities.map(role => {
+            const access = identity.role_clinic_ids?.[role];
+            const names = identity.clinics.filter(item => access?.includes(item.clinic_id)).map(item => item.name);
+            return <div key={role}>
+              <dt>{roleNames[role] ?? role}</dt>
+              <dd>{access === null ? (role === "HQ_ACCESS_ADMIN" ? "全局管理权限" : "全部门店") : names.join("、") || "范围待核对"}</dd>
+            </div>;
+          })}</dl> : <p>暂无功能权限</p>}
+        </div>
+      </details>
     </aside>
     {menu && <button className="rail-scrim" aria-label="关闭业务导航" onClick={() => { setMenu(false); menuToggle.current?.focus(); }} />}
     <header className="topbar">

@@ -4,6 +4,7 @@ import type { FormEvent } from "react";
 import { ActionFeedback } from "../../shared/ActionFeedback";
 import type { WorkArea } from "../../shared/AppShell";
 import { useAction } from "../../shared/useAction";
+import { hasAccessAdministration, inferredJob } from "../../shared/navigation";
 import { dateTime } from "../../shared/format";
 import { useRead } from "../../shared/useRead";
 import "../catalog/catalog.css";
@@ -99,6 +100,7 @@ function EmployeeEditor({ employee, directory, disabled, change }: {
 
   return <section className="catalog-panel" aria-labelledby="employee-access-heading">
     <h2 id="employee-access-heading">{employee.full_name} · {employee.employee_no}</h2>
+    <p className="muted">按门店授权识别的岗位 · {employee.grants.length ? inferredJob(employee.grants.map(grant => grant.role_code)) : "暂无门店授权"}</p>
     <div className="appointment-action">
       <h3>门店授权</h3>
       {employee.grants.length ? <ul className="compact-list">
@@ -114,14 +116,14 @@ function EmployeeEditor({ employee, directory, disabled, change }: {
             {clinic.name}（{clinic.clinic_no}）
           </option>)}
         </select></label>
-        <label>预设角色<select required value={roleCode} disabled={disabled} onChange={event => setRoleCode(event.target.value)}>
-          <option value="">选择角色</option>
+        <label>功能权限<select required value={roleCode} disabled={disabled} onChange={event => setRoleCode(event.target.value)}>
+          <option value="">选择功能权限</option>
           {directory.roles.map(role => <option key={role.role_code} value={role.role_code}>{role.role_name}</option>)}
         </select></label>
         <label>授权变更原因<input required maxLength={500} value={grantReason} disabled={disabled}
           onChange={event => setGrantReason(event.target.value)} /></label>
         <button className="button primary" disabled={disabled || !clinicId || !roleCode || !grantReason.trim()}>
-          {granted ? "撤销角色" : "授予角色"}
+          {granted ? "撤销权限" : "授予权限"}
         </button>
       </form>}
     </div>
@@ -197,13 +199,13 @@ function EmployeeAccess() {
         <dl className="staff-summary">
           <div><dt>员工</dt><dd>{directory?.employees.length}</dd></div>
           <div><dt>启用账号</dt><dd>{directory?.employees.filter(row=>row.account_status==="ACTIVE").length}</dd></div>
-          <div><dt>已授予门店角色</dt><dd>{directory?.employees.reduce((sum,row)=>sum+row.grants.length,0)}</dd></div>
+          <div><dt>门店授权</dt><dd>{directory?.employees.reduce((sum,row)=>sum+row.grants.length,0)}</dd></div>
         </dl>
         <div className="catalog-form">
           <label>查找员工<input type="search" placeholder="姓名或工号" value={query}
             onChange={event => setQuery(event.target.value)} /></label>
-          <label>门店角色<select value={grantFilter} onChange={event=>setGrantFilter(event.target.value)}>
-            <option value="">全部角色</option>{directory?.roles.map(role=><option key={role.role_code} value={role.role_code}>{role.role_name}</option>)}
+          <label>功能权限筛选<select value={grantFilter} onChange={event=>setGrantFilter(event.target.value)}>
+            <option value="">全部功能权限</option>{directory?.roles.map(role=><option key={role.role_code} value={role.role_code}>{role.role_name}</option>)}
           </select></label>
           <label>账号状态<select value={accountFilter} onChange={event=>setAccountFilter(event.target.value)}>
             <option value="">全部状态</option><option value="ACTIVE">启用</option><option value="INACTIVE">停用</option>
@@ -252,7 +254,7 @@ function EmployeeAccess() {
 }
 
 export function AccessPage({ path, identity }: WorkArea) {
-  if (!identity.capabilities.includes("HQ_ACCESS_ADMIN") || identity.role_clinic_ids?.HQ_ACCESS_ADMIN !== null) {
+  if (!hasAccessAdministration(identity)) {
     return <section className="catalog-panel"><h1>当前页面无权访问</h1></section>;
   }
   return path === "/admin/clinics" ? <ClinicDirectory /> : <EmployeeAccess />;

@@ -170,14 +170,14 @@ test("the access workspace permits role writes for the sample administrator only
   fireEvent.change(role,{target:{value:"admin"}});
   fireEvent.click(await screen.findByRole("button",{name:"陈晓前"}));
   fireEvent.change(screen.getByLabelText("授权门店"),{target:{value:"river"}});
-  fireEvent.change(screen.getByLabelText("预设角色"),{target:{value:"FRONT_DESK"}});
+  fireEvent.change(screen.getByLabelText("功能权限"),{target:{value:"FRONT_DESK"}});
   fireEvent.change(screen.getByLabelText("授权变更原因"),{target:{value:"滨江临时支援"}});
-  fireEvent.click(screen.getByRole("button",{name:"授予角色"}));
+  fireEvent.click(screen.getByRole("button",{name:"授予权限"}));
   expect(await screen.findByText("门店授权已更新。")).toBeTruthy();
   expect(await screen.findByRole("heading",{name:"权限变更记录"})).toBeTruthy();
   fireEvent.change(role,{target:{value:"front"}});
   expect(screen.getByRole("heading",{name:"当前页面无权访问"})).toBeTruthy();
-  expect(screen.queryByRole("button",{name:"授予角色"})).toBeNull();
+  expect(screen.queryByRole("button",{name:"授予权限"})).toBeNull();
 });
 
 test("quarter review uses versions and changes available actions when switching duties", async () => {

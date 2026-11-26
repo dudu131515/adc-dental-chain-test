@@ -1,5 +1,5 @@
 import { FormEvent, useEffect, useRef, useState } from "react";
-import { StaffIdentity } from "../../shared/AppShell";
+import { canWorkAt, StaffIdentity } from "../../shared/AppShell";
 import { useApiRequest } from "../../shared/ApiTransport";
 import { dateTime, errorMessage, localDay, money } from "../../shared/format";
 import { AssistantDrilldown, AssistantPanel } from "./AssistantPanel";
@@ -44,6 +44,7 @@ export function OperationsReport({ identity, clinicId, open, assistantWorkspace 
 }) {
   const request = useApiRequest();
   const today = localDay();
+  const reportingClinics = identity.clinics.filter(row => canWorkAt(identity, "HQ_OPERATIONS_QUERY", row.clinic_id));
   const [initial] = useState(() => new URLSearchParams(initialQuery ?? window.location.search));
   const [from, setFrom] = useState(initial.get("date_from") || today.slice(0, 7) + "-01");
   const [to, setTo] = useState(initial.get("date_to") || today);
@@ -148,7 +149,7 @@ export function OperationsReport({ identity, clinicId, open, assistantWorkspace 
         <label>结束日期<input type="date" required min={from} value={to} onChange={event => changeFilter("date_to", event.target.value, setTo)} /></label>
         <label>统计门店<select value={clinic} onChange={event => changeFilter("clinic_ids", event.target.value, setClinic)}>
           <option value="">全部授权门店</option>
-          {identity.clinics.map(row => <option key={row.clinic_id} value={row.clinic_id}>{row.name}</option>)}
+          {reportingClinics.map(row => <option key={row.clinic_id} value={row.clinic_id}>{row.name}</option>)}
         </select></label>
         <label>牙医编号<input placeholder="全部，多个编号用逗号分隔" value={dentist} onChange={event => changeFilter("dentist_ids", event.target.value, setDentist)} /></label>
         <button className="button primary" disabled={busy}>查询</button>

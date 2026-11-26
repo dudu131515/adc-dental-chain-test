@@ -45,12 +45,20 @@ input:focus-visible,select:focus-visible,textarea:focus-visible { border-color: 
 .side-nav a[aria-current="page"] { color: #fff; background: #245454; font-weight: 620; }
 .side-nav a[aria-current="page"] > svg { color: #8fe3cf; }
 .active-light { width: 6px; height: 6px; border-radius: 50%; background: #82dfc7; margin-left: auto; }
-.rail-account { margin: auto 6px 0; border-top: 1px solid #365061; padding: 17px 3px 0; display: flex; align-items: center; gap: 10px; }
-.side-nav + .rail-account { min-height: 70px; }
+.rail-account { margin: auto 6px 0; border-top: 1px solid #365061; padding: 13px 3px 0; }
+.rail-account summary { display: flex; align-items: center; gap: 9px; list-style: none; cursor: pointer; }
+.rail-account summary::-webkit-details-marker { display: none; }
+.rail-account summary > svg { margin-left: auto; flex-shrink: 0; }
+.rail-account[open] summary > svg { transform: rotate(180deg); }
 .staff-avatar { flex: 0 0 37px; width: 37px; height: 37px; border-radius: 50%; display: grid; place-items: center; background: #2b4d59; color: #a4ded3; }
-.rail-account > div { display: grid; gap: 4px; min-width: 0; }
-.rail-account strong { font-size: 13px; text-overflow: ellipsis; overflow: hidden; white-space: nowrap; }
+.rail-account-name { display: grid; gap: 3px; min-width: 0; }
+.rail-account strong { font-size: 13px; }
 .rail-account small { color: #aec1cc; font-size: 11px; }
+.rail-account .rail-admin-label { color: #a4ded3; }
+.rail-permissions { margin: 12px 0 4px; border-radius: 9px; padding: 10px; background: #233c4c; }
+.rail-permissions dl, .rail-permissions p { margin: 7px 0 0; font-size: 12px; }
+.rail-permissions dl > div + div { margin-top: 7px; }
+.rail-permissions dd { margin: 1px 0 0; color: #aec1cc; overflow-wrap: anywhere; }
 .topbar { grid-column: 2; height: 63px; background: white; border-bottom: 1px solid var(--border); display: flex; align-items: center;
   justify-content: space-between; gap: 12px; padding-inline: clamp(20px,2.7vw,43px); }
 .topbar-title,.topbar-controls,.scope-control,.clinic-picker,.logout-button { display: flex; align-items: center; gap: 10px; }

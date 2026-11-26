@@ -54,9 +54,9 @@ test("grant recovery keeps the operation key and reloads the result after a succ
   render(<AccessPage {...admin} />);
   fireEvent.click(await screen.findByRole("button", { name: "合成员工" }));
   fireEvent.change(screen.getByLabelText("授权门店"), { target: { value: "20" } });
-  fireEvent.change(screen.getByLabelText("预设角色"), { target: { value: "FRONT_DESK" } });
+  fireEvent.change(screen.getByLabelText("功能权限"), { target: { value: "FRONT_DESK" } });
   fireEvent.change(screen.getByLabelText("授权变更原因"), { target: { value: "合成排班" } });
-  fireEvent.click(screen.getByRole("button", { name: "授予角色" }));
+  fireEvent.click(screen.getByRole("button", { name: "授予权限" }));
   fireEvent.click(await screen.findByRole("button", { name: "核对原办理结果" }));
   expect(await screen.findByText("门店授权已更新。")).toBeTruthy();
   expect(operations[0].key).toBeTruthy();
