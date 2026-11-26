@@ -10,27 +10,43 @@ import type { Period } from "../operations/ExpensesPage";
 import { versionStates } from "../operations/VersionComparison";
 import "./dashboard.css";
 
-type Shortcut = { label: string; description: string; path: string; icon: IconName; roles: string[] };
+type WorkbenchAlerts = {schedule: boolean; clinical: boolean; billing: boolean; reconciliation: boolean; corrections: boolean};
+type Shortcut = {
+  label: string; description: string; path: string; icon: IconName; roles: string[]; alert?: keyof WorkbenchAlerts;
+};
+
+function PendingDot({visible}: {visible?: boolean}) {
+  return visible && <><span className="desk-pending-dot" aria-hidden="true" /><span className="sr-only">有待办</span></>;
+}
 const shortcuts: Shortcut[] = [
   {label:"患者档案", description:"建档与预约记录", path:"/patients", icon:"patients", roles:["FRONT_DESK"]},
-  {label:"结算队列", description:"开单与收退办理", path:"/billing", icon:"receipt", roles:["FRONT_DESK"]},
-  {label:"接诊队列", description:"开始或继续诊疗", path:"/clinical", icon:"tooth", roles:["DENTIST"]},
+  {label:"结算队列", description:"开单与收退办理", path:"/billing", icon:"receipt", alert:"billing", roles:["FRONT_DESK"]},
+  {label:"接诊队列", description:"开始或继续诊疗", path:"/clinical", icon:"tooth", alert:"clinical", roles:["DENTIST"]},
   {label:"跨店排班", description:"查看班次与回应", path:"/schedule?view=shifts", icon:"calendar", roles:["CLINIC_MANAGER","HQ_SCHEDULER","DENTIST"]},
   {label:"排班需求", description:"查看门店用人需求", path:"/schedule?view=demands", icon:"layers", roles:["CLINIC_MANAGER","HQ_SCHEDULER"]},
-  {label:"更正与审批", description:"核对就诊更正", path:"/billing/corrections", icon:"check", roles:["CLINIC_MANAGER","DENTIST"]},
+  {label:"更正与审批", description:"核对就诊更正", path:"/billing/corrections", icon:"check", alert:"corrections", roles:["CLINIC_MANAGER","DENTIST"]},
   {label:"费用登记", description:"核对门店运营费用", path:"/operations/expenses", icon:"receipt", roles:["CLINIC_MANAGER"]},
   {label:"项目与价格", description:"维护标准与价格版本", path:"/catalog", icon:"catalog", roles:["HQ_CATALOG"]},
   {label:"经营报告", description:"查询指标及来源", path:"/operations/report", icon:"chart", roles:["HQ_OPERATIONS_QUERY"]},
   {label:"季度核算", description:"查看季度与历史版本", path:"/operations/quarters", icon:"layers", roles:performanceRoles},
 ];
 
-function WorkLinks({identity, clinicId, open}: WorkArea) {
+function WorkLinks({identity, clinicId, open, alerts, day}: WorkArea & {alerts?: WorkbenchAlerts; day?: string}) {
   const links = shortcuts.filter(item => hasRole(identity, item.roles, clinicId));
   if (!links.length) return <section className="desk-panel"><h2>岗位业务</h2><p>当前账号暂无已授权业务。</p></section>;
   return <section className="desk-panel"><div className="desk-panel-head"><h2>快捷办理</h2></div>
-    <div className="desk-links">{links.map(item => <button key={item.path} onClick={() => open(item.path)}>
-      <span className="desk-link-symbol"><Icon name={item.icon}/></span><span><strong>{item.label}</strong><small>{item.description}</small></span>
-      <Icon name="chevron" size={15}/></button>)}</div>
+    <div className="desk-links">{links.map(item => {
+      const pendingDeposits = item.path === "/billing" && alerts?.reconciliation;
+      const params = new URLSearchParams({date: day ?? localDay()});
+      if (clinicId) params.set("clinic_id", clinicId);
+      const path = pendingDeposits && !alerts?.billing ? "/billing/reconciliation?" + params : item.path;
+      const pending = pendingDeposits || (item.alert && alerts?.[item.alert]);
+      return <button key={item.path} onClick={() => open(path)}>
+        <span className="desk-link-symbol"><Icon name={item.icon}/></span>
+        <span><strong>{item.label}<PendingDot visible={pending} /></strong><small>{item.description}</small></span>
+        <Icon name="chevron" size={15}/>
+      </button>;
+    })}</div>
   </section>;
 }
 type Tile = {label: string; status: string; description: string; icon: IconName; color: string};
@@ -42,11 +58,11 @@ const tiles: Tile[] = [
 ];
 const stateOrder = ["CONFIRMED","CHECKED_IN","IN_TREATMENT","COMPLETED","CANCELLED","NO_SHOW"];
 const dateFormatter = new Intl.DateTimeFormat("zh-CN", {timeZone:"Asia/Shanghai",year:"numeric",month:"long",day:"numeric",weekday:"long"});
-function DaySchedule({area, day, revision}: {area: WorkArea; day: string; revision:number}) {
+function DaySchedule({area, day, revision, alerts}: {area: WorkArea; day: string; revision:number; alerts?: WorkbenchAlerts}) {
   const query = new URLSearchParams({date: day});
   if (area.clinicId) query.set("clinic_id", area.clinicId);
   const source = useRead<{items: Appointment[]}>("/appointments?" + query, revision);
-  const rows = source.data?.items;
+  const rows = source.fault ? undefined : source.data?.items;
   const [hour, setHour] = useState<number | null>(null);
   const counts = new Map<string, number>();
   const byHour = Array<number>(24).fill(0);
@@ -90,7 +106,7 @@ function DaySchedule({area, day, revision}: {area: WorkArea; day: string; revisi
           </div>
         </section>
         <section className="desk-panel"><div className="desk-panel-head"><div><h2>预约日程</h2><p>{hour === null ? "按开始时间排列" : hour + ":00 至 " + hour + ":59"} · {day}</p></div>
-          <button className="desk-text-action" onClick={() => schedule()}>完整日历 <Icon name="arrow" size={15}/></button></div>
+          <button className="desk-text-action" onClick={() => schedule()}>完整日历<PendingDot visible={alerts?.schedule} /> <Icon name="arrow" size={15}/></button></div>
           {hour !== null && <button className="desk-clear" onClick={() => setHour(null)}>清除时段筛选 ×</button>}
           {shown && shown.length ? <div className="agenda-list">{shown.slice(0, 6).map(row =>
             <button key={row.appointment_id} onClick={() => schedule("", row.appointment_id)}>
@@ -109,7 +125,7 @@ function DaySchedule({area, day, revision}: {area: WorkArea; day: string; revisi
           <div className="state-legend">{stateOrder.map(state => <button key={state} onClick={() => schedule(state)}>
             <i data-state={state}/><span>{appointmentStates[state]}</span><strong>{count(state)}</strong><Icon name="chevron" size={12}/></button>)}</div>
         </section>
-        <WorkLinks {...area}/>
+        <WorkLinks {...area} alerts={alerts} day={day}/>
       </div>
     </div>
   </>;
@@ -152,6 +168,10 @@ export function DashboardPage(area: WorkArea) {
   });
   const [revision, refresh] = useState(0);
   const daily = hasRole(area.identity, dailyRoles, area.clinicId);
+  const alertQuery = new URLSearchParams({date:day});
+  if (area.clinicId) alertQuery.set("clinic_id", area.clinicId);
+  const alertRead = useRead<WorkbenchAlerts>(daily ? "/workbench/alerts?" + alertQuery : undefined, revision);
+  const alerts = alertRead.fault ? undefined : alertRead.data;
   const scope = area.identity.clinics.find(item => item.clinic_id === area.clinicId)?.name ?? "全部授权门店";
   function chooseDate(next: string) {
     if (!next) return;
@@ -165,6 +185,6 @@ export function DashboardPage(area: WorkArea) {
       <div className="desk-controls">{daily && <label><span className="sr-only">工作日期</span><input type="date" value={day} onChange={event => chooseDate(event.target.value)}/></label>}
         <button className="button desk-refresh" onClick={() => refresh(value => value + 1)}><Icon name="refresh" size={16}/>刷新</button></div>
     </div>
-    {daily ? <DaySchedule key={day} area={area} day={day} revision={revision}/> : <Headquarters area={area} revision={revision}/>}
+    {daily ? <DaySchedule key={day} area={area} day={day} revision={revision} alerts={alerts}/> : <Headquarters area={area} revision={revision}/>}
   </div>;
 }

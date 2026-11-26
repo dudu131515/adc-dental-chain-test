@@ -16,6 +16,7 @@ from rest_framework.decorators import api_view, authentication_classes, permissi
 from rest_framework.permissions import AllowAny
 
 from adc.common.http import ApiProblem, success, unavailable
+from adc.identity.admin_api import urlpatterns as admin_patterns
 from adc.identity.audit import record_event
 from adc.identity.authentication import create_token, load_token
 from adc.identity.models import Clinic, Patient, UserAccount
@@ -184,4 +185,4 @@ urlpatterns = [
     path("auth/mini/bind-profile", bind_profile),
     path("auth/me", me),
     path("auth/logout", logout),
-]
+] + admin_patterns

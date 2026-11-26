@@ -12,6 +12,11 @@
       <view wx:if="{{calendarIssue}}" class="form-hint">请联系门店核对患者原因改期截止。</view>
       <view wx:if="{{contactClinic}}" class="form-hint">如需取消，请先由门店核实。</view>
     </view>
+    <view wx:if="{{invoiceError}}" class="state state-error">
+      <view class="state-title">暂时无法读取诊疗费用单</view><text>{{invoiceError}}</text>
+      <button class="mini-button" bindtap="loadInvoice">重新查询费用单</button>
+    </view>
+    <button wx:if="{{invoiceId}}" class="secondary-action" bindtap="openInvoice">查看诊疗费用单</button>
     <button wx:if="{{canReschedule}}" class="secondary-action" bindtap="reschedule">改期</button>
     <button wx:if="{{canCancel}}" class="text-action" bindtap="cancel">取消预约</button>
     <button class="primary-action" bindtap="all">查看我的预约</button>

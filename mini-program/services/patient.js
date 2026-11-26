@@ -24,4 +24,8 @@ function appointments(section) {
   wx.switchTab({url: "/pages/appointments/index"});
 }
 function openAppointment(id) { wx.navigateTo({url: "/pages/appointment-detail/index?id=" + encodeURIComponent(id)}); }
-module.exports = {loadPatient, book, profile, receipts, clinics, appointments, openAppointment};
+function invoices() { wx.navigateTo({url: "/pages/invoices/index"}); }
+function openInvoice(id) { wx.navigateTo({url: "/pages/invoice-detail/index?id=" + encodeURIComponent(id)}); }
+const invoiceStatuses = { ISSUED: "已开立", PART_PAID: "部分收款", SETTLED: "已结清" };
+function invoiceStatus(status) { return invoiceStatuses[status] || "已开立"; }
+module.exports = {loadPatient, book, profile, receipts, invoices, openInvoice, invoiceStatus, clinics, appointments, openAppointment};

@@ -2,7 +2,7 @@ from decimal import Decimal
 
 from django.db.models import Q
 from django.shortcuts import get_object_or_404
-from django.urls import path
+from django.urls import include, path
 from rest_framework import serializers
 from rest_framework.decorators import api_view
 
@@ -119,6 +119,8 @@ def payment_by_action(request, pk):
 
 
 urlpatterns = [
+    path("", include("adc.billing.reconciliation_api")),
+    path("", include("adc.billing.patient_invoice_api")),
     path("billing/queue", queue),
     path("visits/<int:pk>/invoice", issue),
     path("invoices/<int:pk>", detail),

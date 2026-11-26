@@ -1,0 +1,44 @@
+<view class="page">
+  <view class="page-heading"><view class="page-title">诊疗费用单详情</view></view>
+  <view wx:if="{{loading}}" class="state"><view class="loading-dot"></view><text>正在核对诊疗费用…</text></view>
+  <view wx:elif="{{error}}" class="state state-error">
+    <view class="state-title">暂时无法读取</view><text>{{error}}</text><button class="mini-button" bindtap="onShow">重新加载</button>
+  </view>
+  <view wx:elif="{{profileRequired}}" class="state">
+    <view class="state-title">请先完善就诊资料</view><button class="mini-button" bindtap="profile">填写本人资料</button>
+  </view>
+  <block wx:elif="{{invoice}}">
+    <view class="section">
+      <view class="between"><view class="field-label">主单 {{invoice.invoice_no}}</view><text class="badge">{{invoice.statusLabel}}</text></view>
+      <view class="muted">{{invoice.visit_date}} · {{invoice.clinic.name}}</view>
+      <view class="between"><text>原始金额</text><text>¥{{invoice.original_total}}</text></view>
+      <view class="between"><text>当前应缴</text><text>¥{{invoice.accrued}}</text></view>
+      <view class="between"><text>成功收款</text><text>¥{{invoice.received}}</text></view>
+      <view class="between"><text>成功退款</text><text>¥{{invoice.refunded}}</text></view>
+      <view class="between"><text>欠款</text><text>¥{{invoice.outstanding}}</text></view>
+      <view class="between"><text>退款处理中</text><text>¥{{invoice.pending_refund}}</text></view>
+    </view>
+    <view class="section">
+      <view class="section-title">计费项目</view>
+      <view wx:if="{{!invoice.lines.length}}" class="muted">本单无计费项目。</view>
+      <view wx:for="{{invoice.lines}}" wx:key="key" class="fund-line">
+        <view><view>{{item.treatment_name}}</view><view class="muted">{{item.units}} {{item.unit}} × ¥{{item.unit_price}}</view></view>
+        <text>¥{{item.subtotal}}</text>
+      </view>
+    </view>
+    <view wx:if="{{invoice.adjustments.length}}" class="section">
+      <view class="section-title">已入账差额</view>
+      <view wx:for="{{invoice.adjustments}}" wx:key="key" class="fund-line">
+        <text>费用调整</text><text>¥{{item.signed_amount}}</text>
+      </view>
+    </view>
+    <view class="section">
+      <view class="section-title">诊疗收退记录</view>
+      <view wx:if="{{!invoice.funds.length}}" class="muted">本单暂无诊疗收退记录。</view>
+      <view wx:for="{{invoice.funds}}" wx:key="key" class="fund-line">
+        <view><view>{{item.label}}</view><view wx:if="{{item.when}}" class="muted">{{item.when}}</view></view>
+        <text>¥{{item.amount}}</text>
+      </view>
+    </view>
+  </block>
+</view>

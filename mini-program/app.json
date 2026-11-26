@@ -11,6 +11,8 @@
     "pages/reschedule/index",
     "pages/cancel/index",
     "pages/receipts/index",
+    "pages/invoices/index",
+    "pages/invoice-detail/index",
     "pages/clinics/index"
   ],
   "window": {

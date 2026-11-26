@@ -15,20 +15,25 @@ def binding(principal):
     return {"actor": str(principal.account_id), "scope": None if scope is None else sorted(scope)}
 
 
-def store_snapshot(principal, metadata, details):
+def store_snapshot(principal, metadata, details, *, results=None):
     token = token_urlsafe(24)
     caches["report_snapshots"].set(
-        token, {"binding": binding(principal), "metadata": metadata, "details": dict(details)}, SNAPSHOT_TTL_SECONDS,
+        token, {"binding": binding(principal), "metadata": metadata, "details": dict(details), "results": results}, SNAPSHOT_TTL_SECONDS,
     )
     return token
 
 
-def read_details(principal, token, metric, clinic, cursor):
+def read_snapshot(principal, token):
     snapshot = caches["report_snapshots"].get(token)
+    if snapshot is not None and snapshot["binding"] != binding(principal):
+        raise ApiProblem(403, "PERMISSION_DENIED", "查询权限已变化，请重新查询。")
+    return snapshot
+
+
+def read_details(principal, token, metric, clinic, cursor):
+    snapshot = read_snapshot(principal, token)
     if snapshot is None:
         raise ApiProblem(409, "RESULT_EXPIRED", "本次报告查询已失效，请重新查询。")
-    if snapshot["binding"] != binding(principal):
-        raise ApiProblem(403, "PERMISSION_DENIED", "查询权限已变化，请重新查询。")
     metadata = snapshot["metadata"]
     if clinic and clinic not in metadata["scope"]["clinic_ids"]:
         raise ApiProblem(403, "PERMISSION_DENIED", "该门店不在本次查询范围内。")

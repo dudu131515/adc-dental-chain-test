@@ -52,5 +52,5 @@ Page({
     else if (resume) wx.navigateTo({ url: "/pages/booking-confirm/index?" + query({ resume }) });
     else this.onShow();
   },
-  profile: patient.profile, book: patient.book,
+  profile: patient.profile, book: patient.book, invoices: patient.invoices,
 });

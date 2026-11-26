@@ -10,6 +10,7 @@
   <view class="panel flush">
     <button class="menu-row" bindtap="profile"><view class="icon-box slate"><image src="/assets/user.png" /></view><view class="menu-text"><view class="menu-name">本人资料</view><view class="muted">就诊人、电话与紧急联系人</view></view><view class="chevron"></view></button>
     <button class="menu-row" bindtap="history"><view class="icon-box blue"><image src="/assets/calendar.png" /></view><view class="menu-text"><view class="menu-name">历史预约</view><view class="muted">查看历次预约详情</view></view><view class="chevron"></view></button>
+    <button class="menu-row" bindtap="invoices"><view class="icon-box blue"><image src="/assets/receipt.png" /></view><view class="menu-text"><view class="menu-name">诊疗费用单</view><view class="muted">查看已开立主单与诊疗收退</view></view><view class="chevron"></view></button>
     <button class="menu-row" bindtap="receipts"><view class="icon-box sand"><image src="/assets/receipt.png" /></view><view class="menu-text"><view class="menu-name">预约金记录</view><view class="muted">核对预约金支付与退款</view></view><view class="chevron"></view></button>
     <button class="menu-row" bindtap="clinics"><view class="icon-box "><image src="/assets/clinic.png" /></view><view class="menu-text"><view class="menu-name">门店地址</view></view><view class="chevron"></view></button>
   </view>

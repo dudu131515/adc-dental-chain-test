@@ -1,6 +1,7 @@
 from django.contrib.auth.hashers import make_password
 from django.test import Client, TestCase, override_settings
 
+from adc.identity.models import EmployeeRole
 from tests.fixtures.scenarios import load_synthetic_base
 
 
@@ -73,3 +74,18 @@ class CatalogContractTests(TestCase):
         self.assertNotIn("unit_price", item)
         denied = patient.patch("/api/v1/catalog/treatments/" + treatment, {"active": False}, content_type="application/json", **header)
         self.assertEqual(denied.status_code, 403, denied.content)
+
+    def test_clinic_catalog_grant_can_read_but_cannot_change_chain_wide_catalog(self):
+        treatment = self.create_treatment()
+        EmployeeRole.objects.filter(employee_id=7, role__role_code="HQ_CATALOG").update(scope_clinic_id=1)
+        treatments_path = "/catalog/treatments"
+        detail_path = f"{treatments_path}/{treatment}"
+        prices_path = f"{detail_path}/prices"
+        for path in (treatments_path, prices_path):
+            self.assertEqual(self.catalog.get("/api/v1" + path).status_code, 200)
+        payload = {"treatment_code": "ADC-GLOBAL", "treatment_name": "合成标准", "standard_unit": "次"}
+        self.assertEqual(self.post(self.catalog, treatments_path, payload).status_code, 403)
+        updated = self.catalog.patch("/api/v1" + detail_path, {"active": False}, content_type="application/json")
+        self.assertEqual(updated.status_code, 403, updated.content)
+        price = self.post(self.catalog, prices_path, {"unit_price": "99.00", "effective_from": "2030-01-01"})
+        self.assertEqual(price.status_code, 403, price.content)

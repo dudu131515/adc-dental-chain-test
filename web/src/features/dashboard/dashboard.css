@@ -78,3 +78,13 @@
 .desk-clear { border:0; background:#ebf5f2; color:#176a60; border-radius:6px; padding:6px 8px; margin-bottom:8px; cursor:pointer; }
 .desk-empty > span { display:inline-flex; margin-right:9px; color:#40988a; vertical-align:middle; }
 @media(max-width:430px){.agenda-list button{grid-template-columns:43px minmax(0,1fr) auto;gap:6px}.agenda-list button > svg{display:none}}
+
+.desk-pending-dot {
+  display: inline-block;
+  width: 0.45rem;
+  height: 0.45rem;
+  margin-inline-start: 0.4rem;
+  border-radius: 50%;
+  vertical-align: middle;
+  background: #c43642;
+}

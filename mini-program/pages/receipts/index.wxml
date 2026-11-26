@@ -13,5 +13,5 @@
       <view class="receipt-link">{{item.appointmentId ? '查看关联预约' : item.resumeKey ? '继续核对原预约' : '核对原付款和退款'}} <text>›</text></view>
     </button>
   </block>
-  <view class="notice">诊疗费用请凭门店前台提供的结算凭据核对。</view>
+  <button class="text-action" bindtap="invoices">查看诊疗费用单</button>
 </view>

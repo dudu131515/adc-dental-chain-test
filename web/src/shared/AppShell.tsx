@@ -2,7 +2,7 @@ import { MouseEvent, ReactNode, useEffect, useRef, useState } from "react";
 import { LoginPage } from "../features/login/LoginPage";
 import { ApiError, request } from "./api";
 import { Brand, Icon } from "./Icons";
-import { allowedSections, navigation, roleNames } from "./navigation";
+import { allowedSections, canSeeDailyReconciliation, groupedNavigation, navigation, roleNames, workspaceTabs } from "./navigation";
 import type { StaffIdentity } from "./navigation";
 
 export type { StaffIdentity } from "./navigation";
@@ -11,6 +11,19 @@ export type WorkArea = {
   section: string; path: string; identity: StaffIdentity; clinicId: string; open: (path: string) => void;
 };
 function isUnder(path: string, area: string) { return path === area || path.startsWith(area + "/"); }
+function filterKey(path: string) {
+  if (path === "/operations") return "/operations/report";
+  return isUnder(path, "/schedule") ? "/schedule" : path;
+}
+function rememberedClinic(identity: StaffIdentity) {
+  if (identity.clinics.length === 1) return identity.clinics[0].clinic_id;
+  try {
+    const stored = sessionStorage.getItem("adc:work-clinic:" + identity.account_id);
+    return identity.clinics.find(clinic => clinic.clinic_id === stored)?.clinic_id ?? "";
+  } catch {
+    return "";
+  }
+}
 function currentUrl() { return window.location.pathname + window.location.search; }
 
 export function AppShell({ renderWorkArea }: { renderWorkArea?: (area: WorkArea) => ReactNode }) {
@@ -24,9 +37,9 @@ export function AppShell({ renderWorkArea }: { renderWorkArea?: (area: WorkArea)
   const filterHistory = useRef<Record<string, string>>({});
   const menuToggle = useRef<HTMLButtonElement>(null);
   function open(path: string, replace = false) {
-    const previous = navigation.find(area => isUnder(window.location.pathname, area.path));
-    if (previous) filterHistory.current[previous.path] = window.location.search;
-    if (!path.includes("?") && filterHistory.current[path]) path += filterHistory.current[path];
+    filterHistory.current[filterKey(window.location.pathname)] = window.location.search;
+    const previousQuery = filterHistory.current[filterKey(path)];
+    if (!path.includes("?") && previousQuery) path += previousQuery;
     if (replace) window.history.replaceState({}, "", path);
     else if (currentUrl() !== path) window.history.pushState({}, "", path);
     setLocation(currentUrl());
@@ -34,7 +47,7 @@ export function AppShell({ renderWorkArea }: { renderWorkArea?: (area: WorkArea)
   }
   function accept(session: StaffIdentity) {
     if (session.category !== "staff") { setIdentity(null); return; }
-    const initialClinic = session.clinics.length === 1 ? session.clinics[0].clinic_id : "";
+    const initialClinic = rememberedClinic(session);
     setIdentity(session);
     setClinicId(initialClinic);
     if (!allowedSections(session, initialClinic).some(area => isUnder(window.location.pathname, area.path))) {
@@ -90,7 +103,13 @@ export function AppShell({ renderWorkArea }: { renderWorkArea?: (area: WorkArea)
   }
   const path = location.split("?")[0];
   const choices = identity ? allowedSections(identity, clinicId) : [];
-  const chosen = choices.find(area => isUnder(path, area.path));
+  const canUseRoute = !isUnder(path, "/billing/reconciliation") || (identity && canSeeDailyReconciliation(identity, clinicId));
+  const chosen = canUseRoute ? choices.find(area => isUnder(path, area.path)) : undefined;
+  const groups = groupedNavigation(choices);
+  const activeGroup = groups.find(group => chosen && group.sections.includes(chosen));
+  const tabs = identity && activeGroup ? workspaceTabs(activeGroup, identity, clinicId) : [];
+  const activeTab = [...tabs].sort((a, b) => b.path.length - a.path.length).find(tab => isUnder(path, tab.path))
+    ?? tabs.find(tab => chosen && isUnder(tab.path, chosen.path));
   useEffect(() => {
     document.title = (identity ? chosen?.label || "员工工作空间" : "员工登录") + " · ADC 安德鲁牙科";
   }, [identity, chosen?.label]);
@@ -101,10 +120,18 @@ export function AppShell({ renderWorkArea }: { renderWorkArea?: (area: WorkArea)
 
   function changeClinic(next: string) {
     setClinicId(next);
+    try {
+      sessionStorage.setItem("adc:work-clinic:" + identity!.account_id, next);
+    } catch {
+      // The selector remains usable when the browser blocks storage.
+    }
     filterHistory.current = {};
     const root = chosen && allowedSections(identity!, next).includes(chosen) ? chosen.path : "/dashboard";
+    const keptDate = new URLSearchParams(window.location.search).get("date");
+    const target = keptDate && (root === "/dashboard" || root === "/schedule")
+      ? root + "?" + new URLSearchParams({date: keptDate}) : root;
     // Detail pages and their local filters belong to the previous scope.
-    window.history.replaceState({}, "", root);
+    window.history.replaceState({}, "", target);
     setLocation(currentUrl());
   }
   const roles = identity.capabilities.map(role => roleNames[role]).filter(Boolean).join(" · ");
@@ -114,9 +141,13 @@ export function AppShell({ renderWorkArea }: { renderWorkArea?: (area: WorkArea)
       <a href="/dashboard" className="brand-link" aria-label="ADC 安德鲁牙科工作台" onClick={e => navigate(e, "/dashboard")}><Brand /></a>
       <div className="rail-caption">员工工作空间</div>
       <nav id="staff-navigation" className="side-nav" aria-label="业务导航">
-        {choices.map(area => <a key={area.path} href={area.path} onClick={e => navigate(e, area.path)}
-          aria-current={chosen === area ? "page" : undefined}><Icon name={area.icon} /><span>{area.label}</span>
-          {chosen === area && <span className="active-light" aria-hidden="true" />}</a>)}
+        {groups.map(group => {
+          const route = group.path === "/operations"
+            ? workspaceTabs(group, identity, clinicId)[0]?.path || group.path : group.path;
+          return <a key={group.path} href={route} onClick={e => navigate(e, route)}
+            aria-current={activeGroup === group ? "page" : undefined}><Icon name={group.icon} /><span>{group.label}</span>
+            {activeGroup === group && <span className="active-light" aria-hidden="true" />}</a>;
+        })}
       </nav>
       <div className="rail-account"><span className="staff-avatar"><Icon name="user"/></span>
         <div><strong title={roles}>{roles || "员工"}</strong><small>账号 {identity.account_id}</small></div></div>
@@ -138,6 +169,10 @@ export function AppShell({ renderWorkArea }: { renderWorkArea?: (area: WorkArea)
     <main className="workspace" id="workspace" tabIndex={-1}>
       {fault && <p className="error-text" role="alert">{fault}</p>}
       {chosen ? <div key={identity.account_id + ":" + clinicId} className="workspace-body">
+        {tabs.length > 1 && <nav className="workspace-primary-tabs" aria-label={activeGroup?.label}>
+          {tabs.map(tab => <a key={tab.path} href={tab.path} aria-current={tab === activeTab ? "page" : undefined}
+            onClick={event => navigate(event, tab.path)}>{tab.label}</a>)}
+        </nav>}
         {renderWorkArea ? renderWorkArea({section: chosen.path, path, identity, clinicId, open}) : <h1>{chosen.label}</h1>}
       </div> : <section className="schedule-panel"><h1>当前页面无权访问</h1><button className="button" onClick={() => open("/dashboard")}>返回工作台</button></section>}
     </main>

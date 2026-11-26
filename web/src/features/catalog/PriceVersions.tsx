@@ -9,7 +9,7 @@ type Price = {
   effective_to: string | null;
 };
 
-export function PriceVersions({ treatmentId, onChange }: { treatmentId: string; onChange: () => void }) {
+export function PriceVersions({ treatmentId, onChange, canEdit }: { treatmentId: string; onChange: () => void; canEdit: boolean }) {
   const [versions, setVersions] = useState<Price[]>([]);
   const [revision, setRevision] = useState(0);
   const [error, setError] = useState("");
@@ -65,7 +65,7 @@ export function PriceVersions({ treatmentId, onChange }: { treatmentId: string; 
       </table>
     </div>
     {!versions.length && <p className="muted">暂无价格版本。</p>}
-    <form className="catalog-form" onSubmit={publish}>
+    {canEdit && <form className="catalog-form" onSubmit={publish}>
       <label>单价（元）<input name="unit_price" inputMode="decimal" required /></label>
       <label>生效日期<input type="date" name="effective_from" required /></label>
       <label>结束日期<input type="date" name="effective_to" /></label>
@@ -77,7 +77,7 @@ export function PriceVersions({ treatmentId, onChange }: { treatmentId: string; 
       </select></label>
       {replace && <label>原版本结束日期<input name="replace_effective_to" type="date" required /></label>}
       <button className="button primary" disabled={pending}>保存价格版本</button>
-    </form>
+    </form>}
     {error && <p className="error-text" role="alert">{error}</p>}
   </section>;
 }

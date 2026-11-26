@@ -5,6 +5,7 @@ from adc.common.http import not_found
 
 urlpatterns = [
     path("api/v1/", include("adc.identity.api")),
+    path("api/v1/", include("adc.identity.workbench_api")),
     path("api/v1/", include("adc.scheduling.api")),
     path("api/v1/", include("adc.scheduling.resource_api")),
     path("api/v1/", include("adc.catalog.api")),
@@ -25,5 +26,6 @@ urlpatterns = [
     path("api/v1/", include("adc.reporting.calculation_api")),
     path("api/v1/", include("adc.reporting.version_api")),
     path("api/v1/", include("adc.reporting.operations_api")),
+    path("api/v1/reports/operations/assistant/", include("adc.reporting.assistant_api")),
     re_path(r"^api/v1(?:/.*)?$", not_found),
 ]

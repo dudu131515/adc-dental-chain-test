@@ -8,6 +8,6 @@ Page({
       return {person, avatar: Array.from(person.full_name || "")[0] || "我"};
     });
   },
-  profile: patient.profile, receipts: patient.receipts, clinics: patient.clinics,
+  profile: patient.profile, receipts: patient.receipts, invoices: patient.invoices, clinics: patient.clinics,
   history() { patient.appointments("history"); },
 });

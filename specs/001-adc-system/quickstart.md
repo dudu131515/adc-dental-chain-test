@@ -91,3 +91,11 @@ python backend/manage.py shell --verbosity 0 -c "import runpy; runpy.run_path('b
 将返回的 JSON 设为 `ADC_STAFF_PASSWORD_HASHES`。前台账号 `demo.front-a`，责任牙医账号 `demo.dentist`，合成账号口令为 `ADC-preview-2026`。这批数据包括当日六类预约状态、已经登记的过敏条目、前台待结算就诊及患者下一次预约。小程序的本地专用预览配置按本文件的合成身份说明设置。
 
 进入前台工作台，点击已签到指标检查日历范围。由患者档案打开预约或代办。登录责任牙医后在接诊队列选择许言，并保存一次过敏核对。微信模拟器以合成患者陈晓雨进入，核对首页显示的预约号 ADC-DEMO-011 与网站档案一致。
+
+## 课程补充验收
+
+在本文件的空本地合成库流程中，新增账号 demo.access、demo.reports 和 demo.reports-a 分别用于人员授权、双店经营、单店经营。使用前台账号核对工作台现有入口旁的红点和「收费与经营 → 日结对账」。选择昨天可核对中心门诊 80.00 元诊疗到账和一笔仍待处理的模拟收款。以合成患者陈晓雨打开「我的 → 诊疗费用单」，核对 ADC-DEMO-INV-120 已收 80.00 元、尚欠 100.00 元。
+
+经营助手打开时提供按范围筛选的建议。选择双店对比后可指定昨天当天为本期、八天前当天为对比期，两店分别由 6/8 到 4/8、由 2/4 到 3/4。两期均可查看原报表。单店账号只能分析中心门诊。省略外部模型配置时，可直接演示本地报表解读和来源回查。
+
+以实际 DeepSeek 验收时，在启动 Django 的私有环境配置 ADC_ASSISTANT_DEEPSEEK_ENABLED=1，ADC_ASSISTANT_SYNTHETIC_ENV、ADC_ASSISTANT_SYNTHETIC_HOST、ADC_ASSISTANT_SYNTHETIC_PORT、ADC_ASSISTANT_SYNTHETIC_DB 填实际专用合成环境、主机、端口和业务库名，ADC_DEEPSEEK_API_KEY 由服务环境注入。默认模型和可配置项见部署示例。启用后在操作页面手动提交一次，再核对结果、用量审计及原报表入口。密钥存放于服务环境，课程仓库和小程序均不存放。

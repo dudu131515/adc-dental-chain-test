@@ -24,6 +24,68 @@ BUSINESS_APPENDS = (
 )
 
 
+def protect_deployment_identity(cursor):
+    cursor.execute(
+        '''
+        CREATE OR REPLACE FUNCTION public.adc_guard_identity_changes() RETURNS trigger
+        LANGUAGE plpgsql SET search_path = pg_catalog, public AS $guard$
+        DECLARE
+            role_key bigint;
+            clinic_key bigint;
+        BEGIN
+            IF NOT EXISTS (
+                SELECT 1 FROM pg_class WHERE oid = TG_RELID AND pg_has_role(relowner, 'USAGE')
+            ) THEN
+                IF TG_TABLE_NAME = 'employee_role' THEN
+                    IF TG_OP = 'DELETE' THEN
+                        role_key := OLD.role_id;
+                        clinic_key := OLD.scope_clinic_id;
+                    ELSE
+                        role_key := NEW.role_id;
+                        clinic_key := NEW.scope_clinic_id;
+                    END IF;
+                    IF clinic_key IS NULL OR NOT EXISTS (
+                        SELECT 1 FROM app_role
+                        WHERE role_id = role_key AND role_code IN (
+                            'FRONT_DESK', 'DENTIST', 'CLINIC_MANAGER', 'HQ_SCHEDULER', 'HQ_CATALOG', 'HQ_OPERATIONS_QUERY'
+                        )
+                    ) THEN
+                        RAISE EXCEPTION 'This grant is managed by deployment' USING ERRCODE = '42501';
+                    END IF;
+                ELSIF TG_OP = 'INSERT' THEN
+                    IF NEW.employee_id IS NOT NULL THEN
+                        RAISE EXCEPTION 'Staff accounts are managed by deployment' USING ERRCODE = '42501';
+                    END IF;
+                ELSIF OLD.employee_id IS NULL OR EXISTS (
+                    SELECT 1 FROM employee_role er JOIN app_role ar ON ar.role_id = er.role_id
+                    WHERE er.employee_id = OLD.employee_id AND (
+                        ar.role_code IN ('HQ_ACCESS_ADMIN', 'HQ_PERFORMANCE_CALCULATE', 'HQ_PERFORMANCE_REVIEW', 'HQ_PERFORMANCE_CONFIRM')
+                        OR (ar.role_code IN ('HQ_SCHEDULER', 'HQ_CATALOG', 'HQ_OPERATIONS_QUERY') AND er.scope_clinic_id IS NULL)
+                    )
+                ) THEN
+                    RAISE EXCEPTION 'This account is managed by deployment' USING ERRCODE = '42501';
+                END IF;
+            END IF;
+            IF TG_OP = 'DELETE' THEN
+                RETURN OLD;
+            END IF;
+            RETURN NEW;
+        END;
+        $guard$
+        '''
+    )
+    cursor.execute("DROP TRIGGER IF EXISTS adc_guard_scope_changes ON public.employee_role")
+    cursor.execute(
+        "CREATE TRIGGER adc_guard_scope_changes BEFORE INSERT OR DELETE ON public.employee_role "
+        "FOR EACH ROW EXECUTE FUNCTION public.adc_guard_identity_changes()"
+    )
+    cursor.execute("DROP TRIGGER IF EXISTS adc_guard_account_changes ON public.user_account")
+    cursor.execute(
+        "CREATE TRIGGER adc_guard_account_changes BEFORE INSERT OR UPDATE OF status ON public.user_account "
+        "FOR EACH ROW EXECUTE FUNCTION public.adc_guard_identity_changes()"
+    )
+
+
 def configure_access(cursor, layer, application_role):
     cursor.execute(
         """
@@ -90,6 +152,9 @@ def configure_access(cursor, layer, application_role):
             sql.SQL(", ").join(sql.Identifier("public", table) for table in BUSINESS_APPENDS), role,
         )
     )
+    protect_deployment_identity(cursor)
+    cursor.execute(sql.SQL("GRANT UPDATE (status) ON user_account TO {}").format(role))
+    cursor.execute(sql.SQL("GRANT INSERT (employee_id, role_id, scope_clinic_id), DELETE ON employee_role TO {}").format(role))
     cursor.execute(sql.SQL("GRANT DELETE ON patient_allergy, expense_allocation, dentist_performance, company_performance TO {}").format(role))
 
 

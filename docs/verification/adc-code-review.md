@@ -25,3 +25,14 @@
 PostgreSQL 同源 DDL、Django 部署静态检查与本机两端构建可以在当前工作区验证。Linux HTTPS 部署及微信受邀真机要补实际环境证据，详见交付证据表。课程样例使用合成患者和模拟资金。本机恢复保留当前账号和当前设备的操作上下文。
 
 [现行 Spec](../../specs/001-adc-system/spec.md) · [接口契约](../../specs/001-adc-system/contracts/api.md) · [本机业务链](adc-e2e.md)
+
+## 2026-11-26 双端补充审查
+
+| 严重程度 | 位置 | 原因及业务影响 | 处理及复核 |
+| --- | --- | --- | --- |
+| P1 门店授权 | [目录 API](../../backend/adc/catalog/api.py#L49) | 单店目录角色原先可以修改全连锁标准与价格。 | 全连锁写入要求全局目录权限。三个写入口和读取反例已验证。 |
+| P2 权限管理 | [数据库角色](../../backend/scripts/grant_db_access.py#L27) · [初始化](../../backend/adc/identity/management/commands/configure_adc_scope.py#L24) | 运行账号的写入原先覆盖部署专用资料，独立撤权可能移除最后的管理员。 | 数据库限制部署专用行变更，初始化器通过共享事务锁保护最后一名有效管理员。 |
+| P1 日结漏项 | [日结资金来源](../../backend/adc/billing/reconciliation_api.py#L151) | 失败或尚未发起的退款从成功和在途区消失。主管查看整单余额可能误进旧流水。 | 单列应退，已在途金额只出现一次。授权整单余额打开原主单，具体行以原单笔证据核对。 |
+| P2 工作台与导航 | [红点接口](../../backend/adc/identity/workbench_api.py#L57) · [导航状态](../../web/src/shared/AppShell.tsx#L18) | 未转正预约金误入结算队列。读失败后旧名字仍可见，刷新可能丢失门店范围。 | 使用既有结算快捷入口打开相应视图，读失败隐藏旧资料，保留账号门店与各路由的筛选。 |
+| P2 经营分析回查 | [动作恢复](../../backend/adc/reporting/assistant_actions.py#L25) · [模型降级](../../backend/adc/reporting/assistant_service.py#L290) | 响应丢失可能重复调用模型，建议可能打开无事实的期间，部分网络错误可能中断分析。 | 原键回查及并发去重，建议指向有效期间，异常时保留报表。覆盖两连接竞争、数据最小化、零分母和传输异常。 |
+| P2 原生费用单 | [费用单详情](../../mini-program/pages/invoice-detail/index.wxml#L12) | 打开详情时原先缺失整单状态。 | 补齐状态并用真实本地 API 核对部分收款。 |

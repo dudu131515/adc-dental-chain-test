@@ -2,6 +2,7 @@ import { FormEvent, useEffect, useRef, useState } from "react";
 import { StaffIdentity } from "../../shared/AppShell";
 import { request } from "../../shared/api";
 import { dateTime, errorMessage, localDay, money } from "../../shared/format";
+import { AssistantDrilldown, AssistantPanel } from "./AssistantPanel";
 import { ReportDetails } from "./ReportDetails";
 
 type Rate = { numerator: number; denominator: number; value: string | null; availability: string };
@@ -17,6 +18,7 @@ type Report = {
   skills: { code: string; name: string; dentists: number }[];
   performance: OfficialVersion[];
   sources: Record<string, string>;
+  snapshot_refreshed?: boolean; original_as_of?: string;
 };
 
 const appointmentGroups = [
@@ -40,13 +42,16 @@ export function OperationsReport({ identity, clinicId, open }: {
   identity: StaffIdentity; clinicId: string; open: (path: string) => void;
 }) {
   const today = localDay();
-  const [from, setFrom] = useState(today.slice(0, 7) + "-01");
-  const [to, setTo] = useState(today);
-  const [clinic, setClinic] = useState(clinicId);
-  const [dentist, setDentist] = useState("");
+  const [initial] = useState(() => new URLSearchParams(window.location.search));
+  const [from, setFrom] = useState(initial.get("date_from") || today.slice(0, 7) + "-01");
+  const [to, setTo] = useState(initial.get("date_to") || today);
+  const [clinic, setClinic] = useState(initial.get("clinic_ids") ?? clinicId);
+  const [dentist, setDentist] = useState(initial.get("dentist_ids") || "");
   const [report, setReport] = useState<Report>();
   const [fault, setFault] = useState("");
   const [busy, setBusy] = useState(false);
+  const [assistantOpen, setAssistantOpen] = useState(false);
+  const heading = useRef<HTMLHeadingElement>(null);
   const [selected, setSelected] = useState<{ key: string; label: string; clinic?: string }>();
   const trigger = useRef<HTMLButtonElement | null>(null);
   const abort = useRef<AbortController | null>(null);
@@ -66,21 +71,43 @@ export function OperationsReport({ identity, clinicId, open }: {
     trigger.current?.focus();
   }
 
-  async function submit(event: FormEvent) {
+  const query = new URLSearchParams({ date_from: from, date_to: to });
+  if (clinic) query.set("clinic_ids", clinic);
+  if (dentist.trim()) query.set("dentist_ids", dentist.trim().replaceAll("，", ",").replaceAll(/\s+/g, ""));
+  const context = query.toString();
+
+  function changeFilter(key: string, value: string, setter: (value: string) => void) {
+    setter(value);
+    const url = new URL(window.location.href);
+    if (value) url.searchParams.set(key, value);
+    else url.searchParams.delete(key);
+    window.history.replaceState({}, "", url);
+  }
+
+  function submit(event: FormEvent) {
     event.preventDefault();
+    setReport(undefined);
+    void loadReport("/reports/operations?" + context);
+  }
+
+  function openOriginal(reference: string, button: HTMLButtonElement, detail?: AssistantDrilldown) {
+    const query = new URLSearchParams({ reference });
+    void loadReport("/reports/operations/assistant/report?" + query, button, detail);
+  }
+
+  async function loadReport(path: string, button?: HTMLButtonElement, detail?: AssistantDrilldown) {
     abort.current?.abort();
     const controller = new AbortController();
     abort.current = controller;
     setBusy(true);
     setFault("");
-    setReport(undefined);
     setSelected(undefined);
-    const query = new URLSearchParams({ date_from: from, date_to: to });
-    if (clinic) query.set("clinic_ids", clinic);
-    if (dentist.trim()) query.set("dentist_ids", dentist.trim().replaceAll("，", ",").replaceAll(/\s+/g, ""));
     try {
-      const result = await request<Report>("/reports/operations?" + query, { signal: controller.signal });
-      if (!controller.signal.aborted) setReport(result);
+      const result = await request<Report>(path, { signal: controller.signal });
+      if (controller.signal.aborted) return;
+      setReport(result);
+      if (button && detail) select(button, detail.key, detail.label);
+      else if (button) heading.current?.focus();
     } catch (error) {
       if (!controller.signal.aborted) setFault(errorMessage(error));
     } finally {
@@ -90,15 +117,21 @@ export function OperationsReport({ identity, clinicId, open }: {
 
   return <div className="operations-sections">
     <section className="schedule-panel">
-      <h2>查询经营报告</h2>
+      <div className="schedule-heading">
+        <h2 ref={heading} tabIndex={-1}>查询经营报告</h2>
+        {identity.capabilities.includes("HQ_OPERATIONS_QUERY") && <button type="button" className="button"
+          aria-expanded={assistantOpen} aria-controls="operations-assistant" onClick={() => setAssistantOpen(value => !value)}>
+          经营分析助手
+        </button>}
+      </div>
       <form className="schedule-form" onSubmit={submit}>
-        <label>开始日期<input type="date" required value={from} onChange={event => setFrom(event.target.value)} /></label>
-        <label>结束日期<input type="date" required min={from} value={to} onChange={event => setTo(event.target.value)} /></label>
-        <label>统计门店<select value={clinic} onChange={event => setClinic(event.target.value)}>
+        <label>开始日期<input type="date" required value={from} onChange={event => changeFilter("date_from", event.target.value, setFrom)} /></label>
+        <label>结束日期<input type="date" required min={from} value={to} onChange={event => changeFilter("date_to", event.target.value, setTo)} /></label>
+        <label>统计门店<select value={clinic} onChange={event => changeFilter("clinic_ids", event.target.value, setClinic)}>
           <option value="">全部授权门店</option>
           {identity.clinics.map(row => <option key={row.clinic_id} value={row.clinic_id}>{row.name}</option>)}
         </select></label>
-        <label>牙医编号<input placeholder="全部，多个编号用逗号分隔" value={dentist} onChange={event => setDentist(event.target.value)} /></label>
+        <label>牙医编号<input placeholder="全部，多个编号用逗号分隔" value={dentist} onChange={event => changeFilter("dentist_ids", event.target.value, setDentist)} /></label>
         <button className="button primary" disabled={busy}>查询</button>
       </form>
       {busy && <p role="status">正在生成报告…</p>}
@@ -108,7 +141,10 @@ export function OperationsReport({ identity, clinicId, open }: {
         {" · "}{report.scope.dentist_ids.length ? "牙医 " + report.scope.dentist_ids.join("、") : "全部授权牙医"}
         {" · "}统计截止 {dateTime(report.as_of)}
       </p>}
+      {report?.snapshot_refreshed && <p role="status">原分析快照已过期，已按原筛选重新查询。原截止 {dateTime(report.original_as_of)}，新截止 {dateTime(report.as_of)}。</p>}
     </section>
+    {assistantOpen && identity.capabilities.includes("HQ_OPERATIONS_QUERY") &&
+      <AssistantPanel key={context} accountId={identity.account_id} context={context} openOriginal={openOriginal} />}
     {report && <>
       <section className="schedule-panel">
         <h2>预约履约</h2>
@@ -168,7 +204,7 @@ export function OperationsReport({ identity, clinicId, open }: {
           </button>{row.company && <span>净利润 {money(row.company.net_profit)} · 基金 {money(row.company.incentive_fund)}</span>}
         </li>)}</ul> : <p>所选期间无已确认季度。</p>}
       </section>
-      {selected && <ReportDetails key={selected.key + ":" + selected.clinic} token={report.report_token} metric={selected.key}
+      {selected && <ReportDetails key={report.report_token + ":" + selected.key + ":" + selected.clinic} token={report.report_token} metric={selected.key}
         label={selected.label} clinic={selected.clinic} onClose={close} />}
     </>}
   </div>;

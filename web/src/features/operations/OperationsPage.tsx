@@ -1,18 +1,22 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { WorkArea } from "../../shared/AppShell";
+import { hasRole, performanceRoles } from "../../shared/navigation";
 import { ExpensesPage } from "./ExpensesPage";
 import { OperationsReport } from "./OperationsReport";
 import { QuarterReview } from "./QuarterReview";
 import "./operations.css";
 
-export function OperationsPage({ identity, clinicId, path, open }: WorkArea) {
-  const capabilities = identity.capabilities;
-  const canReport = capabilities.includes("HQ_OPERATIONS_QUERY");
-  const canQuarter = capabilities.some(role => role.startsWith("HQ_PERFORMANCE_")) || canReport;
-  const canExpense = capabilities.includes("CLINIC_MANAGER") || canQuarter;
-  const initial = canReport ? "report" : capabilities.includes("CLINIC_MANAGER") ? "expenses" : "quarters";
+export function OperationsPage({ identity, clinicId, path, open, showTabs = true }: WorkArea & {showTabs?: boolean}) {
+  const canReport = hasRole(identity, ["HQ_OPERATIONS_QUERY"], clinicId);
+  const canQuarter = hasRole(identity, performanceRoles, clinicId);
+  const canManageClinic = hasRole(identity, ["CLINIC_MANAGER"], clinicId);
+  const canExpense = canManageClinic || canQuarter;
+  const initial = canReport ? "report" : canManageClinic ? "expenses" : "quarters";
   const active = path.split("/")[2] || initial;
   const [visitedReport, setVisitedReport] = useState(active === "report");
+  useEffect(() => {
+    if (active === "report") setVisitedReport(true);
+  }, [active]);
   const sections = [
     { id: "report", label: "经营报告", enabled: canReport },
     { id: "expenses", label: "费用登记", enabled: canExpense },
@@ -21,13 +25,13 @@ export function OperationsPage({ identity, clinicId, path, open }: WorkArea) {
   const selected = sections.find(section => section.id === active && section.enabled);
   return <div className="operations-sections">
     <h1>经营</h1>
-    <div className="schedule-tabs" aria-label="经营页面">
+    {showTabs && <div className="schedule-tabs" aria-label="经营页面">
       {sections.filter(section => section.enabled).map(section => <button className="button" key={section.id}
         aria-pressed={active === section.id} onClick={() => {
           if (section.id === "report") setVisitedReport(true);
           open("/operations/" + section.id);
         }}>{section.label}</button>)}
-    </div>
+    </div>}
     {(visitedReport || active === "report") && canReport && <div hidden={active !== "report"}>
       <OperationsReport identity={identity} clinicId={clinicId} open={target => { setVisitedReport(true); open(target); }} />
     </div>}

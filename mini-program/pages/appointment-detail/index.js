@@ -1,14 +1,18 @@
 const { request } = require("../../services/api");
-const { appointmentSummary, localDate, localTime, states } = require("../../services/booking");
+const { appointmentSummary, localDate, localTime, query, states } = require("../../services/booking");
+const { openInvoice } = require("../../services/patient");
 
 Page({
-  data: { loading: true },
+  data: { loading: true, invoiceId: "", invoiceError: "" },
   onLoad(params) { this.id = params.id; },
 
   async onShow() {
-    this.setData({ loading: true, error: "" });
+    const version = (this.loadVersion || 0) + 1;
+    this.loadVersion = version;
+    this.setData({ loading: true, error: "", invoiceId: "", invoiceError: "" });
     try {
       const row = await request("/appointments/" + encodeURIComponent(this.id));
+      if (version !== this.loadVersion) return;
       const actions = row.allowed_actions || [];
       this.setData({
         appointment: appointmentSummary(row),
@@ -21,13 +25,26 @@ Page({
         canCancel: actions.includes("cancel"),
         contactClinic: actions.includes("contact_clinic"),
       });
+      if (row.status === "COMPLETED") await this.loadInvoice();
     } catch (failure) {
-      this.setData({ error: failure.message });
+      if (version === this.loadVersion) this.setData({ error: failure.message });
     } finally {
-      this.setData({ loading: false });
+      if (version === this.loadVersion) this.setData({ loading: false });
     }
   },
 
+  async loadInvoice() {
+    const version = this.loadVersion;
+    this.setData({invoiceError: ""});
+    try {
+      const data = await request("/patients/me/invoices?" + query({appointment_id: this.id, limit: 1}));
+      if (version === this.loadVersion) this.setData({invoiceId: data.items[0]?.invoice_id || ""});
+    } catch (failure) {
+      if (version === this.loadVersion) this.setData({invoiceError: failure.message});
+    }
+  },
+
+  openInvoice() { if (this.data.invoiceId) openInvoice(this.data.invoiceId); },
   all() { wx.switchTab({ url: "/pages/appointments/index" }); },
   reschedule() { wx.navigateTo({ url: "/pages/reschedule/index?id=" + encodeURIComponent(this.id) }); },
   cancel() { wx.navigateTo({ url: "/pages/cancel/index?id=" + encodeURIComponent(this.id) }); },

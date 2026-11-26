@@ -66,7 +66,7 @@ function StandardForm({ treatment, qualifications, onSave }: {
   </form>;
 }
 
-export function CatalogPage() {
+export function CatalogPage({canEdit = true}: {canEdit?: boolean}) {
   const [rows, setRows] = useState<Treatment[]>([]);
   const [qualifications, setQualifications] = useState<Qualification[]>([]);
   const [selected, setSelected] = useState<Treatment>();
@@ -119,11 +119,11 @@ export function CatalogPage() {
     <section className="catalog-panel">
       <div className="catalog-toolbar">
         <label>搜索项目 <input value={filter} onChange={event => search(event.target.value)} placeholder="项目名称或编码" /></label>
-        <button className="button primary" onClick={event => {
+        {canEdit && <button className="button primary" onClick={event => {
           trigger.current = event.currentTarget;
           setSelected(undefined);
           setAdding(true);
-        }}>新增项目</button>
+        }}>新增项目</button>}
       </div>
       {error && <p className="error-text" role="alert">{error}</p>}
       <div className="catalog-scroll">
@@ -153,8 +153,8 @@ export function CatalogPage() {
       if (event.key === "Escape") close();
     }}>
       <header className="catalog-toolbar"><h2>{selected?.treatment_name || "新增项目"}</h2><button autoFocus className="button" onClick={close}>关闭</button></header>
-      <StandardForm key={"standard:" + (selected?.treatment_type_id || "new")} treatment={selected} qualifications={qualifications} onSave={save} />
-      {selected && <PriceVersions key={"versions:" + selected.treatment_type_id} treatmentId={selected.treatment_type_id} onChange={() => setRevision(old => old + 1)} />}
+      {canEdit && <StandardForm key={"standard:" + (selected?.treatment_type_id || "new")} treatment={selected} qualifications={qualifications} onSave={save} />}
+      {selected && <PriceVersions key={"versions:" + selected.treatment_type_id} treatmentId={selected.treatment_type_id} canEdit={canEdit} onChange={() => setRevision(old => old + 1)} />}
     </aside>}
   </div>;
 }

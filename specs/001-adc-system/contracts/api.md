@@ -150,3 +150,23 @@
 | POST /appointments/{id}/allergy-reviews | 责任牙医在签到至关单前提交，带动作键、expected_claim_id、expected_version、status、allergies。status 为 KNOWN 或 NONE_KNOWN。已知过敏须有 allergen，notes 可选。409 STALE_ALLERGY_REVIEW 重新读取。201 为新增，200 为同动作重放。 |
 | GET /visits/{id} | 临床投影增加本次 allergy_reviews 历史。 |
 | GET /appointments、GET /patients/me | 小程序复用患者范围、预约与本人资料。 |
+
+## 课程补充接口
+
+路径均以 /api/v1 开头。响应沿用项目的 data 和 error 封装。
+
+| 需求 | 方法及相对路径 | 请求与返回 |
+| --- | --- | --- |
+| FR-010 | GET /workbench/alerts | 可按 clinic_id、date 过滤。网站员工使用，返回 schedule、clinical、billing、reconciliation、corrections 五个布尔值。 |
+| FR-011 | GET /admin/clinics | 全局总部权限管理员使用。items 返回门店编号、名称、地址、工作联系方式和状态。 |
+| FR-011 | GET /admin/access | 返回可选门店、员工最小资料、可维护角色与范围。 |
+| FR-011 | POST /admin/access/employees/{employee_id}/grants | 传 role_code、clinic_id、expected_granted、granted、reason 和 Idempotency-Key。 |
+| FR-011 | POST /admin/access/employees/{employee_id}/account-status | 传 expected_status、status、reason 和 Idempotency-Key。已过期状态返回 STALE_ACCESS_STATE，要求查新后提交。 |
+| FR-409 | GET /billing/reconciliation | 须指定 clinic_id、date。返回上海营业日、统计截止、历史日标识、totals、settled、pending、refund_due、retained 和适用的原业务引用。 |
+| FR-410 | GET /patients/me/invoices | 患者会话。可按 appointment_id 查本人记录，支持 limit、cursor 和 next_cursor。 |
+| FR-410 | GET /patients/me/invoices/{invoice_id} | 患者可查看自己的门店、就诊日期、原主单、冻结行、应缴、诊疗收退、欠款和入账差额。异人编号返回与缺失编号相同的 404。 |
+| FR-606、FR-607 | GET /reports/operations/assistant/suggestions | 复用经营报告日期、门店和牙医范围参数，返回允许的主动建议和可编辑默认条件。 |
+| FR-606、FR-607 | POST /reports/operations/assistant/analysis | 支持 metric 或 question 二选一，并附带本期、可选对比期和报告授权范围、Idempotency-Key 请求头。返回结构化分析、来源、后续选项及 analysis_id。同键同范围同载荷复用结果。 |
+| FR-606、FR-607 | GET /reports/operations/assistant/analysis | 使用 analysis_id 回查本账号当前范围仍有效的分析。 |
+| FR-607 | GET /reports/operations/assistant/analysis/by-action | 传原 Idempotency-Key。按原账号和现行授权回查；处理中、已过期或同键异载荷分别返回明确状态。 |
+| FR-607 | GET /reports/operations/assistant/report | 使用本地签名 reference 打开原报表。快照失效时，在权限允许的前提下按原筛选重新查询并标注新旧截止。 |

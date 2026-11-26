@@ -46,10 +46,15 @@ def require_catalog_read(principal, *, booking=False):
         raise ApiProblem(403, "PERMISSION_DENIED", "当前账号不能读取项目价格资料。")
 
 
+def require_catalog_write(principal):
+    if not principal.allows("HQ_CATALOG") or principal.clinic_scope("HQ_CATALOG") is not None:
+        raise ApiProblem(403, "PERMISSION_DENIED", "只有全连锁目录权限可修改项目与价格。")
+
+
 @api_view(["GET", "POST"])
 def treatments(request):
     if request.method == "POST":
-        request.user.require("HQ_CATALOG")
+        require_catalog_write(request.user)
         treatment = save_treatment(request.user, values(Standard, request.data))
         return success(treatment_projection(treatment, booking=False), status_code=201)
     require_catalog_read(request.user, booking=True)
@@ -78,7 +83,7 @@ def treatments(request):
 
 @api_view(["PATCH"])
 def update_treatment(request, pk):
-    request.user.require("HQ_CATALOG")
+    require_catalog_write(request.user)
     data = values(Standard, request.data, partial=True)
     if not data:
         raise ApiProblem(400, "VALIDATION_ERROR", "请选择需要修改的项目字段。")
@@ -93,7 +98,7 @@ def prices(request, pk):
         treatment = get_object_or_404(TreatmentType, pk=pk)
         versions = TreatmentPrice.objects.filter(treatment_type=treatment).order_by("-effective_from", "pk")
         return success({"items": [price_projection(version) for version in versions], "next_cursor": None})
-    request.user.require("HQ_CATALOG")
+    require_catalog_write(request.user)
     data = values(Price, request.data)
     previous_price = data.pop("replace_price_id", None)
     previous_end = data.pop("replace_effective_to", None)

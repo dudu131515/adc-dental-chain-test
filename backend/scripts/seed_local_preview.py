@@ -1,6 +1,7 @@
 """Create synthetic ADC preview records in a new, dedicated local preview database."""
 import json
 from datetime import datetime, time, timedelta
+from decimal import Decimal
 from pathlib import Path
 
 from django.conf import settings
@@ -8,11 +9,13 @@ from django.contrib.auth.hashers import make_password
 from django.db import transaction
 from django.utils import timezone
 
+from adc.billing.models import CorrectionApproval, Invoice, InvoiceAdjustment, InvoiceLine, InvoicePayment, TreatmentCorrection
 from adc.booking.models import Appointment, AppointmentChange, DepositPayment, DepositRefund, SlotClaim
 from adc.catalog.models import TreatmentPrice, TreatmentType
 from adc.clinical.models import ChairUsage, DentistWorkSession, PatientAllergy, TreatmentItem, Visit
 from adc.identity.audit import record_event
-from adc.identity.models import Clinic, Employee, EmployeeRole, Patient, UserAccount
+from adc.identity.models import AppRole, Clinic, Employee, EmployeeRole, Patient, UserAccount
+from adc.identity.permissions import ACCESS_ADMIN_ROLE
 from adc.reporting.period_locks import BUSINESS_ZONE
 from adc.scheduling.models import DentalChair, Shift
 from tests.fixtures.scenarios import load_synthetic_base
@@ -24,6 +27,15 @@ def seed():
         raise RuntimeError("A new dedicated local ADC preview database is required.")
     now = timezone.now()
     today = now.astimezone(BUSINESS_ZONE).date()
+    access_role = AppRole.objects.create(role_code=ACCESS_ADMIN_ROLE, role_name="总部权限管理")
+    report_role = AppRole.objects.get(role_code="HQ_OPERATIONS_QUERY")
+    for suffix, label, role, clinic in (
+        ("access", "合成总部权限管理员", access_role, None),
+        ("reports-a", "合成中心店经营查询", report_role, 1),
+    ):
+        employee = Employee.objects.create(employee_no="ADC-DEMO-" + suffix.upper(), full_name=label)
+        UserAccount.objects.create(employee=employee, login_identity="demo." + suffix)
+        EmployeeRole.objects.create(employee=employee, role=role, scope_clinic_id=clinic)
     roles = dict(UserAccount.objects.filter(employee_id__isnull=False).values_list("login_identity", "pk"))
     Clinic.objects.filter(pk=1).update(clinic_name="中心口腔门诊", postal_address="示例路 18 号 · 2 层")
     Clinic.objects.filter(pk=2).update(clinic_name="滨江口腔门诊", postal_address="示例大道 56 号 · 1 层")
@@ -32,7 +44,7 @@ def seed():
     grant = EmployeeRole.objects.filter(employee_id=1, role__role_code="DENTIST", scope_clinic_id=1).get()
     EmployeeRole.objects.create(employee=doctor, role_id=grant.role_id, scope_clinic_id=1)
     chairs = [DentalChair.objects.create(clinic_id=1, chair_no=f"A-{number:02d}") for number in range(1, 5)]
-    DentalChair.objects.create(clinic_id=2, chair_no="B-01")
+    branch_chair = DentalChair.objects.create(clinic_id=2, chair_no="B-01")
     for pk, name in enumerate(("陈晓雨", "孟子安"), 1):
         Patient.objects.filter(pk=pk).update(patient_no=f"ADC-P{pk:04d}", full_name=name)
     for number, name in enumerate(("赵青", "许言", "罗珊", "宋晨", "王安琪", "吴天", "程歌", "李嘉"), 3):
@@ -76,21 +88,21 @@ def seed():
                                              reason="合成人工核实")
         if status == "NO_SHOW":
             AppointmentChange.objects.create(appointment=row, change_type="NO_SHOW", old_claim=claim,
-                                             changed_by_id=2, changed_at=end, reason="合成人工核实")
+                                             changed_by_id=roles["demo.front-a" if active_shift.clinic_id == 1 else "demo.front-b"], changed_at=end, reason="合成人工核实")
         if status in ("CANCELLED", "NO_SHOW"):
             canceled = status == "CANCELLED"
             changed_at = prior + timedelta(hours=5) if canceled else end
             DepositRefund.objects.create(
                 deposit=paid, refund_amount=paid.amount if canceled else 0,
-                reason="CLINIC_CANCELLED" if canceled else "NO_SHOW",
+                reason="CLINIC_CANCELLATION" if canceled else "NO_SHOW",
                 status="SUCCEEDED" if canceled else "RETAINED",
                 idempotency_key=f"preview-fund-{number}", requested_at=changed_at,
                 completed_at=changed_at if canceled else None,
             )
         if status in ("CHECKED_IN","IN_TREATMENT","COMPLETED"):
-            audit = record_event(account_id=roles["demo.front-a"], action="APPOINTMENT_CHECKED_IN", target_type="appointment",
+            audit = record_event(account_id=roles["demo.front-a" if active_shift.clinic_id == 1 else "demo.front-b"], action="APPOINTMENT_CHECKED_IN", target_type="appointment",
                                  target_id=row.pk, visible_fields=("claim_id","clinic_id","identity_confirmed"),
-                                 after={"claim_id":str(claim.pk),"clinic_id":"1","identity_confirmed":True})
+                                 after={"claim_id":str(claim.pk),"clinic_id":str(active_shift.clinic_id),"identity_confirmed":True})
             type(audit).objects.filter(pk=audit.pk).update(occurred_at=min(now,start-timedelta(minutes=5)))
         completed = status == "COMPLETED"
         if chair:
@@ -135,12 +147,90 @@ def seed():
         shift(future,1,doctor.pk,9,17)
         if days == 2:
             appointment(11,upcoming,at(future,10,30),1,projects[0],"CONFIRMED",None)
+    # Two closed dates, one week apart, keep the comparison reproducible on any demo day.
+    preview_visits = {}
+    for first_no, days_ago, actuals in ((100, 8, (6, 2)), (120, 1, (4, 3))):
+        day = today - timedelta(days=days_ago)
+        centre_shift = shift(day, 1, 1, 8, 12)
+        branch_shift = shift(day, 2, 1, 14, 16)
+        for clinic_index, (history_shift, hour, chair, size, actual) in enumerate((
+            (centre_shift, 8, chairs[0], 8, actuals[0]),
+            (branch_shift, 14, branch_chair, 4, actuals[1]),
+        )):
+            for index in range(size):
+                attended = index < actual
+                record = appointment(
+                    first_no + clinic_index * 10 + index, history_shift,
+                    at(day, hour + index // 2, index % 2 * 30), 1 if index == 0 else index + 2,
+                    projects[1], "COMPLETED" if attended else "NO_SHOW", chair if attended else None,
+                )
+                if (first_no, clinic_index, index) in {(120, 0, 0), (120, 1, 1)}:
+                    preview_visits[clinic_index] = Visit.objects.get(appointment=record)
+
+    seed_treatment_bill(preview_visits[0], roles["demo.front-a"])
+    seed_branch_refund(preview_visits[1])
     start, end = today-timedelta(days=8), today+timedelta(days=21)
     days = [(start+timedelta(days=off)).isoformat() for off in range((end-start).days+1)]
     calendar = {key:{"valid_from":start.isoformat(),"valid_to":end.isoformat(),
                      "version":"ADC-preview","working_dates":days} for key in ("1","2")}
     Path(settings.ADC_WORK_CALENDARS_PATH).write_text(json.dumps(calendar),encoding="utf-8")
     return {login:make_password("ADC-preview-2026") for login in roles}
+
+
+def preview_invoice(visit, status):
+    item = TreatmentItem.objects.select_related("treatment_type").get(visit=visit)
+    invoice = Invoice.objects.create(
+        invoice_no=visit.appointment.appointment_no.replace("ADC-DEMO-", "ADC-DEMO-INV-"),
+        visit=visit, original_total=item.amount, status=status, issued_at=visit.ended_at + timedelta(minutes=1),
+    )
+    InvoiceLine.objects.create(invoice=invoice, treatment_item=item,
+                               treatment_name_snapshot=item.treatment_type.treatment_name,
+                               unit_name_snapshot=item.unit_name_snapshot, units=item.units,
+                               unit_price=item.unit_price_snapshot, subtotal=item.amount)
+    return invoice
+
+
+def seed_treatment_bill(visit, clerk_id):
+    invoice = preview_invoice(visit, "PART_PAID")
+    issued = invoice.issued_at
+    record_event(account_id=clerk_id, action="INVOICE_ISSUED", target_type="invoice", target_id=invoice.pk,
+                 visible_fields=("visit_id", "original_total", "line_count"),
+                 after={"visit_id": str(visit.pk), "original_total": "180.00", "line_count": 1})
+    for suffix, amount, status, requested, receipt in (
+        ("paid", Decimal("80.00"), "SUCCEEDED", issued + timedelta(seconds=30), issued + timedelta(minutes=1)),
+        ("pending", Decimal("30.00"), "PENDING", issued + timedelta(hours=1), None),
+    ):
+        payment = InvoicePayment.objects.create(invoice=invoice, payment_kind="PAYMENT", amount=amount,
+                                                 status=status, paid_at=receipt, idempotency_key="preview-tuition-" + suffix)
+        event = record_event(account_id=clerk_id, action="INVOICE_PAYMENT_RECORDED", target_type="invoice_payment",
+                             target_id=payment.pk, visible_fields=("invoice_id", "amount"),
+                             after={"invoice_id": str(invoice.pk), "amount": str(amount)})
+        type(event).objects.filter(pk=event.pk).update(occurred_at=requested)
+
+
+def seed_branch_refund(visit):
+    invoice = preview_invoice(visit, "SETTLED")
+    issued = invoice.issued_at
+    collection = InvoicePayment.objects.create(
+        invoice=invoice, payment_kind="PAYMENT", amount=invoice.original_total, status="SUCCEEDED",
+        paid_at=issued + timedelta(minutes=1), idempotency_key="preview-branch-received",
+    )
+    correction = TreatmentCorrection.objects.create(
+        visit=visit, requested_by_id=visit.main_dentist_id, reason="合成费用更正", status="APPLIED",
+        proposed_changes={"summary": "合成核对差额", "signed_amount": "-30.00"},
+        requested_at=issued + timedelta(minutes=3),
+    )
+    CorrectionApproval.objects.create(
+        correction=correction, reviewer_id=5, decision="APPROVED", reason="合成主管复核",
+        decided_at=issued + timedelta(minutes=5),
+    )
+    adjustment = InvoiceAdjustment.objects.create(
+        invoice=invoice, correction=correction, signed_amount="-30.00", created_at=issued + timedelta(minutes=6),
+    )
+    InvoicePayment.objects.create(
+        invoice=invoice, payment_kind="REFUND", amount="20.00", status="SUCCEEDED", source_payment=collection,
+        adjustment=adjustment, paid_at=issued + timedelta(minutes=8), idempotency_key="preview-branch-refund",
+    )
 
 
 with transaction.atomic():

@@ -1,5 +1,5 @@
-import { useState } from "react";
 import type { WorkArea } from "../../shared/AppShell";
+import { hasRole } from "../../shared/navigation";
 import { AppointmentCalendar } from "./AppointmentCalendar";
 import { ResourceImpactPanel } from "./ResourceImpactPanel";
 import { ShiftBoard } from "./ShiftBoard";
@@ -10,33 +10,29 @@ import "./schedule.css";
 type Tab = "appointments" | "shifts" | "demands" | "resources";
 
 export function SchedulePage(props: WorkArea) {
-  const canPlan = props.identity.capabilities.includes("HQ_SCHEDULER");
-  const managesClinic = props.identity.capabilities.includes("CLINIC_MANAGER");
-  const canRespond = props.identity.capabilities.includes("DENTIST");
+  const {identity, clinicId} = props;
+  const canPlan = hasRole(identity, ["HQ_SCHEDULER"], clinicId);
+  const managesClinic = hasRole(identity, ["CLINIC_MANAGER"], clinicId);
+  const canRespond = hasRole(identity, ["DENTIST"], clinicId);
   const tabs: { id: Tab; label: string }[] = [{ id: "appointments", label: "预约日历" }];
   if (canPlan || managesClinic || canRespond) tabs.push({ id: "shifts", label: "跨店排班" });
   if (canPlan || managesClinic) {
     tabs.push({ id: "demands", label: "排班需求" }, { id: "resources", label: "牙椅停用" });
   }
-  const [tab, setTab] = useState<Tab>(() => {
-    const requested = new URLSearchParams(window.location.search).get("view");
-    return tabs.find(view => view.id === requested)?.id || "appointments";
-  });
-  const active = props.path.startsWith("/schedule/appointments/") ? "appointments" : tab;
+  const requested = new URLSearchParams(window.location.search).get("view");
+  const active = props.path.startsWith("/schedule/appointments/")
+    ? "appointments" : tabs.find(view => view.id === requested)?.id || "appointments";
 
   function choose(id: Tab) {
     const params = new URLSearchParams(window.location.search);
     params.set("view", id);
-    if (props.path !== "/schedule") props.open("/schedule?" + params.toString());
-    else window.history.replaceState({}, "", window.location.pathname + "?" + params.toString());
-    setTab(id);
+    props.open("/schedule?" + params.toString());
   }
 
   function affected(id: string, start: string) {
     const params = new URLSearchParams(window.location.search);
     params.set("date", localDate(start));
     params.set("view", "appointments");
-    setTab("appointments");
     props.open("/schedule/appointments/" + id + "?" + params.toString());
   }
 

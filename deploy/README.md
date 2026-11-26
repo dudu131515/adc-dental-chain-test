@@ -31,3 +31,13 @@ nginx -t
 ```
 
 通过 HTTPS 分别检查管理网站、API 与小程序的登录和登出，并验证登录或列表响应、会话失效、请求头转发及禁止跨店的反例。恢复点的资金核对按 [backup_restore.md](backup_restore.md) 执行。
+
+## 预置总部权限管理员
+
+以受认可的业务库所有者环境，确认目标员工和已有登录账号并登记操作者。将命令中的编号改为部署已登记的编号。
+
+\`\`\`sh
+python backend/manage.py configure_adc_scope ADC-EMPLOYEE-NUMBER HQ_ACCESS_ADMIN --actor-account-id 42
+\`\`\`
+
+该命令在首次有效授予时注册系统角色，后续可安全重跑。启停普通员工账号和门店授权通过网站办理。总部目录写入需要全连锁目录权限。现有环境升级应由库所有者重跑业务库授权脚本，安装部署专用授权的写入保护。使用受权审计访问复查 audit_log 中 EMPLOYEE_SCOPE_CHANGED 与 EMPLOYEE_ACCOUNT_STATUS_CHANGED，按目标员工 ID 检查时间、操作者与前后值。

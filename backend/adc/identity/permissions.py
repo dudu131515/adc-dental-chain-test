@@ -4,6 +4,7 @@ from adc.common.http import ApiProblem
 from adc.identity.models import EmployeeRole, UserAccount
 
 
+ACCESS_ADMIN_ROLE = "HQ_ACCESS_ADMIN"
 LOCAL_ROLES = frozenset({"FRONT_DESK", "DENTIST", "CLINIC_MANAGER"})
 HQ_ROLES = frozenset({
     "HQ_SCHEDULER", "HQ_CATALOG", "HQ_OPERATIONS_QUERY",
@@ -28,10 +29,13 @@ class Principal:
         return sorted({
             role for role, clinic in self.grants
             if role in HQ_ROLES or (role in LOCAL_ROLES and clinic is not None)
+            or (role == ACCESS_ADMIN_ROLE and clinic is None)
         })
 
     def clinic_scope(self, *roles):
         allowed_roles = set(roles)
+        if ACCESS_ADMIN_ROLE in allowed_roles and (ACCESS_ADMIN_ROLE, None) in self.grants:
+            return None
         if any(role in HQ_ROLES & allowed_roles and clinic is None for role, clinic in self.grants):
             return None
         return {
