@@ -32,6 +32,44 @@ nginx -t
 
 通过 HTTPS 分别检查管理网站、API 与小程序的登录和登出，并验证登录或列表响应、会话失效、请求头转发及禁止跨店的反例。恢复点的资金核对按 [backup_restore.md](backup_restore.md) 执行。
 
+## 配置 DeepSeek 经营助手
+
+GitHub Pages 从前端内置的合成对话和样例报表生成演示结果。员工网站登录后按当前账号的门店权限查询 Django 报表。Django 在本地解析提问，并把允许的指标、日期、门店代号、合成汇总及相关条款提交给模型。自由输入原文、患者档案、病历、过敏记录、业务明细和原报表凭证留在第三方请求之外。Django 用已批准的观察和来源生成展示内容。
+
+### Linux 体验服务
+
+为现有 Django 服务建立独立的私有环境文件，例如由 root 持有、权限为 0600 的 /etc/adc/assistant.env。用服务管理器的 EnvironmentFile 指向此路径。已有的服务环境仍提供数据库等应用变量。将下列同名配置放入该私有文件，主机、端口和库名需与 ADC_BUSINESS_DB_URL 指向的专用合成业务库一致。只让 Django 服务进程收到密钥。
+
+```dotenv
+ADC_ASSISTANT_DEEPSEEK_ENABLED=1
+ADC_ASSISTANT_SYNTHETIC_ENV=experience
+ADC_ASSISTANT_SYNTHETIC_HOST=postgres.internal
+ADC_ASSISTANT_SYNTHETIC_PORT=5432
+ADC_ASSISTANT_SYNTHETIC_DB=adc_synthetic_business
+ADC_DEEPSEEK_MODEL=deepseek-flash
+ADC_DEEPSEEK_API_KEY=
+```
+
+在私有环境文件内填写新密钥。公开的 .env.example 提供空值供参考。替换密钥时更新私有文件，然后重启 Django 进程。对话流程通过模型供应商的状态和权限边界验收，正式患者数据库继续使用服务器的报表解读。
+
+### Windows 本地体验
+
+建立专用合成库后，在启动 Django 的同一个 PowerShell 窗口输入下面的命令。密钥在终端内遮挡输入，保存在当前进程环境中。
+
+```powershell
+$adcDatabase = [Uri]$env:ADC_BUSINESS_DB_URL
+$env:ADC_ASSISTANT_DEEPSEEK_ENABLED = '1'
+$env:ADC_ASSISTANT_SYNTHETIC_ENV = $env:ADC_ENV
+$env:ADC_ASSISTANT_SYNTHETIC_HOST = $adcDatabase.Host
+$env:ADC_ASSISTANT_SYNTHETIC_PORT = if ($adcDatabase.Port -gt 0) { [string]$adcDatabase.Port } else { '5432' }
+$env:ADC_ASSISTANT_SYNTHETIC_DB = [Uri]::UnescapeDataString($adcDatabase.AbsolutePath.TrimStart('/'))
+$adcMaskedKey = Read-Host '在此输入专用合成环境的 DeepSeek 密钥' -AsSecureString
+$env:ADC_DEEPSEEK_API_KEY = [System.Net.NetworkCredential]::new('', $adcMaskedKey).Password
+Remove-Variable adcMaskedKey
+```
+
+启动 Django 后用经营查询样例账号打开「经营与配置 → 经营智能助手」。提交双店实际就诊率问题并打开原报表。接口的 mode 为 deepseek、model_status 为 completed 时，表示实际模型调用完成。缺少配置、目标合成库不匹配或模型不可用时，页面仍能使用内置报表解读。结束本地联调后关闭该终端，或执行 Remove-Item Env:ADC_DEEPSEEK_API_KEY 清理当前窗口的密钥。
+
 ## 预置总部权限管理员
 
 以受认可的业务库所有者环境，确认目标员工和已有登录账号并登记操作者。将命令中的编号改为部署已登记的编号。
