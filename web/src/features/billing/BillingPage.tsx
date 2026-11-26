@@ -111,8 +111,8 @@ export function BillingPage({ identity, clinicId, path, open }: WorkArea) {
   const [queueFilters, setQueueFilters] = useState(emptyFilters);
   const [invoiceFilters, setInvoiceFilters] = useState(emptyFilters);
   const [returnTo, setReturnTo] = useState("/billing");
-  const invoice = path.match(/^\/billing\/invoices\/(\d+)$/)?.[1];
-  const issue = path.match(/^\/billing\/visits\/(\d+)$/)?.[1];
+  const invoice = path.match(/^\/billing\/invoices\/([\w-]+)$/)?.[1];
+  const issue = path.match(/^\/billing\/visits\/([\w-]+)$/)?.[1];
   if (invoice) return <InvoiceDetail key={invoice} id={invoice} accountId={identity.account_id} open={open} returnTo={returnTo} />;
   if (issue && canBill) return <IssueInvoice key={issue} id={issue} open={open} />;
   const corrections = path === "/billing/corrections" || !canBill;

@@ -1,3 +1,4 @@
+import { useWorkspaceRuntime } from "../../shared/WorkspaceRuntime";
 import type { WorkArea } from "../../shared/AppShell";
 import { scheduleViews } from "../../shared/navigation";
 import { AppointmentCalendar } from "./AppointmentCalendar";
@@ -8,19 +9,20 @@ import { localDate } from "./types";
 import "./schedule.css";
 
 export function SchedulePage(props: WorkArea) {
+  const { router } = useWorkspaceRuntime();
   const tabs = scheduleViews(props.identity, props.clinicId);
-  const requested = new URLSearchParams(window.location.search).get("view");
+  const requested = new URLSearchParams(router.read().search).get("view");
   const active = props.path.startsWith("/schedule/appointments/")
     ? "appointments" : tabs.find(view => view.id === requested)?.id || "appointments";
 
   function choose(id: string) {
-    const params = new URLSearchParams(window.location.search);
+    const params = new URLSearchParams(router.read().search);
     params.set("view", id);
     props.open("/schedule?" + params.toString());
   }
 
   function affected(id: string, start: string) {
-    const params = new URLSearchParams(window.location.search);
+    const params = new URLSearchParams(router.read().search);
     params.set("date", localDate(start));
     params.set("view", "appointments");
     props.open("/schedule/appointments/" + id + "?" + params.toString());

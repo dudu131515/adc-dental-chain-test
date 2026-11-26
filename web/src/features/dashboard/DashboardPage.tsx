@@ -1,7 +1,7 @@
+import { useWorkspaceRuntime } from "../../shared/WorkspaceRuntime";
 import { useState } from "react";
 import type { WorkArea } from "../../shared/AppShell";
 import { Icon, IconName } from "../../shared/Icons";
-import { localDay } from "../../shared/format";
 import { allowedSections, dailyRoles, groupedNavigation, hasRole, performanceRoles, workspaceTabs } from "../../shared/navigation";
 import { useRead } from "../../shared/useRead";
 import { Appointment, appointmentStates } from "../schedule/appointmentTypes";
@@ -32,12 +32,13 @@ const shortcuts: Shortcut[] = [
 ];
 
 function WorkLinks({identity, clinicId, open, alerts, day}: WorkArea & {alerts?: WorkbenchAlerts; day?: string}) {
+  const { workday } = useWorkspaceRuntime();
   const links = shortcuts.filter(item => hasRole(identity, item.roles, clinicId));
   if (!links.length) return <section className="desk-panel"><h2>岗位业务</h2><p>当前账号暂无已授权业务。</p></section>;
   return <section className="desk-panel"><div className="desk-panel-head"><h2>快捷办理</h2></div>
     <div className="desk-links">{links.map(item => {
       const pendingDeposits = item.path === "/billing" && alerts?.reconciliation;
-      const params = new URLSearchParams({date: day ?? localDay()});
+      const params = new URLSearchParams({date: day ?? workday});
       if (clinicId) params.set("clinic_id", clinicId);
       const path = pendingDeposits && !alerts?.billing ? "/billing/reconciliation?" + params : item.path;
       const pending = pendingDeposits || (item.alert && alerts?.[item.alert]);
@@ -161,9 +162,10 @@ function Headquarters({area, revision}: {area:WorkArea; revision:number}) {
   </div><WorkLinks {...area}/></div>;
 }
 export function DashboardPage(area: WorkArea) {
-  const today = localDay();
+  const { router, workday } = useWorkspaceRuntime();
+  const today = workday;
   const [day, setDay] = useState(() => {
-    const query = new URLSearchParams(window.location.search).get("date") ?? "";
+    const query = new URLSearchParams(router.read().search).get("date") ?? "";
     return /^\d{4}-\d{2}-\d{2}$/.test(query) && Number.isFinite(Date.parse(query + "T12:00:00+08:00")) ? query : today;
   });
   const [revision, refresh] = useState(0);
@@ -176,8 +178,8 @@ export function DashboardPage(area: WorkArea) {
   function chooseDate(next: string) {
     if (!next) return;
     setDay(next);
-    const url = new URL(window.location.href); url.searchParams.set("date", next);
-    window.history.replaceState({}, "", url);
+    const url = new URL(router.read().url, window.location.origin); url.searchParams.set("date", next);
+    router.write(url.pathname + url.search);
   }
   return <div className="desk">
     <div className="desk-heading"><div><div className="desk-date"><span/>{dateFormatter.format(new Date((daily ? day : today) + "T12:00:00+08:00"))}</div>
@@ -191,8 +193,9 @@ export function DashboardPage(area: WorkArea) {
 
 
 export function ManagementHome({identity, clinicId, summaryDay}: WorkArea & {summaryDay?:string}) {
+  const { workday } = useWorkspaceRuntime();
   const groups = groupedNavigation(allowedSections(identity, clinicId)).filter(group => group.id !== "home");
-  const today = summaryDay || localDay();
+  const today = summaryDay || workday;
   const start = new Date(today + "T00:00:00Z");
   start.setUTCDate(start.getUTCDate()-6);
   const query=new URLSearchParams({date_from:start.toISOString().slice(0,10),date_to:today});

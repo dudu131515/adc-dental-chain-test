@@ -1,6 +1,7 @@
 import { FormEvent, useState } from "react";
 import { ActionFeedback } from "../../shared/ActionFeedback";
-import { ApiError, request } from "../../shared/api";
+import { ApiError } from "../../shared/api";
+import { useApiRequest } from "../../shared/ApiTransport";
 import { canWorkAt, StaffIdentity } from "../../shared/AppShell";
 import { dateTime, money } from "../../shared/format";
 import { useAction } from "../../shared/useAction";
@@ -13,6 +14,7 @@ type Quote = { expected_claim_id: string; refund_amount: string; cause: string }
 type ActionName = "change" | "cancel" | "review" | "no_show" | "coordinate";
 
 function ChangeAppointment({ row, identity, onChange }: { row: Appointment; identity: StaffIdentity; onChange: () => void }) {
+  const request = useApiRequest();
   const front = row.allowed_actions.includes("reschedule");
   const coordinate = row.allowed_actions.includes("coordinate");
   const [cause, setCause] = useState(front ? "PATIENT" : "CLINIC");

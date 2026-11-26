@@ -1,7 +1,8 @@
+import { useWorkspaceRuntime } from "../../shared/WorkspaceRuntime";
 import { FormEvent, useEffect, useRef, useState } from "react";
 import { canWorkAt, StaffIdentity } from "../../shared/AppShell";
 import { useApiRequest } from "../../shared/ApiTransport";
-import { dateTime, errorMessage, localDay, money } from "../../shared/format";
+import { dateTime, errorMessage, money } from "../../shared/format";
 import { AssistantDrilldown, AssistantPanel } from "./AssistantPanel";
 import { ReportDetails } from "./ReportDetails";
 
@@ -42,10 +43,11 @@ export function OperationsReport({ identity, clinicId, open, assistantWorkspace 
   identity: StaffIdentity; clinicId: string; open: (path: string) => void; assistantWorkspace?:boolean; inlineAssistantActive?:boolean;
   initialQuery?:string; assistantLink?:string;
 }) {
+  const { router, workday } = useWorkspaceRuntime();
   const request = useApiRequest();
-  const today = localDay();
+  const today = workday;
   const reportingClinics = identity.clinics.filter(row => canWorkAt(identity, "HQ_OPERATIONS_QUERY", row.clinic_id));
-  const [initial] = useState(() => new URLSearchParams(initialQuery ?? window.location.search));
+  const [initial] = useState(() => new URLSearchParams(initialQuery ?? router.read().search));
   const [from, setFrom] = useState(initial.get("date_from") || today.slice(0, 7) + "-01");
   const [to, setTo] = useState(initial.get("date_to") || today);
   const [clinic, setClinic] = useState(initial.get("clinic_ids") ?? clinicId);
@@ -82,10 +84,10 @@ export function OperationsReport({ identity, clinicId, open, assistantWorkspace 
   function changeFilter(key: string, value: string, setter: (value: string) => void) {
     setter(value);
     if (initialQuery !== undefined) return;
-    const url = new URL(window.location.href);
+    const url = new URL(router.read().url, window.location.origin);
     if (value) url.searchParams.set(key, value);
     else url.searchParams.delete(key);
-    window.history.replaceState({}, "", url);
+    router.write(url.pathname + url.search);
   }
 
   function submit(event: FormEvent) {

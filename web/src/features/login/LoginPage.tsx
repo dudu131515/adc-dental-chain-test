@@ -1,5 +1,6 @@
-import { FormEvent, useState } from "react";
-import { ApiError, request } from "../../shared/api";
+import { FormEvent, type ReactNode, useState } from "react";
+import { ApiError } from "../../shared/api";
+import { useApiRequest } from "../../shared/ApiTransport";
 import type { StaffIdentity } from "../../shared/AppShell";
 import { Brand, Icon } from "../../shared/Icons";
 
@@ -14,7 +15,8 @@ function DentalArch() {
     <span className="arch-center"><Icon name="tooth" size={36}/></span>
   </div>;
 }
-export function LoginPage({ onLogin }: { onLogin: (identity: StaffIdentity) => void }) {
+export function LoginPage({ onLogin, sample }: { onLogin: (identity: StaffIdentity) => void; sample?: ReactNode }) {
+  const request = useApiRequest();
   const [loginIdentity, setLoginIdentity] = useState("");
   const [password, setPassword] = useState("");
   const [visible, setVisible] = useState(false);
@@ -37,7 +39,7 @@ export function LoginPage({ onLogin }: { onLogin: (identity: StaffIdentity) => v
       <p className="login-kicker">ANDREW DENTAL CLINICS</p><h2>连锁诊所<br/>管理系统</h2>
       <DentalArch /></div><div className="poster-foot"><span/>ADC · 安德鲁牙科</div>
     </section>
-    <section className="login-pane"><form className="sign-in" onSubmit={submit}>
+    <section className="login-pane">{sample ? <div className="sign-in">{sample}</div> : <form className="sign-in" onSubmit={submit}>
       <span className="signin-emblem"><Icon name="lock" size={22}/></span><h1>员工登录</h1>
       <p className="login-summary">使用工作账号进入诊所工作台。</p>
       <label htmlFor="login-identity">工作账号</label><div className="signin-field"><Icon name="user" size={18}/>
@@ -50,6 +52,6 @@ export function LoginPage({ onLogin }: { onLogin: (identity: StaffIdentity) => v
           <Icon name={visible ? "eyeOff" : "eye"} size={19}/></button></div>
       {error && <p role="alert" className="error-text">{error}</p>}
       <button className="button primary signin-submit" type="submit" disabled={submitting}>{submitting ? "登录中…" : "登录"}<Icon name="arrow" size={18}/></button>
-    </form></section>
+    </form>}</section>
   </main>;
 }

@@ -1,3 +1,4 @@
+import { useWorkspaceRuntime } from "../../shared/WorkspaceRuntime";
 import { FormEvent, useEffect, useRef, useState } from "react";
 
 import type { StaffIdentity } from "../../shared/AppShell";
@@ -10,10 +11,9 @@ import { addDays, AppointmentSummary, Dentist, localDate, localTime, Shift, shif
 
 type Context = { identity: StaffIdentity; clinicId: string; onAppointment?: (id: string, start: string) => void };
 
-function weekStart() {
-  const query = new URLSearchParams(window.location.search).get("week");
+function weekStart(queryString: string, today: string) {
+  const query = new URLSearchParams(queryString).get("week");
   if (query && /^\d{4}-\d{2}-\d{2}$/.test(query) && !Number.isNaN(Date.parse(query))) return query;
-  const today = localDate(new Date());
   const day = new Date(today + "T00:00:00Z").getUTCDay();
   return addDays(today, -((day + 6) % 7));
 }
@@ -190,8 +190,9 @@ function ShiftDetails({ shift, identity, clinicId, dentists, onUpdate, onClose, 
 }
 
 export function ShiftBoard({ identity, clinicId, onAppointment, initialWeek }: Context & {initialWeek?: string}) {
+  const { router, workday } = useWorkspaceRuntime();
   const request = useApiRequest();
-  const [week, setWeek] = useState(() => initialWeek ?? weekStart());
+  const [week, setWeek] = useState(() => initialWeek ?? weekStart(router.read().search, workday));
   const [listView, setListView] = useState(false);
   const [shifts, setShifts] = useState<Shift[]>([]);
   const [dentists, setDentists] = useState<Dentist[]>([]);
@@ -227,9 +228,9 @@ export function ShiftBoard({ identity, clinicId, onAppointment, initialWeek }: C
   }, [week, clinicId, directory, request]);
 
   function go(date: string) {
-    const query = new URLSearchParams(window.location.search);
+    const query = new URLSearchParams(router.read().search);
     query.set("week", date);
-    if (!initialWeek) window.history.replaceState({}, "", window.location.pathname + "?" + query.toString());
+    if (!initialWeek) router.write(router.read().path + "?" + query.toString());
     setSelected(undefined);
     setWeek(date);
   }

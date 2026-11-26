@@ -1,4 +1,5 @@
-import { ApiError, request } from "../../shared/api";
+import { ApiError } from "../../shared/api";
+import { useApiRequest } from "../../shared/ApiTransport";
 import { dateTime, money } from "../../shared/format";
 import { useEffect, useState } from "react";
 import { fundingStates } from "./appointmentTypes";
@@ -9,6 +10,7 @@ type Evidence = {
 };
 
 export function HandoverEvidence({ id }: { id: string }) {
+  const request = useApiRequest();
   const [items, setItems] = useState<Evidence[]>([]);
   const [fault, setFault] = useState("");
   useEffect(() => {

@@ -1,6 +1,7 @@
 import { FormEvent, useEffect, useRef, useState } from "react";
 import { AgentCanvas, AgentComposer, AgentTurn } from "./AgentCanvas";
-import { ApiError, request } from "../../shared/api";
+import { ApiError } from "../../shared/api";
+import { useApiRequest } from "../../shared/ApiTransport";
 import { dateTime, errorMessage, money } from "../../shared/format";
 
 const path = "/reports/operations/assistant";
@@ -68,6 +69,7 @@ export function AssistantPanel({ accountId, context, openOriginal, workspace = f
   resetOriginal?: () => void;
   openOriginal: (reference: string, button: HTMLButtonElement, detail?: AssistantDrilldown) => void;
 }) {
+  const request = useApiRequest();
   const storageKey = "adc:operations-analysis:" + accountId;
   const [pending, setPending] = useState(() => readPending(storageKey));
   const [options, setOptions] = useState<AssistantOptions>();

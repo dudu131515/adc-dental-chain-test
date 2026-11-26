@@ -1,6 +1,7 @@
 import { FormEvent, useState } from "react";
 import { ActionFeedback } from "../../shared/ActionFeedback";
-import { ApiError, request } from "../../shared/api";
+import { ApiError } from "../../shared/api";
+import { useApiRequest } from "../../shared/ApiTransport";
 import { dateTime, money } from "../../shared/format";
 import { useAction } from "../../shared/useAction";
 import { fundingStates } from "../schedule/appointmentTypes";
@@ -30,6 +31,7 @@ const cents = (amount?: string) => Math.round(Number(amount ?? 0) * 100);
 const fromCents = (amount: number) => (amount / 100).toFixed(2);
 
 export function InvoiceFunds({ invoice, accountId, onChange }: { invoice: Invoice; accountId?: string; onChange: () => void }) {
+  const request = useApiRequest();
   const storageKey = accountId ? "adc:invoice-funding:" + accountId + ":" + invoice.invoice_id : "";
   const [draft, setDraft] = useState(() => readDraft(storageKey));
   const [selected, setSelected] = useState(draft?.fields.source_payment_id ?? "");

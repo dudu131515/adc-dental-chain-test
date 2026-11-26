@@ -7,7 +7,7 @@ export const statusLabels = {
 } as const;
 export type Status = keyof typeof statusLabels;
 export type Appointment = {
-  id: string; date: (typeof days)[number]; clinic: Clinic; time: string; patient: string; patientId: string;
+  id: string; date: string; clinic: Clinic; time: string; patient: string; patientId: string; minutes?: number;
   service: string; doctor: string; status: Status; allergy?: string; invoice?: string;
 };
 const today = days[0];
@@ -58,7 +58,7 @@ for(const [index,row] of appointments.filter(item=>item.invoice&&!invoices[item.
     due,received,refunded:0,outstanding:Math.max(0,due-received),pendingRefund:index===1?30:undefined};
 }
 
-type Fund = {clinic: Clinic; date: (typeof days)[number]; id: string; label: string; type: "deposit" | "treatment"; kind: "received" | "refund" | "pending"; value: number; time: string};
+type Fund = {clinic: Clinic; date: string; id: string; label: string; type: "deposit" | "treatment"; kind: "received" | "refund" | "pending"; value: number; time: string};
 export const funds: Fund[] = [
   {clinic:"central",date:today,id:"ADC-DEMO-001",label:"预约金实收",type:"deposit",kind:"received",value:50,time:"08:10"},
   {clinic:"central",date:today,id:"ADC-DEMO-002",label:"预约金已退",type:"deposit",kind:"refund",value:50,time:"09:03"},

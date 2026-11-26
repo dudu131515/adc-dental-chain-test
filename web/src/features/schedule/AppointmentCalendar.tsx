@@ -1,3 +1,4 @@
+import { useWorkspaceRuntime } from "../../shared/WorkspaceRuntime";
 import { FormEvent, useState } from "react";
 import { canWorkAt, WorkArea } from "../../shared/AppShell";
 import { useRead } from "../../shared/useRead";
@@ -5,15 +6,16 @@ import { AppointmentDrawer, ScheduleDrawer } from "./AppointmentDrawer";
 import { Appointment, appointmentStates } from "./appointmentTypes";
 import { BookingForm, type Patient } from "./BookingForm";
 import { DaySchedule, type BookingPreference, type CalendarBoard } from "./DaySchedule";
-import { addDays, localDate, localTime } from "./types";
+import { addDays, localTime } from "./types";
 
 function status(row: Appointment) {
   return row.status === "CHECKED_IN" && "chair" in row && !row.chair ? "已签到 · 待分椅" : appointmentStates[row.status] ?? row.status;
 }
 
 export function AppointmentCalendar({ identity, clinicId, path, open }: WorkArea) {
-  const params = new URLSearchParams(window.location.search);
-  const [date, setDate] = useState(params.get("date") || localDate(new Date()));
+  const { router, workday, sampleTime } = useWorkspaceRuntime();
+  const params = new URLSearchParams(router.read().search);
+  const [date, setDate] = useState(params.get("date") || workday);
   const [clinic, setClinic] = useState(clinicId || params.get("clinic") || (identity.clinics.length === 1 ? identity.clinics[0].clinic_id : ""));
   const [dentist, setDentist] = useState(params.get("dentist") || "");
   const [state, setState] = useState(params.get("status") || "");
@@ -32,7 +34,7 @@ export function AppointmentCalendar({ identity, clinicId, path, open }: WorkArea
   if (dentist) boardCriteria.set("dentist_id", dentist);
   const board = useRead<CalendarBoard>(!list && clinic ? "/schedule/board?" + boardCriteria : undefined, sequence);
   const dentists = useRead<{ items: { dentist_id: string; name: string }[] }>("/schedule/dentists" + (clinic ? "?clinic_id=" + clinic : ""));
-  const activeId = path.match(/^\/schedule\/appointments\/(\d+)$/)?.[1];
+  const activeId = path.match(/^\/schedule\/appointments\/([\w-]+)$/)?.[1];
   const rows = read.data?.items ?? [];
   const names = new Map(dentists.data?.items.map(row => [row.dentist_id, row.name]));
   const frontClinics = identity.clinics.filter(item => canWorkAt(identity, "FRONT_DESK", item.clinic_id));
@@ -44,14 +46,14 @@ export function AppointmentCalendar({ identity, clinicId, path, open }: WorkArea
   function closeBooking() { setBooking(false); setPreference(undefined); save("action", ""); save("patient", ""); }
 
   function save(key: string, value: string) {
-    const query = new URLSearchParams(window.location.search);
+    const query = new URLSearchParams(router.read().search);
     if (value) query.set(key, value); else query.delete(key);
-    window.history.replaceState(window.history.state, "", window.location.pathname + "?" + query);
+    router.write(router.read().path + "?" + query);
   }
   function pickDate(next: string) { if (next) { setDate(next); save("date", next); } }
-  function go(target: string) { open(target + window.location.search); }
+  function go(target: string) { open(target + router.read().search); }
   function openAppointment(id: string) { closeBooking(); go("/schedule/appointments/" + id); }
-  function handover(event: FormEvent) { event.preventDefault(); if (/^[0-9]+$/.test(lookup)) openAppointment(lookup); }
+  function handover(event: FormEvent) { event.preventDefault(); if (/^[\w-]+$/.test(lookup)) openAppointment(lookup); }
 
   function tile(row: Appointment) {
     return <button className="shift-slot appointment-tile" onClick={() => openAppointment(row.appointment_id)}>
@@ -66,7 +68,7 @@ export function AppointmentCalendar({ identity, clinicId, path, open }: WorkArea
     <div className="schedule-heading"><h2>预约日历</h2>
       <div className="schedule-toolbar">
         <button className="button" onClick={() => pickDate(addDays(date, -1))}>前一天</button>
-        <button className="button" onClick={() => pickDate(localDate(new Date()))}>今天</button>
+        <button className="button" onClick={() => pickDate(workday)}>今天</button>
         <button className="button" onClick={() => pickDate(addDays(date, 1))}>后一天</button>
         <button className="button" aria-pressed={!list} onClick={() => { setList(false); save("layout", "grid"); }}>日历</button>
         <button className="button" aria-pressed={list} onClick={() => { setList(true); save("layout", "list"); }}>列表</button>
@@ -97,12 +99,12 @@ export function AppointmentCalendar({ identity, clinicId, path, open }: WorkArea
     {!!rows.length && <ul className="compact-list">{rows.map(row => <li key={row.appointment_id}>
       {tile(row)}<span>{row.dentist.name}</span>
     </li>)}</ul>}
-    {board.data && <DaySchedule board={board.data} names={names} date={date} status={state} onAppointment={openAppointment}
+    {board.data && <DaySchedule board={board.data} names={names} date={date} status={state} asOf={sampleTime} onAppointment={openAppointment}
       onCandidate={mayBook ? selection => { setPreference(selection); setBooking(true); } : undefined} />}
     {canHandover && <details>
       <summary>回查原店交接</summary>
       <form className="schedule-form" onSubmit={handover}>
-        <label>预约记录号<input required inputMode="numeric" pattern="[0-9]+" value={lookup} onChange={event => setLookup(event.target.value)} /></label>
+        <label>预约记录号<input required pattern="[A-Za-z0-9_-]+" value={lookup} onChange={event => setLookup(event.target.value)} /></label>
         <button className="button">查看交接</button>
       </form>
     </details>}

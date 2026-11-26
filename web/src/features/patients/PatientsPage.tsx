@@ -1,3 +1,4 @@
+import { useWorkspaceRuntime } from "../../shared/WorkspaceRuntime";
 import { FormEvent, useState } from "react";
 import { canWorkAt, type WorkArea } from "../../shared/AppShell";
 import { dateTime, localDay } from "../../shared/format";
@@ -76,7 +77,8 @@ function PatientRecord({ clinic, id, open, directory }: {
 }
 
 export function PatientsPage({ identity, clinicId, path, open }: WorkArea) {
-  const params = new URLSearchParams(window.location.search);
+  const { router } = useWorkspaceRuntime();
+  const params = new URLSearchParams(router.read().search);
   const choices = identity.clinics.filter(row => canWorkAt(identity, "FRONT_DESK", row.clinic_id));
   const selected = clinicId || (choices.find(row => row.clinic_id === params.get("clinic")) || choices[0])?.clinic_id || "";
   const [clinic, setClinic] = useState(selected);
@@ -101,7 +103,7 @@ export function PatientsPage({ identity, clinicId, path, open }: WorkArea) {
   }
   function searchDirectory(event: FormEvent) {
     event.preventDefault(); setSubmitted(search.trim()); setPage(1);
-    window.history.replaceState({}, "", "/patients?" + new URLSearchParams({ clinic }));
+    router.write("/patients?" + new URLSearchParams({ clinic }));
   }
   if (!allowed) return <section className="patient-page"><h1>患者档案</h1><p>请选择具备前台权限的门店。</p></section>;
   if (id) return <PatientRecord key={clinic + ":" + id} clinic={clinic} id={id} open={open} directory={directory} />;
@@ -117,7 +119,7 @@ export function PatientsPage({ identity, clinicId, path, open }: WorkArea) {
           <option key={row.clinic_id} value={row.clinic_id}>{row.name}</option>)}</select></label>}
         <label><span className="patient-reader">查找患者</span><input type="search" placeholder="输入姓名、完整手机号或患者编号" value={search} onChange={e => setSearch(e.target.value)} /></label>
         <button className="button">查询</button>
-        {submitted && <button type="button" className="patient-link" onClick={() => { setSearch(""); setSubmitted(""); setPage(1); window.history.replaceState({}, "", "/patients?clinic=" + clinic); }}>清除筛选</button>}
+        {submitted && <button type="button" className="patient-link" onClick={() => { setSearch(""); setSubmitted(""); setPage(1); router.write("/patients?clinic=" + clinic); }}>清除筛选</button>}
       </form>
       {read.loading && <p role="status">正在读取名册…</p>}
       {read.fault && <div role="alert">{read.fault} <button className="button" onClick={() => setRefresh(v => v + 1)}>重试</button></div>}

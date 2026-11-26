@@ -1,6 +1,7 @@
+import { useWorkspaceRuntime } from "../../shared/WorkspaceRuntime";
 import { type FormEvent, useEffect, useState } from "react";
 import { useApiRequest } from "../../shared/ApiTransport";
-import { dateTime, errorMessage, localDay, money } from "../../shared/format";
+import { dateTime, errorMessage, money } from "../../shared/format";
 import { canWorkAt, type StaffIdentity } from "../../shared/navigation";
 
 type Range={from:string;to:string};
@@ -38,12 +39,13 @@ export function ClinicComparison({identity,open,initial}:{
   identity:StaffIdentity;open:(path:string)=>void;
   initial?:{current:Range;before:Range};
 }){
+  const { workday } = useWorkspaceRuntime();
   const request=useApiRequest();
   const [clinics]=useState(()=>identity.clinics.filter(branch=>canWorkAt(identity,"HQ_OPERATIONS_QUERY",branch.clinic_id)));
   const [selected,setSelected]=useState(()=>clinics.map(branch=>branch.clinic_id));
   const [metric,setMetric]=useState<Metric>("attendance");
   const [ranges,setRanges]=useState(()=>{
-    const end=localDay();
+    const end=workday;
     return initial??{current:{from:previousDay(end,6),to:end},before:{from:previousDay(end,13),to:previousDay(end,7)}};
   });
   const [rows,setRows]=useState<Row[]>([]);

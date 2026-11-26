@@ -1,8 +1,9 @@
+import { useWorkspaceRuntime } from "../../shared/WorkspaceRuntime";
 import { FormEvent, useEffect, useRef, useState } from "react";
 import { StaffIdentity } from "../../shared/AppShell";
 import { ApiError } from "../../shared/api";
 import { useApiRequest } from "../../shared/ApiTransport";
-import { errorMessage, localDay } from "../../shared/format";
+import { errorMessage } from "../../shared/format";
 import { Period } from "./ExpensesPage";
 import { Version, VersionComparison, versionStates } from "./VersionComparison";
 
@@ -13,9 +14,10 @@ const base = "/performance/periods";
 export function QuarterReview({ identity, periodId, open }: {
   identity: StaffIdentity; periodId?: string; open: (path: string) => void;
 }) {
+  const { workday } = useWorkspaceRuntime();
   const request = useApiRequest();
   const canCalculate = identity.capabilities.includes("HQ_PERFORMANCE_CALCULATE");
-  const today = localDay().split("-").map(Number);
+  const today = workday.split("-").map(Number);
   const [year, setYear] = useState(today[0]);
   const [quarter, setQuarter] = useState(Math.ceil(today[1] / 3));
   const [items, setItems] = useState<Period[]>([]);

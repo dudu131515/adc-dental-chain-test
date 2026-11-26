@@ -1,6 +1,6 @@
 import { ReactNode, useEffect, useRef, useState } from "react";
 import { ActionFeedback } from "../../shared/ActionFeedback";
-import { request } from "../../shared/api";
+import { useApiRequest } from "../../shared/ApiTransport";
 import { canWorkAt, StaffIdentity } from "../../shared/AppShell";
 import { dateTime, money } from "../../shared/format";
 import { useAction } from "../../shared/useAction";
@@ -26,6 +26,7 @@ export function ScheduleDrawer({ title, onClose, children }: { title: string; on
 export function AppointmentDrawer({ id, identity, open, onClose, onChange }: {
   id: string; identity: StaffIdentity; open: (to: string) => void; onClose: () => void; onChange: () => void;
 }) {
+  const request = useApiRequest();
   const [sequence, setSequence] = useState(0);
   const read = useRead<Appointment>("/appointments/" + id, sequence);
   const row = read.data;
@@ -64,8 +65,8 @@ export function AppointmentDrawer({ id, identity, open, onClose, onChange }: {
           }}>沿原义务重试退金</button>}
         <ActionFeedback {...action} />
       </section>}
-      {isFront && <CheckInChairPanel key={row.claim_id} row={row} onUpdate={refresh} />}
-      <AppointmentActions key={row.claim_id} row={row} identity={identity} onUpdate={refresh} />
+      {isFront && <CheckInChairPanel key={"chair-" + row.claim_id} row={row} onUpdate={refresh} />}
+      <AppointmentActions key={"actions-" + row.claim_id} row={row} identity={identity} onUpdate={refresh} />
       {row.visit_id && isDentist && <button className="button" onClick={() => open("/clinical/visits/" + row.visit_id)}>查看诊疗记录</button>}
       {row.visit_id && row.status === "COMPLETED" && isFront &&
         <button className="button" onClick={() => open("/billing/visits/" + row.visit_id)}>查看待结算就诊</button>}

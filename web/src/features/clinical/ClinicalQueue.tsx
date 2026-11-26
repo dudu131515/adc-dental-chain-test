@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { WorkArea } from "../../shared/AppShell";
 import { ActionFeedback } from "../../shared/ActionFeedback";
-import { request } from "../../shared/api";
+import { useApiRequest } from "../../shared/ApiTransport";
 import { dateTime } from "../../shared/format";
 import { useAction } from "../../shared/useAction";
 import { useRead } from "../../shared/useRead";
@@ -17,7 +17,7 @@ type QueueEntry = Appointment & { chair: Chair | null; visit_id: string | null; 
 export function ClinicalWorkspace(props: WorkArea) {
   const [filter, setFilter] = useState("");
   const [returnTo, setReturnTo] = useState("/clinical");
-  const visit = props.path.match(/^\/clinical\/visits\/(\d+)$/)?.[1];
+  const visit = props.path.match(/^\/clinical\/visits\/([\w-]+)$/)?.[1];
   if (visit) return <VisitDetail key={visit} id={visit} open={props.open} returnTo={returnTo} />;
   return <ClinicalQueue {...props} filter={filter} setFilter={setFilter} open={target => {
     if (target.startsWith("/clinical/visits/")) setReturnTo(props.path === "/clinical/records" ? props.path : "/clinical");
@@ -26,7 +26,8 @@ export function ClinicalWorkspace(props: WorkArea) {
 }
 
 function ClinicalQueue({ clinicId, path, open, filter, setFilter }: WorkArea & { filter: string; setFilter: (value: string) => void }) {
-  const preview = path.match(/^\/clinical\/appointments\/(\d+)$/)?.[1];
+  const request = useApiRequest();
+  const preview = path.match(/^\/clinical\/appointments\/([\w-]+)$/)?.[1];
   const history = path === "/clinical/records";
   const [checked, setChecked] = useState(false);
   const action = useAction();

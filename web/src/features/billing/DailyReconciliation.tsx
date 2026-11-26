@@ -1,6 +1,7 @@
+import { useWorkspaceRuntime } from "../../shared/WorkspaceRuntime";
 import { useEffect, useState } from "react";
 import type { WorkArea } from "../../shared/AppShell";
-import { dateTime, localDay, money } from "../../shared/format";
+import { dateTime, money } from "../../shared/format";
 import { hasRole } from "../../shared/navigation";
 import { useRead } from "../../shared/useRead";
 import { HandoverEvidence } from "../schedule/HandoverEvidence";
@@ -98,9 +99,10 @@ function FundTable({ title, records, empty, note, open }: {
 }
 
 export function DailyReconciliation({ identity, clinicId, path, open }: WorkArea) {
+  const { router, workday } = useWorkspaceRuntime();
   const clinics = identity.clinics.filter(clinic => hasRole(identity, roles, clinic.clinic_id));
-  const [selectedClinic, setClinic] = useState(() => new URLSearchParams(window.location.search).get("clinic_id") ?? "");
-  const [date, setDate] = useState(() => new URLSearchParams(window.location.search).get("date") ?? localDay());
+  const [selectedClinic, setClinic] = useState(() => new URLSearchParams(router.read().search).get("clinic_id") ?? "");
+  const [date, setDate] = useState(() => new URLSearchParams(router.read().search).get("date") ?? workday);
   const [refresh, setRefresh] = useState(0);
   const activeClinic = clinicId
     ? clinics.find(clinic => clinic.clinic_id === clinicId)
@@ -108,15 +110,15 @@ export function DailyReconciliation({ identity, clinicId, path, open }: WorkArea
   const activeClinicId = activeClinic?.clinic_id;
   const query = activeClinicId && date ? new URLSearchParams({ clinic_id: activeClinicId, date }).toString() : null;
   useEffect(() => {
-    if (window.location.pathname !== path) return;
-    const filters = new URLSearchParams(window.location.search);
+    if (router.read().path !== path) return;
+    const filters = new URLSearchParams(router.read().search);
     if (activeClinicId) filters.set("clinic_id", activeClinicId);
     else filters.delete("clinic_id");
     if (date) filters.set("date", date);
     else filters.delete("date");
     const search = filters.size ? "?" + filters.toString() : "";
-    if (search !== window.location.search) {
-      window.history.replaceState(window.history.state, "", path + search + window.location.hash);
+    if (search !== router.read().search) {
+      router.write(path + search);
     }
   }, [activeClinicId, date, path]);
   const read = useRead<Reconciliation>(query ? "/billing/reconciliation?" + query : undefined, refresh);
@@ -129,7 +131,7 @@ export function DailyReconciliation({ identity, clinicId, path, open }: WorkArea
           disabled={Boolean(clinicId)}>{clinics.map(clinic => <option key={clinic.clinic_id} value={clinic.clinic_id}>
           {clinic.name}
         </option>)}</select></label>
-        <label className="clinic-picker">营业日期<input type="date" value={date} max={localDay()}
+        <label className="clinic-picker">营业日期<input type="date" value={date} max={workday}
           onChange={event => setDate(event.target.value)} /></label>
         <button className="button" disabled={!query || read.loading} onClick={() => setRefresh(value => value + 1)}>重新查询</button>
       </div>}

@@ -1,6 +1,6 @@
 import { FormEvent, useState } from "react";
 import { ActionFeedback } from "../../shared/ActionFeedback";
-import { request } from "../../shared/api";
+import { useApiRequest } from "../../shared/ApiTransport";
 import { dateTime, money } from "../../shared/format";
 import { useAction } from "../../shared/useAction";
 import { useRead } from "../../shared/useRead";
@@ -12,6 +12,7 @@ import { TreatmentForm } from "./TreatmentForm";
 import "./clinical.css";
 
 export function VisitDetail({ id, open, returnTo = "/clinical" }: { id: string; open: (target: string) => void; returnTo?: string }) {
+  const request = useApiRequest();
   const [sequence, setSequence] = useState(0);
   const base = "/visits/" + id;
   const read = useRead<Visit>(base, sequence);

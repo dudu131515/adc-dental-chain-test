@@ -1,0 +1,8 @@
+.demo-controls { display: flex; align-items: center; gap: .5rem; }
+.demo-label { color: var(--muted); font-size: .75rem; white-space: nowrap; }
+.demo-controls select { max-width: 11rem; }
+.demo-signin { display: grid; grid-template-columns: 1fr 1fr; gap: .65rem; }
+@media (max-width: 700px) {
+  .demo-label { display: none; }
+  .demo-controls select { max-width: 7.5rem; }
+}

@@ -1,3 +1,4 @@
+import { useWorkspaceRuntime } from "../../shared/WorkspaceRuntime";
 import { FormEvent, useEffect, useRef, useState } from "react";
 
 import { useApiRequest } from "../../shared/ApiTransport";
@@ -68,12 +69,13 @@ function StandardForm({ treatment, qualifications, onSave }: {
 }
 
 export function CatalogPage({canEdit = true}: {canEdit?: boolean}) {
+  const { router } = useWorkspaceRuntime();
   const request = useApiRequest();
   const [rows, setRows] = useState<Treatment[]>([]);
   const [qualifications, setQualifications] = useState<Qualification[]>([]);
   const [selected, setSelected] = useState<Treatment>();
   const [adding, setAdding] = useState(false);
-  const [filter, setFilter] = useState(() => new URLSearchParams(window.location.search).get("q") || "");
+  const [filter, setFilter] = useState(() => new URLSearchParams(router.read().search).get("q") || "");
   const [revision, setRevision] = useState(0);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
@@ -95,10 +97,10 @@ export function CatalogPage({canEdit = true}: {canEdit?: boolean}) {
   }, [revision]);
 
   function search(query: string) {
-    const url = new URL(window.location.href);
+    const url = new URL(router.read().url, window.location.origin);
     if (query) url.searchParams.set("q", query);
     else url.searchParams.delete("q");
-    window.history.replaceState({}, "", url);
+    router.write(url.pathname + url.search);
     setFilter(query);
   }
 

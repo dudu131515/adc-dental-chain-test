@@ -6,7 +6,14 @@ import type { Demand } from "../src/features/schedule/ShiftDemandForm";
 import type { Company, Version } from "../src/features/operations/VersionComparison";
 import type { Period } from "../src/features/operations/ExpensesPage";
 import { ApiError } from "../src/shared/api";
-import { appointments, catalog, chairs, clinics, dailyFacts, invoices, staffShifts, sumFacts, type Appointment, type Clinic } from "./fixtures";
+import { appointments, catalog, chairs, clinics, dailyFacts, days, invoices, staffShifts, type Appointment, type Clinic } from "./fixtures";
+import { appointmentEnd, appointmentStart, appointmentStates, coordinatorRoles, createSampleAppointments, type SampleActor } from "./sampleAppointments";
+import { createSampleAssistant } from "./sampleAssistant";
+import { createSampleBilling } from "./sampleBilling";
+import { createSampleClinical } from "./sampleClinical";
+
+export const sampleDate = days[0];
+export const sampleTime = sampleDate + "T08:00:00+08:00";
 
 export const sampleRoles = {
   visitor: {label:"参观总览", employee:"0", roles:[]},
@@ -97,8 +104,12 @@ function version(period_id:string, revision_no:number, status:string, revenue:nu
 
 export function createSampleWorkspace() {
   const previewAppointments = appointments.map(row => ({...row}));
-  const newPatients = new Map<string,string>();
-  type Hold = Candidate & {patient_id:string;claim_id:string;status:string;server_time:string;expires_at:string;
+  const bills = structuredClone(invoices);
+  const deposits: {appointment_id:string; deposit_id:string; claim_id:string; amount:string; paid_at:string; clinic_id:string}[] = [];
+  const assistants = new Map<SampleRole, ReturnType<typeof createSampleAssistant>>();
+  const replay = new Map<SampleRole, Map<string,{signature:string;result:unknown}>>();
+  const specialRequirements = new Map<string,string>();
+  type Hold = Candidate & {patient_id:string;claim_id:string;status:string;server_time:string;expires_at:string; specialRequirement?:string;
     payment:{deposit_id:string;amount:string;status:string}; appointment_id?:string;appointment_no?:string};
   const holds = new Map<string,Hold>();
   const holdActions = new Map<string,Hold>();
@@ -128,7 +139,9 @@ export function createSampleWorkspace() {
   const demands:Demand[]=[1,2,3,4,5,6].map(i=>({demand_id:String(i),clinic_id:i%2?"central":"river",
     start_at:at("2026-11-"+(23+i),"08:00"),end_at:at("2026-11-"+(23+i),"18:00"),
     required_qualification_id:i%3===0?"2":null,required_count:i%2?2:1}));
-  const reports=new Map<string,{from:string;to:string;clinics:string[]}>();
+  type ReportItem = {appointment_no:string; clinic_id:string; dentist_id?:string; service_date:string;
+    status:string; invoice_no?:string; visit_id?:string; accrued?:number; received?:number; refunded?:number; outstanding?:number};
+  const reports=new Map<string,{items:ReportItem[];asOf:string}>();
   let next=1000;
   const id=()=>String(++next);
   const periods:Period[]=[{period_id:"4",year:2026,quarter:4},{period_id:"3",year:2026,quarter:3},
@@ -153,6 +166,21 @@ export function createSampleWorkspace() {
     {price_id:"current"+index,unit_price:row.price.toFixed(2),effective_from:row.date,effective_to:null},
     {price_id:"prior"+index,unit_price:(row.price-5).toFixed(2),effective_from:"2026-01-01",effective_to:row.date},
   ]]));
+  const doctorId = (row: Appointment) => people.find(p => p.name === row.doctor)?.dentist_id ?? "";
+  const clinical = createSampleClinical({appointments:previewAppointments, chairs:resources,
+    appointment:(row,actor) => registry.projection(row,actor), id, clockDate:sampleDate, treatments:standards,
+    specialRequirement:appointmentId => specialRequirements.get(appointmentId)});
+  const registry: ReturnType<typeof createSampleAppointments> = createSampleAppointments({
+    appointments:previewAppointments,branches,doctorId,
+    treatment:row => standards.find(p => p.treatment_name === row.service),
+    visit:clinical.visit,visitId:clinical.visitIdForAppointment,chair:clinical.chairForAppointment,
+    treatmentRefund:clinical.refundForAppointment,
+    billStatus:bill => bills[bill]?.outstanding === 0 ? "SETTLED" : bills[bill]?.received ? "PART_PAID" : "ISSUED",
+    id,clock:sampleTime,
+  });
+  const billing = createSampleBilling({bills,appointments:previewAppointments,id,clockDate:sampleDate,visit:clinical.visit,
+    doctorId,bookingDeposits:() => deposits});
+
   function identity(role:SampleRole):StaffIdentity {
     const actor=sampleRoles[role], owner=employees.find(e=>e.employee_id===actor.employee);
     if (role!=="visitor" && owner?.account_status!=="ACTIVE") return {account_id:actor.employee,employee_id:actor.employee,category:"staff",capabilities:[],clinics:[]};
@@ -165,7 +193,10 @@ export function createSampleWorkspace() {
   }
 
   function transport(role:SampleRole) {
-    const processed=new Map<string,{signature:string; result:unknown}>();
+    const processed = replay.get(role) ?? new Map<string,{signature:string;result:unknown}>();
+    replay.set(role, processed);
+    const assistant = assistants.get(role) ?? createSampleAssistant();
+    assistants.set(role,assistant);
     const capability=(code:string,clinic?:string)=>{
       const staff=identity(role);
       return staff.capabilities.includes(code)&&(!clinic||staff.role_clinic_ids?.[code]==null
@@ -176,12 +207,19 @@ export function createSampleWorkspace() {
       capability("DENTIST")?row.dentist_id===sampleRoles[role].employee&&capability("DENTIST",row.clinic_id)&&row.status!=="DRAFT":true;
     const wanted=(filter:string|null,value:string)=>!filter||filter===value;
 
-    const appointmentRows=(clinic:string,start:string,end:string,doctor?:string)=>appointments.filter(row=>
-      row.clinic===clinic&&(!doctor||people.find(p=>p.dentist_id===doctor)?.name===row.doctor)
-      && ["booked","arrived","treating"].includes(row.status)&&overlap(start,end,at(row.date,row.time),
-        new Date(Date.parse(at(row.date,row.time))+30*60000).toISOString())).map(row=>({appointment_id:row.id,
-          appointment_no:row.id,clinic_id:row.clinic,dentist_id:doctor??"",start_at:at(row.date,row.time),
-          end_at:new Date(Date.parse(at(row.date,row.time))+30*60000).toISOString(),status:row.status,patient_display:row.patient}));
+    const actor: SampleActor = {
+      allowed:(roles,clinic) => roles.some(code => capability(code,clinic)),
+      authorize:(roles,clinic) => {
+        if (!roles.some(code => capability(code,clinic))) problem(403,"当前样例身份无权办理此项操作。");
+      },
+      dentist:() => sampleRoles[role].employee,
+    };
+    const appointmentRows=(clinic:string,start:string,end:string,doctor?:string)=>previewAppointments.filter(row=>
+      row.clinic===clinic&&(!doctor||doctorId(row)===doctor)
+      && ["booked","arrived","treating"].includes(row.status)&&overlap(start,end,appointmentStart(row),appointmentEnd(row)))
+      .map(row=>({appointment_id:row.id,appointment_no:row.id,clinic_id:row.clinic,dentist_id:doctorId(row),
+        start_at:appointmentStart(row),end_at:appointmentEnd(row),status:appointmentStates[row.status],patient_display:row.patient}));
+
     function validateShift(shift:Shift, routeVerified=false, publishing=false) {
       const assigned=employees.find(person=>person.employee_id===shift.dentist_id)?.grants
         .some(g=>g.role_code==="DENTIST"&&g.clinic_id===shift.clinic_id);
@@ -215,24 +253,12 @@ export function createSampleWorkspace() {
     const confirmed=(rows:Version[])=>rows.filter(row=>row.status==="CONFIRMED").at(-1);
     const periodInfo=(p:Period)=>{const rows=revisions.get(p.period_id)??[]; const current=confirmed(rows);
       return {...p,status:rows.at(-1)?.status??"OPEN",latest_confirmed_revision_no:current?.revision_no};};
-    const appointmentStatus = {
-      booked: "CONFIRMED", arrived: "CHECKED_IN", treating: "IN_TREATMENT",
-      done: "COMPLETED", missed: "NO_SHOW", cancelled: "CANCELLED",
-    } as const;
-
-    function dayRows(q: URLSearchParams) {
-      return previewAppointments.filter(row =>
-        wanted(q.get("clinic_id"), row.clinic) && wanted(q.get("date"), row.date)
-        && (role === "visitor" || capability("FRONT_DESK", row.clinic) || capability("CLINIC_MANAGER", row.clinic)
-          || capability("HQ_SCHEDULER", row.clinic)
-          || (capability("DENTIST", row.clinic) && people.find(p => p.name === row.doctor)?.dentist_id === sampleRoles[role].employee)));
-    }
 
     function bookingOptions(q: URLSearchParams) {
       const clinic = q.get("clinic_id"), doctor = q.get("dentist_id"), date = q.get("date");
       const project = standards.find(row => row.active && row.treatment_type_id === q.get("treatment_type_id"));
       if (!clinic || !date || !project?.default_slot_minutes) return [];
-      if (role !== "visitor") need("FRONT_DESK", clinic);
+      actor.authorize(q.has("appointment_id") ? coordinatorRoles : ["FRONT_DESK"],clinic);
       const duration = project.default_slot_minutes * 60_000;
       const preferred = q.get("preferred_start_at");
       const candidates = [];
@@ -245,10 +271,15 @@ export function createSampleWorkspace() {
         const last = preferred ? first : Date.parse(shift.end_at) - duration;
         for (let start = first; start <= last; start += duration) {
           const start_at = new Date(start).toISOString(), end_at = new Date(start + duration).toISOString();
-          if (start < Date.parse(shift.start_at) || start + duration > Date.parse(shift.end_at)) continue;
-          if (previewAppointments.some(row => row.clinic === clinic && row.doctor === dentist.name && row.date === date
-            && ["booked", "arrived", "treating"].includes(row.status) && overlap(start_at, end_at, at(row.date, row.time),
-              new Date(Date.parse(at(row.date, row.time)) + 30 * 60_000).toISOString()))) continue;
+          if (start < Math.max(Date.parse(shift.start_at),Date.parse(sampleTime)) || start + duration > Date.parse(shift.end_at)) continue;
+          if (previewAppointments.some(row => row.id !== q.get("appointment_id") && row.doctor === dentist.name && row.date === date
+            && ["booked", "arrived", "treating"].includes(row.status) && overlap(start_at, end_at, appointmentStart(row),appointmentEnd(row)))) continue;
+          const usable = resources.filter(chair => chair.clinic_id === clinic && chair.status === "ACTIVE"
+            && chair.chair_kind === project.required_chair_kind
+            && !chair.unavailability.some(block => overlap(start_at,end_at,block.start_at,block.end_at))).length;
+          const booked = previewAppointments.filter(row => row.id !== q.get("appointment_id") && row.clinic === clinic
+            && ["booked","arrived","treating"].includes(row.status) && overlap(start_at,end_at,appointmentStart(row),appointmentEnd(row))).length;
+          if (booked >= usable) continue;
           if ([...holds.values()].some(hold => hold.status === "HOLD" && hold.dentist_id === shift.dentist_id
             && Date.parse(hold.expires_at) > Date.now() && overlap(start_at, end_at, hold.start_at, hold.end_at))) continue;
           candidates.push({clinic_id:clinic, dentist_id:shift.dentist_id, dentist_name:dentist.name,
@@ -265,17 +296,19 @@ export function createSampleWorkspace() {
       const items = previewAppointments.filter(row => row.status === "done" && wanted(q.get("clinic_id"), row.clinic)
         && wanted(q.get("date"), row.date) && (role === "visitor" || capability("FRONT_DESK", row.clinic)))
         .flatMap(row => {
-          const bill = row.invoice ? invoices[row.invoice] : undefined;
-          const phone = "0000000" + row.patientId.padStart(4, "0");
+          const bill = row.invoice ? bills[row.invoice] : undefined;
+          const phone = registry.patient(row.clinic,row.patientId)?.phone ?? "";
+          const visit = clinical.visit(row.id);
           if (term && phone !== term && ![row.patient, row.id, row.invoice ?? ""].some(value => value.toLowerCase().includes(term))) return [];
-          const due = bill ? Math.max(0, bill.received - bill.refunded - bill.due) : 0;
+          const due = bill ? Math.max(0, Math.round((bill.received - bill.refunded - bill.due)*100)/100) : 0;
           const pending = bill?.pendingRefund ?? 0;
           const remaining = Math.max(0, due - pending);
           const state = !bill ? "WAITING_INVOICE" : pending ? "REFUND_PENDING" : due ? "REFUND_DUE"
             : !bill.outstanding ? "SETTLED" : bill.received > bill.refunded ? "PARTIAL_PAYMENT" : "WAITING_PAYMENT";
           if (filter && !(filter === "INVOICED" ? bill : filter === "REFUND_DUE" ? remaining : filter === state)) return [];
-          return [{visit_id:row.id, appointment_no:row.id, clinic_id:row.clinic, clinic_name:clinics[row.clinic],
-            ended_at:at(row.date, row.time), status:"COMPLETED", invoice_id:row.invoice ?? null, invoice_no:row.invoice ?? null,
+          if (!visit || !["COMPLETED","TERMINATED"].includes(visit.status)) return [];
+          return [{visit_id:visit.visit_id, appointment_no:row.id, clinic_id:row.clinic, clinic_name:clinics[row.clinic],
+            ended_at:visit.ended_at ?? appointmentEnd(row), status:visit.status, invoice_id:row.invoice ?? null, invoice_no:row.invoice ?? null,
             patient_display:{name:row.patient, phone_tail:phone.slice(-4)}, billing_state:state,
             outstanding:bill?.outstanding.toFixed(2) ?? null, refund_remaining:remaining.toFixed(2), pending_refund:pending.toFixed(2)}];
         }).sort((left, right) => right.ended_at.localeCompare(left.ended_at) || right.visit_id.localeCompare(left.visit_id));
@@ -290,21 +323,22 @@ export function createSampleWorkspace() {
       const read=method==="GET";
       if(route==="/billing/queue") return sampleBilling(q, options.queueSearch ?? "");
       if(route==="/booking/options") return {items:bookingOptions(q)};
-      const registry = route.match(/^\/clinics\/([^/]+)\/patients$/);
-      if (registry) {
-        const clinic = registry[1];
-        if (role !== "visitor") need("FRONT_DESK", clinic);
-        if (read) {
-          const term = (q.get("q") ?? "").trim();
-          return {items:[...new Map(previewAppointments.filter(row=>row.clinic === clinic).map(row=>[row.patientId,{
-            patient_id:row.patientId, patient_no:"ADC-P" + row.patientId.padStart(4, "0"), full_name:row.patient,
-            birth_date:"1998-06-01", phone:"0000000" + row.patientId.padStart(4, "0"),
-          }])).values()].filter(row => !term || row.full_name.includes(term) || row.patient_no === term || row.phone === term)};
-        }
-        const person = {patient_id:id(), patient_no:"ADC-PREVIEW-" + next, full_name:String(b.full_name),
-          birth_date:String(b.birth_date), phone:String(b.phone)};
-        newPatients.set(person.patient_id, person.full_name);
-        return person;
+      const result = registry.dispatchPatients(route,q,read,b,actor)
+        ?? registry.dispatchAppointment(route,q,read,b,actor,bookingOptions)
+        ?? clinical.dispatch(route,q,method,b,actor);
+      if (result !== undefined) return result;
+      if (route === "/workbench/alerts") {
+        const rows = registry.rows(q,actor);
+        return {schedule:rows.some(row => row.status==="booked"),
+          clinical:capability("DENTIST") && rows.some(row => row.status==="arrived" || row.status==="treating"),
+          billing:capability("FRONT_DESK") && rows.some(row => row.status==="done" && (!row.invoice || bills[row.invoice]?.outstanding)),
+          reconciliation:false, corrections:false};
+      }
+      const assistantRoute = "/reports/operations/assistant";
+      if (route.startsWith(assistantRoute + "/")) {
+        need("HQ_OPERATIONS_QUERY");
+        return assistant(route.slice(assistantRoute.length),method,q,b,
+          query => dispatch("/reports/operations?" + query,"GET",{},{}),options.actionKey);
       }
       if (route === "/holds/by-action") {
         const prior = holdActions.get(options.actionKey ?? "");
@@ -314,6 +348,7 @@ export function createSampleWorkspace() {
       }
       if (route === "/holds" && !read) {
         const clinic = String(b.clinic_id);
+        if (!registry.patient(clinic,String(b.patient_id))) problem(404,"找不到该门店患者。");
         const incoming = new Date(String(b.start_at));
         const date = shanghaiDate(incoming);
         const prefer = new URLSearchParams({clinic_id:clinic, date, dentist_id:String(b.dentist_id),
@@ -322,6 +357,7 @@ export function createSampleWorkspace() {
         if (!selectedSlot) problem(409, "该样例时段已不可用，请重新查询。");
         const hold = {...selectedSlot, patient_id:String(b.patient_id), claim_id:id(), status:"HOLD",
           server_time:new Date().toISOString(), expires_at:new Date(Date.now() + 300_000).toISOString(),
+          specialRequirement:typeof b.special_requirement === "string" ? b.special_requirement : undefined,
           payment:{deposit_id:id(), amount:"50.00", status:"NOT_STARTED"}};
         holds.set(hold.claim_id, hold);
         if (options.actionKey) holdActions.set(options.actionKey, hold);
@@ -342,14 +378,18 @@ export function createSampleWorkspace() {
         if (role !== "visitor") need("FRONT_DESK", hold.clinic_id);
         if (depositRoute[2] && hold.status !== "CONFIRMED") {
           if (hold.status !== "HOLD" || Date.parse(hold.expires_at) <= Date.now()) problem(409, "样例占位已失效。");
-          const source = previewAppointments.find(row => row.patientId === hold.patient_id);
-          const name = source?.patient ?? newPatients.get(hold.patient_id);
+          const name = registry.patient(hold.clinic_id,hold.patient_id)?.full_name;
           if (!name) problem(404, "暂无该样例患者。");
           hold.appointment_id = "ADC-PREVIEW-" + id();
           hold.appointment_no = hold.appointment_id;
           hold.status = "CONFIRMED"; hold.payment.status = "PAID";
-          previewAppointments.push({id:hold.appointment_id, date:shanghaiDate(new Date(hold.start_at)) as Appointment["date"],
+          registry.establishDeposit(hold.appointment_id,hold.claim_id,hold.payment);
+          if (hold.specialRequirement) specialRequirements.set(hold.appointment_id,hold.specialRequirement);
+          deposits.push({appointment_id:hold.appointment_id,deposit_id:hold.payment.deposit_id,claim_id:hold.claim_id,
+            amount:hold.payment.amount,paid_at:sampleTime,clinic_id:hold.clinic_id});
+          previewAppointments.push({id:hold.appointment_id, date:shanghaiDate(new Date(hold.start_at)),
             time:shanghaiTime(new Date(hold.start_at)), clinic:hold.clinic_id as Clinic,
+            minutes:(Date.parse(hold.end_at)-Date.parse(hold.start_at))/60_000,
             doctor:hold.dentist_name, patient:name, patientId:hold.patient_id, status:"booked",
             service:standards.find(project=>project.treatment_type_id === hold.treatment_type_id)?.treatment_name ?? "口腔检查"});
         }
@@ -361,13 +401,10 @@ export function createSampleWorkspace() {
         const dayspan = (start:string,end:string) => end > (q.get("date_from") ?? "") && start <= (q.get("date_to") ?? "9999");
         return {shifts:shifts.filter(row=>scheduleVisible(row)&&wanted(selected,row.clinic_id)
           && wanted(q.get("dentist_id"),row.dentist_id) && dayspan(dateOf(row.start_at), addDays(dateOf(row.end_at),1))),
-          appointments:dayRows(q).filter(row=>dayspan(row.date,addDays(row.date,1))).flatMap(row=>{
-            const doctor=people.find(item=>item.name===row.doctor);
-            if (!doctor || !wanted(q.get("dentist_id"),doctor.dentist_id)) return [];
-            const start_at=at(row.date,row.time);
-            return [{appointment_id:row.id,appointment_no:row.id,clinic_id:row.clinic,dentist_id:doctor.dentist_id,
-              start_at,end_at:new Date(Date.parse(start_at)+30*60_000).toISOString(),
-              status:appointmentStatus[row.status],patient_display:row.patient}];
+          appointments:registry.rows(q,actor).filter(row=>dayspan(row.date,addDays(row.date,1))).map(row=>{
+            const view = registry.projection(row,actor);
+            return {appointment_id:row.id,appointment_no:row.id,clinic_id:row.clinic,dentist_id:doctorId(row),
+              start_at:view.start_at,end_at:view.end_at,status:view.status,patient_display:view.patient_display?.name};
           })};
       }
       if(route==="/shift-demands"){
@@ -550,23 +587,51 @@ export function createSampleWorkspace() {
         return result;
       }
       if(route==="/reports/operations"){
-        const date_from=q.get("date_from")??"",date_to=q.get("date_to")??"",clinic_id=q.get("clinic_ids");
-        const selectedFacts=dailyFacts.filter(day=>wanted(clinic_id,day.clinic)&&"2026-"+day.day>=date_from&&"2026-"+day.day<=date_to);
-        const fact=sumFacts(selectedFacts);
-        const selectedClinics=branches.filter(branch=>wanted(clinic_id,branch.clinic_id)).map(branch=>branch.clinic_id);
-        const counts=(values:ReturnType<typeof sumFacts>)=>({attended:values.arrived,unprocessed:values.unresolved,
-          no_show:values.total-values.arrived-values.unresolved,patient_cancelled:0,clinic_cancelled:0});
+        need("HQ_OPERATIONS_QUERY");
+        const date_from=q.get("date_from")??"",date_to=q.get("date_to")??"";
+        const clinicFilter=q.get("clinic_ids")?.split(",") ?? [];
+        const dentist_ids=q.get("dentist_ids")?.split(",").filter(Boolean) ?? [];
+        const selectedClinics=branches.filter(branch=>(!clinicFilter.length || clinicFilter.includes(branch.clinic_id))
+          && capability("HQ_OPERATIONS_QUERY",branch.clinic_id)).map(branch=>branch.clinic_id);
+        const inWindow = (date:string, clinic:string) => selectedClinics.includes(clinic)
+          && date >= date_from && date <= date_to;
+        const historical: ReportItem[] = dentist_ids.length ? [] : dailyFacts.flatMap(day=>{
+          const date = "2026-"+day.day;
+          if (date >= sampleDate || !inWindow(date,day.clinic)) return [];
+          return Array.from({length:day.total},(_,i)=>({appointment_no:"ADC-RPT-"+day.clinic+"-"+day.day+"-"+(i+1),
+            clinic_id:day.clinic,service_date:date,
+            status:i<day.arrived?"COMPLETED":i<day.arrived+day.unresolved?"CONFIRMED":"NO_SHOW",
+            ...(i===0 && day.net ? {received:day.net,accrued:day.net} : {})}));
+        });
+        const current: ReportItem[] = previewAppointments.filter(row=>inWindow(row.date,row.clinic)
+          && (!dentist_ids.length || dentist_ids.includes(doctorId(row)))).map(row=>{
+          const bill = row.invoice ? bills[row.invoice] : undefined;
+          return {appointment_no:row.id,clinic_id:row.clinic,dentist_id:doctorId(row),service_date:row.date,
+            status:appointmentStates[row.status],visit_id:clinical.visitIdForAppointment(row.id),
+            ...(bill ? {invoice_no:row.invoice,accrued:bill.due,received:bill.received,refunded:bill.refunded,outstanding:bill.outstanding} : {})};
+        });
+        const items = [...historical,...current];
+        const count = (rows:ReportItem[], states:string[]) => rows.filter(item=>states.includes(item.status)).length;
+        const counts = (rows:ReportItem[]) => ({attended:count(rows,["COMPLETED","IN_TREATMENT"]),
+          unprocessed:count(rows,["CONFIRMED","CHECKED_IN"]), no_show:count(rows,["NO_SHOW"]),
+          patient_cancelled:count(rows,["CANCELLED"]),clinic_cancelled:0});
+        const sum = (key:"accrued"|"received"|"refunded"|"outstanding") =>
+          items.reduce((total,row)=>total+(row[key] ?? 0),0);
+        const fact=counts(items), completed=count(items,["COMPLETED"]);
         const rate=(numerator:number,denominator:number)=>({numerator,denominator,
           value:denominator?(numerator/denominator).toFixed(5):null,availability:denominator?"AVAILABLE":"NOT_APPLICABLE"});
         const report_token=id();
-        reports.set(report_token,{from:date_from,to:date_to,clinics:selectedClinics});
+        const asOf = at(date_to,"20:00");
+        reports.set(report_token,{items,asOf});
         if(reports.size>100) reports.delete(reports.keys().next().value!);
-        return {date_from,date_to,as_of:at("2026-11-30","20:00"),report_token,scope:{clinic_ids:selectedClinics,dentist_ids:[]},
-          appointments:{...counts(fact),denominator:fact.total,attendance_rate:rate(fact.arrived,fact.total),cancellation_rate:rate(0,fact.total),
-            by_clinic:selectedClinics.map(id=>({clinic_id:id,...counts(sumFacts(selectedFacts.filter(row=>row.clinic===id)))}))},
-          clinical:{actual_starts:fact.arrived,normal_completions:fact.arrived,actual_treatments:fact.arrived},
-          financial:{net_received:fact.net.toFixed(2),accrued:fact.net.toFixed(2),received:fact.net.toFixed(2),refunded:"0.00",outstanding:"0.00"},
-          standard_coverage:rate(fact.arrived,fact.arrived),skills:qualifications.map((q,i)=>({code:q.qualification_id,name:q.name,dentists:i===0?4:2})),
+        return {date_from,date_to,as_of:asOf,report_token,scope:{clinic_ids:selectedClinics,dentist_ids},
+          appointments:{...fact,denominator:items.length,attendance_rate:rate(fact.attended,items.length),
+            cancellation_rate:rate(fact.patient_cancelled,items.length),
+            by_clinic:selectedClinics.map(clinic_id=>({clinic_id,...counts(items.filter(row=>row.clinic_id===clinic_id))}))},
+          clinical:{actual_starts:fact.attended,normal_completions:completed,actual_treatments:completed},
+          financial:{net_received:(sum("received")-sum("refunded")).toFixed(2),accrued:sum("accrued").toFixed(2),
+            received:sum("received").toFixed(2),refunded:sum("refunded").toFixed(2),outstanding:sum("outstanding").toFixed(2)},
+          standard_coverage:rate(completed,completed),skills:qualifications.map((q,i)=>({code:q.qualification_id,name:q.name,dentists:i===0?4:2})),
           performance:periods.flatMap(p=>{
             const row=confirmed(revisions.get(p.period_id)??[]);
             return row ? [{...p,revision_no:row.revision_no,company:row.company}] : [];
@@ -576,29 +641,37 @@ export function createSampleWorkspace() {
         };
       }
       if(route==="/reports/operations/details"){
-        const token=q.get("report_token")??"";
-        const report=reports.get(token);
+        need("HQ_OPERATIONS_QUERY");
+        const report=reports.get(q.get("report_token")??"");
         if(!report) problem(404,"请重新查询经营报表。");
-        const metric=q.get("metric");
-        const factRows=dailyFacts.filter(day=>report.clinics.includes(day.clinic)&&wanted(q.get("clinic_id"),day.clinic)
-          &&"2026-"+day.day>=report.from&&"2026-"+day.day<=report.to);
-        const items=factRows.flatMap(day=>{
-          const cardinality=metric==="unprocessed"?day.unresolved:metric==="no_show"?day.total-day.arrived-day.unresolved:
-            ["patient_cancelled","clinic_cancelled","refunded","outstanding"].includes(metric??"")?0:
-            ["received","net_received","accrued"].includes(metric??"")?Number(day.net!==0):day.arrived;
-          return Array.from({length:cardinality},(_,i)=>({appointment_no:"ADC-RPT-"+day.clinic+"-"+day.day+"-"+(i+1),
-            clinic_id:day.clinic,service_date:"2026-"+day.day,
-            status:metric==="unprocessed"?"CONFIRMED":metric==="no_show"?"NO_SHOW":"COMPLETED",
-            ...(day.net&&["received","net_received","accrued"].includes(metric??"")?{amount:day.net,kind:"PAYMENT"}:{})}));
-        });
-        return {items,total:items.length,as_of:at("2026-11-30","20:00"),next_cursor:null};
+        const metric=q.get("metric")??"";
+        const state:Record<string,string[]> = {unprocessed:["CONFIRMED","CHECKED_IN"], no_show:["NO_SHOW"],
+          patient_cancelled:["CANCELLED"], clinic_cancelled:[], attended:["COMPLETED","IN_TREATMENT"],
+          actual_starts:["COMPLETED","IN_TREATMENT"], normal_completions:["COMPLETED"], actual_treatments:["COMPLETED"],
+          coverage:["COMPLETED"]};
+        const items=report.items.filter(row=>wanted(q.get("clinic_id"),row.clinic_id) && capability("HQ_OPERATIONS_QUERY",row.clinic_id))
+          .flatMap(row=>{
+            const {received,refunded,accrued,outstanding,...base}=row;
+            const amounts:Record<string,number | undefined>={received,refunded,accrued,outstanding,
+              net_received:(received??0)-(refunded??0)};
+            if (Object.hasOwn(amounts,metric)) return amounts[metric] ? [{...base,amount:amounts[metric]!.toFixed(2)}] : [];
+            return !state[metric] || state[metric].includes(row.status) ? [base] : [];
+          });
+        const cursor=Number(q.get("cursor")??"0");
+        return {items:items.slice(cursor,cursor+20),total:items.length,as_of:report.asOf,
+          next_cursor:cursor+20<items.length?String(cursor+20):null};
       }
       problem(404,"此样例没有相应记录。");
     }
     return async function request<T>(path:string, details:{method?:"GET"|"POST"|"PATCH";body?:unknown;actionKey?:string;signal?:AbortSignal;queueSearch?:string}={}):Promise<T>{
       details.signal?.throwIfAborted();
+      const [route,search] = path.split("?");
+      const body = (details.body ?? {}) as Body;
+      const finance = billing.dispatch(route,new URLSearchParams(search),details.method ?? "GET",body,details.actionKey,identity(role));
+      if (finance !== undefined) return structuredClone(finance) as T;
       const signature=JSON.stringify([path,details.method,details.body]);
-      if(path.startsWith("/holds/by-action?")) return structuredClone(dispatch(path,"GET",{},details)) as T;
+      if(path.startsWith("/holds/by-action?") || route.endsWith("/analysis/by-action"))
+        return structuredClone(dispatch(path,"GET",{},details)) as T;
       const prior=details.actionKey ? processed.get(details.actionKey):undefined;
       if(prior&&prior.signature!==signature) problem(409,"该操作结果已登记，请查询原操作。");
       if(prior) return structuredClone(prior.result) as T;

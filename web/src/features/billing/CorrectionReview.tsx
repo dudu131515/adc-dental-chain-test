@@ -1,6 +1,6 @@
 import { FormEvent, useState } from "react";
 import { ActionFeedback } from "../../shared/ActionFeedback";
-import { request } from "../../shared/api";
+import { useApiRequest } from "../../shared/ApiTransport";
 import { dateTime, money } from "../../shared/format";
 import { useAction } from "../../shared/useAction";
 import { useRead } from "../../shared/useRead";
@@ -43,6 +43,7 @@ export function CorrectionRequest({ invoice, onChange }: { invoice: Invoice; onC
 function CorrectionItem({ row, open, onChange }: {
   row: Correction; open: (path: string) => void; onChange: () => void;
 }) {
+  const request = useApiRequest();
   const [decision, setDecision] = useState("APPROVED");
   const [reason, setReason] = useState("");
   const [amount, setAmount] = useState("");

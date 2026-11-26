@@ -1,7 +1,8 @@
 import { MouseEvent, ReactNode, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { LoginPage } from "../features/login/LoginPage";
-import { advanceSession, ApiError, request } from "./api";
-import { localDay } from "./format";
+import { advanceSession, ApiError } from "./api";
+import { useApiRequest } from "./ApiTransport";
+import { useWorkspaceRuntime } from "./WorkspaceRuntime";
 import { useRead } from "./useRead";
 import { Brand, Icon } from "./Icons";
 import { allowedSections, canSeeDailyReconciliation, dailyRoles, groupedNavigation, hasAccessAdministration, hasRole, inferredJob, roleNames, workspaceTabs } from "./navigation";
@@ -26,8 +27,6 @@ function rememberedClinic(identity: StaffIdentity) {
     return "";
   }
 }
-function currentUrl() { return window.location.pathname + window.location.search; }
-
 function staffScope(identity: StaffIdentity) {
   const capabilities = [...identity.capabilities].sort();
   return JSON.stringify([
@@ -40,9 +39,15 @@ function staffScope(identity: StaffIdentity) {
   ]);
 }
 
-export function AppShell({ renderWorkArea }: { renderWorkArea?: (area: WorkArea) => ReactNode }) {
+export type SampleSession = { controls: ReactNode; signIn: ReactNode };
+
+export function AppShell({ renderWorkArea, sample }: {
+  renderWorkArea?: (area: WorkArea) => ReactNode; sample?: SampleSession;
+}) {
+  const request = useApiRequest();
+  const { router, workday } = useWorkspaceRuntime();
   const [identity, setIdentity] = useState<StaffIdentity | null>();
-  const [location, setLocation] = useState(currentUrl);
+  const [location, setLocation] = useState(() => router.read().url);
   const [clinicId, setClinicId] = useState("");
   const [fault, setFault] = useState("");
   const [attempt, setAttempt] = useState(0);
@@ -55,12 +60,12 @@ export function AppShell({ renderWorkArea }: { renderWorkArea?: (area: WorkArea)
   const workspaceGeneration = useRef(0);
   const menuToggle = useRef<HTMLButtonElement>(null);
   function open(path: string, replace = false) {
-    filterHistory.current[filterKey(window.location.pathname)] = window.location.search;
+    const current = router.read();
+    filterHistory.current[filterKey(current.path)] = current.search;
     const previousQuery = filterHistory.current[filterKey(path)];
     if (!path.includes("?") && previousQuery) path += previousQuery;
-    if (replace) window.history.replaceState({}, "", path);
-    else if (currentUrl() !== path) window.history.pushState({}, "", path);
-    setLocation(currentUrl());
+    if (replace || current.url !== path) router.write(path, replace);
+    setLocation(router.read().url);
     setMenu(false);
   }
   function invalidateWorkspace() {
@@ -94,9 +99,9 @@ export function AppShell({ renderWorkArea }: { renderWorkArea?: (area: WorkArea)
     session.current = next;
     const initialClinic = rememberedClinic(next);
     if ((previous && previous.account_id !== next.account_id) ||
-        !allowedSections(next, initialClinic).some(area => isUnder(window.location.pathname, area.path))) {
-      window.history.replaceState({}, "", "/dashboard");
-      setLocation(currentUrl());
+        !allowedSections(next, initialClinic).some(area => isUnder(router.read().path, area.path))) {
+      router.write("/dashboard", true);
+      setLocation(router.read().url);
     }
     setIdentity(next);
     setClinicId(initialClinic);
@@ -125,20 +130,20 @@ export function AppShell({ renderWorkArea }: { renderWorkArea?: (area: WorkArea)
     const recheck = () => {
       if (session.current) checkIdentity();
     };
-    const sync = () => { setLocation(currentUrl()); setMenu(false); };
+    const sync = () => { setLocation(router.read().url); setMenu(false); };
     checkIdentity();
-    window.addEventListener("popstate", sync);
+    const stopSync = router.subscribe(sync);
     window.addEventListener("focus", recheck);
     window.addEventListener("adc:permission-denied", recheck);
     window.addEventListener("adc:session-expired", endSession);
     return () => {
       authRead.current?.abort();
-      window.removeEventListener("popstate", sync);
+      stopSync();
       window.removeEventListener("focus", recheck);
       window.removeEventListener("adc:permission-denied", recheck);
       window.removeEventListener("adc:session-expired", endSession);
     };
-  }, [attempt]);
+  }, [attempt, request, router]);
   useEffect(() => {
     if (!menu) return;
     function close(event: KeyboardEvent) {
@@ -154,8 +159,8 @@ export function AppShell({ renderWorkArea }: { renderWorkArea?: (area: WorkArea)
     try {
       await request("/auth/logout", {method: "POST"});
       window.dispatchEvent(new Event("adc:session-expired"));
-      window.history.replaceState({}, "", "/");
-      setLocation(currentUrl());
+      router.write("/", true);
+      setLocation(router.read().url);
     } catch (error) {
       if (error instanceof ApiError && error.status === 401) setIdentity(null);
       else setFault("退出结果待核对，请重试。");
@@ -167,7 +172,7 @@ export function AppShell({ renderWorkArea }: { renderWorkArea?: (area: WorkArea)
   }
   const scopeGeneration = workspaceGeneration.current;
   const scope = identity ? staffScope(identity) + ":" + clinicId : "";
-  const alertQuery = new URLSearchParams({date:localDay()});
+  const alertQuery = new URLSearchParams({date:workday});
   if (clinicId) alertQuery.set("clinic_id", clinicId);
   const pendingWork = useRead<Record<string,boolean>>(identity && hasRole(identity,dailyRoles,clinicId)
     ? "/workbench/alerts?" + alertQuery : undefined, 0, { scope });
@@ -196,7 +201,7 @@ export function AppShell({ renderWorkArea }: { renderWorkArea?: (area: WorkArea)
     document.title = (identity ? chosen?.label || "员工工作空间" : "员工登录") + " · ADC 安德鲁牙科";
   }, [identity, chosen?.label]);
 
-  if (identity === null) return <LoginPage onLogin={accept} />;
+  if (identity === null) return sample ? <LoginPage sample={sample.signIn} onLogin={accept} /> : <LoginPage onLogin={accept} />;
   if (!identity) return <main className="session-check"><Brand /><p role="status">{fault || "正在核对登录状态…"}</p>
     {fault && <button className="button primary" onClick={() => setAttempt(attempt + 1)}>重试</button>}</main>;
 
@@ -212,22 +217,25 @@ export function AppShell({ renderWorkArea }: { renderWorkArea?: (area: WorkArea)
     filterHistory.current = {};
     const root = chosen && allowedSections(identity!, next).includes(chosen) ? chosen.path : "/dashboard";
     const destination = root === "/schedule" && path === "/schedule/today" ? path : root;
-    const keptDate = new URLSearchParams(window.location.search).get("date");
+    const keptDate = new URLSearchParams(router.read().search).get("date");
     const target = keptDate && (root === "/dashboard" || root === "/schedule")
       ? destination + "?" + new URLSearchParams({date: keptDate}) : destination;
     // Detail pages and their local filters belong to the previous scope.
-    window.history.replaceState({}, "", target);
-    setLocation(currentUrl());
+    router.write(target, true);
+    setLocation(router.read().url);
   }
   return <div className="app-layout">
-    <a className="skip-link" href="#workspace">跳至工作区</a>
+    <a className="skip-link" href="#workspace" onClick={event => {
+      event.preventDefault();
+      document.getElementById("workspace")?.focus();
+    }}>跳至工作区</a>
     <aside className={"side-rail" + (menu ? " rail-open" : "")}>
-      <a href="/dashboard" className="brand-link" aria-label="ADC 安德鲁牙科工作台" onClick={e => navigate(e, "/dashboard")}><Brand /></a>
+      <a href={router.href("/dashboard")} className="brand-link" aria-label="ADC 安德鲁牙科工作台" onClick={e => navigate(e, "/dashboard")}><Brand /></a>
       <div className="rail-caption">员工工作空间</div>
       <nav id="staff-navigation" className="side-nav" aria-label="业务导航">
         {groups.map(group => {
           const current = activeGroup === group;
-          if (group.id === "home") return <a key={group.id} className="rail-nav-item" href="/dashboard"
+          if (group.id === "home") return <a key={group.id} className="rail-nav-item" href={router.href("/dashboard")}
             onClick={event => navigate(event, "/dashboard")} aria-current={current ? "page" : undefined}>
             <Icon name={group.icon}/><span>首页</span>{current && <span className="active-light" aria-hidden="true"/>}</a>;
           const expanded = disclosures[group.id] ?? current;
@@ -240,7 +248,7 @@ export function AppShell({ renderWorkArea }: { renderWorkArea?: (area: WorkArea)
               <Icon name="chevron" size={14}/>
             </button>
             <ul id={listId} className="rail-subnav" hidden={!expanded}>
-              {workspaceTabs(group, identity, clinicId).map(tab => <li key={tab.path}><a href={tab.path}
+              {workspaceTabs(group, identity, clinicId).map(tab => <li key={tab.path}><a href={router.href(tab.path)}
                 onClick={event => navigate(event, tab.path)} aria-current={current && activeTab?.path === tab.path ? "page" : undefined}>
                 {tab.label}</a></li>)}
             </ul>
@@ -275,6 +283,7 @@ export function AppShell({ renderWorkArea }: { renderWorkArea?: (area: WorkArea)
         aria-expanded={menu} aria-controls="staff-navigation" onClick={() => setMenu(!menu)}><Icon name={menu ? "close" : "menu"}/></button>
         <span className="breadcrumb-origin">管理中心</span><span className="breadcrumb-divider">/</span><strong>{activeTab?.label || chosen?.label || "员工工作空间"}</strong></div>
       <div className="topbar-controls">
+        {sample?.controls}
         {identity.clinics.length > 0 && <div className="scope-control"><Icon name="clinic" size={16}/>
           {identity.clinics.length > 1 ? <select aria-label="工作门店" disabled={loggingOut} value={clinicId} onChange={e => changeClinic(e.target.value)}>
             <option value="">全部授权门店</option>
@@ -287,7 +296,7 @@ export function AppShell({ renderWorkArea }: { renderWorkArea?: (area: WorkArea)
       {fault && <p className="error-text" role="alert">{fault}</p>}
       {chosen ? <div key={scope} className="workspace-body">
         {tabs.length > 1 && activeGroup?.id !== "desk" && <nav className="workspace-primary-tabs" aria-label={activeGroup?.label}>
-          {tabs.map(tab => <a key={tab.path} href={tab.path} aria-current={tab === activeTab ? "page" : undefined}
+          {tabs.map(tab => <a key={tab.path} href={router.href(tab.path)} aria-current={tab === activeTab ? "page" : undefined}
             onClick={event => navigate(event, tab.path)}>{tab.label}</a>)}
         </nav>}
         {renderWorkArea ? renderWorkArea({section: chosen.path, path, identity, clinicId, open: target => {

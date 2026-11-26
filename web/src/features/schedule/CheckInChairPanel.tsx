@@ -1,11 +1,12 @@
 import { useState } from "react";
 import { ActionFeedback } from "../../shared/ActionFeedback";
-import { request } from "../../shared/api";
+import { useApiRequest } from "../../shared/ApiTransport";
 import { useAction } from "../../shared/useAction";
 import { useRead } from "../../shared/useRead";
 import { Appointment, Chair } from "./appointmentTypes";
 
 export function CheckInChairPanel({ row, onUpdate }: { row: Appointment; onUpdate: () => void }) {
+  const request = useApiRequest();
   const [confirmed, setConfirmed] = useState(false);
   const [chair, setChair] = useState("");
   const [opened, setOpened] = useState(false);
