@@ -1,25 +1,23 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useApiRequest } from "./ApiTransport";
 import { errorMessage } from "./format";
 
-export function useRead<T>(path?: string, change = 0) {
+export function useRead<T>(path?: string, change = 0, scope = "") {
   const request = useApiRequest();
-  const [response, setResponse] = useState<{ path: string; value: T }>();
-  const [loading, setLoading] = useState(Boolean(path));
-  const [fault, setFault] = useState("");
+  const query = useMemo(() => ({ path, change, scope, request }), [path, change, scope, request]);
+  const [response, setResponse] = useState<{ query: typeof query; data?: T; fault: string }>();
+
   useEffect(() => {
+    if (!query.path) return;
     const controller = new AbortController();
-    setFault("");
-    setLoading(Boolean(path));
-    if (!path) return;
-    request<T>(path, { signal: controller.signal }).then(result => {
-      if (!controller.signal.aborted) setResponse({ path, value: result });
+    query.request<T>(query.path, { signal: controller.signal }).then(data => {
+      if (!controller.signal.aborted) setResponse({ query, data, fault: "" });
     }).catch(error => {
-      if (!controller.signal.aborted) setFault(errorMessage(error));
-    }).finally(() => {
-      if (!controller.signal.aborted) setLoading(false);
+      if (!controller.signal.aborted) setResponse({ query, fault: errorMessage(error) });
     });
     return () => controller.abort();
-  }, [path, change, request]);
-  return { data: response?.path === path ? response?.value : undefined, loading, fault };
+  }, [query]);
+
+  const current = path && response?.query === query ? response : undefined;
+  return { data: current?.data, loading: Boolean(path && !current), fault: current?.fault ?? "" };
 }

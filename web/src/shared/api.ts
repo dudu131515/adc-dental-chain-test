@@ -21,7 +21,13 @@ type RequestDetails = {
   signal?: AbortSignal;
 };
 
-async function send<T>(path: string, details: RequestDetails, csrf?: string): Promise<T> {
+let sessionGeneration = 0;
+
+export function advanceSession() {
+  sessionGeneration += 1;
+}
+
+async function send<T>(path: string, details: RequestDetails, generation: number, csrf?: string): Promise<T> {
   const { method = "GET", body, actionKey, signal } = details;
   const headers = new Headers({ Accept: "application/json" });
   if (body !== undefined) headers.set("Content-Type", "application/json");
@@ -45,8 +51,11 @@ async function send<T>(path: string, details: RequestDetails, csrf?: string): Pr
   const payload = await response.json().catch(() => null);
   const hasData = payload && typeof payload === "object" && "data" in payload;
   if (!response.ok || !hasData) {
-    if (response.status === 401 && path !== "/auth/web/login" && path !== "/auth/me") {
-      window.dispatchEvent(new Event("adc:session-expired"));
+    if (!signal?.aborted && generation === sessionGeneration && !path.startsWith("/auth/")) {
+      if (response.status === 401) window.dispatchEvent(new Event("adc:session-expired"));
+      if (response.status === 403 && payload?.error?.code === "PERMISSION_DENIED") {
+        window.dispatchEvent(new Event("adc:permission-denied"));
+      }
     }
     if (method !== "GET" && (response.status >= 500 || response.ok)) {
       throw new ApiError(response.status, { code: "RESULT_UNKNOWN", message: "办理结果待核对，请先查询原操作。" }, actionKey);
@@ -62,9 +71,13 @@ export async function request<T>(path: string, details: RequestDetails = {}): Pr
   if (import.meta.env.VITE_ADC_STATIC_PREVIEW === "1") {
     throw new ApiError(0, {code:"PREVIEW_TRANSPORT_REQUIRED",message:"此页面需要合成演示适配器。"});
   }
-  if (!details.method || details.method === "GET") return send<T>(path, details);
-  const { csrf_token } = await send<{ csrf_token: string }>("/auth/web/csrf", {});
-  return send<T>(path, details, csrf_token);
+  const generation = sessionGeneration;
+  if (!details.method || details.method === "GET") return send<T>(path, details, generation);
+  const { csrf_token } = await send<{ csrf_token: string }>("/auth/web/csrf", { signal: details.signal }, generation);
+  if (generation !== sessionGeneration) {
+    throw new ApiError(401, { code: "SESSION_CHANGED", message: "登录状态已变更，请重新核对后办理。" });
+  }
+  return send<T>(path, details, generation, csrf_token);
 }
 
 export async function checkThenRetry<T>(lookup: () => Promise<T>, retry: () => Promise<T>): Promise<T> {

@@ -142,16 +142,23 @@ def context(request, pk):
     if appointment.status not in {"CONFIRMED", "CHECKED_IN", "IN_TREATMENT"}:
         raise ApiProblem(409, "INVALID_TRANSITION", "当前预约不在接诊准备或诊疗期间。")
     claim = appointment.claim
-    history = Visit.objects.filter(
-        appointment__claim__patient_id=claim.patient_id, status__in=("COMPLETED", "TERMINATED"),
-    ).order_by("-ended_at", "-pk")
+    history = list(Visit.objects.filter(
+        appointment__claim__patient_id=claim.patient_id, appointment__claim__clinic_id=claim.clinic_id,
+        status__in=("COMPLETED", "TERMINATED"),
+    ).only("visit_id", "status", "ended_at").order_by("-ended_at", "-pk"))
+    items = list(TreatmentItem.objects.filter(visit__in=history).select_related("treatment_type").order_by("item_id"))
+    snapshots = name_snapshots(items)
+    treatments = {}
+    for item in items:
+        name = snapshots.get(item.pk) or item.treatment_type.treatment_name
+        treatments.setdefault(item.visit_id, []).append(name)
     return success({
         "appointment": appointment_projection(request.user, appointment),
         "chair": chair_projection(appointment), "special_requirement": appointment.special_requirement,
-        **allergy_context(claim.patient_id),
+        **allergy_context(claim.patient_id, claim.clinic_id),
         "history": [
             {"visit_id": str(row.pk), "status": row.status, "ended_at": row.ended_at.isoformat(),
-             "clinical_notes": row.clinical_notes}
+             "treatments": list(dict.fromkeys(treatments.get(row.pk, [])))}
             for row in history
         ],
     })

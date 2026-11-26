@@ -11,7 +11,7 @@ export function PatientContext({ context, onReload }: { context: ClinicalContext
     <h3>历史就诊</h3>
     {context.history.length ? <ul className="compact-list">{context.history.map(entry => <li key={entry.visit_id}>
       就诊 {entry.visit_id} · {dateTime(entry.ended_at)} · {visitStates[entry.status] ?? entry.status}
-      {entry.clinical_notes && <span>{entry.clinical_notes}</span>}
+      {!!entry.treatments?.length && <span>{entry.treatments.join("、")}</span>}
     </li>)}</ul> : <p>没有可回查的历史就诊。</p>}
   </section>;
 }

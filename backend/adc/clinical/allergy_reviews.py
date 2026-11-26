@@ -62,16 +62,20 @@ def current_status(rows, last_event):
 
 
 @transaction.atomic
-def allergy_context(patient_id):
+def allergy_context(patient_id, clinic_id):
     lock_patient(patient_id)
     rows = list(PatientAllergy.objects.filter(patient_id=patient_id).order_by("allergen_name"))
     history = list(reviews(patient_id))
     latest = history[0] if history else None
+    appointment_ids = {event.after_value["appointment_id"] for event in history}
+    local_ids = {str(pk) for pk in Appointment.objects.filter(
+        pk__in=appointment_ids, claim__clinic_id=clinic_id,
+    ).values_list("pk", flat=True)}
     return {
         "allergies": [{"allergen": row.allergen_name, "notes": row.notes} for row in rows],
         "allergy_review": {
             "status": current_status(rows, latest), "version": str(latest.pk if latest else 0),
-            "history": [review_summary(event) for event in history],
+            "history": [review_summary(event) for event in history if event.after_value["appointment_id"] in local_ids],
         },
     }
 

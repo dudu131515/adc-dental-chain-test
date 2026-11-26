@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, expect, test, vi } from "vitest";
 
 import { AppShell } from "../src/shared/AppShell";
@@ -90,4 +90,43 @@ test("a multi-clinic employee retains their selected scope when the app reloads"
   render(<AppShell renderWorkArea={renderArea}/>);
   expect(await screen.findByText("范围 2")).toBeTruthy();
   expect(window.location.search).toBe("?date=2026-11-24");
+});
+
+test("focus revalidates staff authorization and clears a revoked work area", async () => {
+  const original = {
+    account_id: "2", employee_id: "2", category: "staff", capabilities: ["DENTIST"],
+    clinics: [{ clinic_id: "1", name: "合成门店" }], role_clinic_ids: { DENTIST: ["1"] },
+  };
+  let session = original;
+  window.history.replaceState({}, "", "/clinical/visits/7");
+  vi.stubGlobal("fetch", async (url: string) => new Response(JSON.stringify({
+    data: url === "/api/v1/auth/me" ? session : {},
+  })));
+  render(<AppShell renderWorkArea={area => <p>{area.section === "/clinical" ? "合成诊疗详情" : "员工首页"}</p>} />);
+  expect(await screen.findByText("合成诊疗详情")).toBeTruthy();
+  session = { ...original, capabilities: [], role_clinic_ids: { DENTIST: [] } };
+  fireEvent.focus(window);
+  expect(await screen.findByText("员工首页")).toBeTruthy();
+  expect(screen.queryByText("合成诊疗详情")).toBeNull();
+});
+
+test("an older unauthorized response cannot end the workspace after a clinic switch", async () => {
+  const session = {
+    account_id: "2", employee_id: "2", category: "staff", capabilities: ["FRONT_DESK"],
+    clinics: [{ clinic_id: "1", name: "中心门诊" }, { clinic_id: "2", name: "滨江门诊" }],
+    role_clinic_ids: { FRONT_DESK: ["1", "2"] },
+  };
+  let reply: (value: Response) => void = () => {};
+  vi.stubGlobal("fetch", (url: string) => {
+    if (url === "/api/v1/auth/me") return Promise.resolve(new Response(JSON.stringify({ data: session })));
+    if (url.includes("clinic_id=1")) return new Promise<Response>(resolve => { reply = resolve; });
+    return Promise.resolve(new Response(JSON.stringify({ data: {} })));
+  });
+  render(<AppShell renderWorkArea={area => <p>当前门店 {area.clinicId}</p>} />);
+  const selector = await screen.findByRole("combobox", { name: "工作门店" });
+  fireEvent.change(selector, { target: { value: "1" } });
+  expect(screen.getByText("当前门店 1")).toBeTruthy();
+  fireEvent.change(selector, { target: { value: "2" } });
+  await act(async () => reply(new Response(null, { status: 401 })));
+  expect(screen.getByText("当前门店 2")).toBeTruthy();
 });

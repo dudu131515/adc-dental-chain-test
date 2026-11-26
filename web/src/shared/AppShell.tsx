@@ -1,6 +1,6 @@
 import { MouseEvent, ReactNode, useEffect, useRef, useState } from "react";
 import { LoginPage } from "../features/login/LoginPage";
-import { ApiError, request } from "./api";
+import { advanceSession, ApiError, request } from "./api";
 import { localDay } from "./format";
 import { useRead } from "./useRead";
 import { Brand, Icon } from "./Icons";
@@ -28,6 +28,18 @@ function rememberedClinic(identity: StaffIdentity) {
 }
 function currentUrl() { return window.location.pathname + window.location.search; }
 
+function staffScope(identity: StaffIdentity) {
+  const capabilities = [...identity.capabilities].sort();
+  return JSON.stringify([
+    identity.account_id, identity.employee_id, capabilities,
+    capabilities.map(role => {
+      const scope = identity.role_clinic_ids?.[role];
+      return scope === null ? null : [...(scope ?? [])].sort();
+    }),
+    identity.clinics.map(({ clinic_id, name }) => [clinic_id, name]).sort(),
+  ]);
+}
+
 export function AppShell({ renderWorkArea }: { renderWorkArea?: (area: WorkArea) => ReactNode }) {
   const [identity, setIdentity] = useState<StaffIdentity | null>();
   const [location, setLocation] = useState(currentUrl);
@@ -38,6 +50,8 @@ export function AppShell({ renderWorkArea }: { renderWorkArea?: (area: WorkArea)
   const [menu, setMenu] = useState(false);
   const [disclosures, setDisclosures] = useState<Record<string, boolean>>({});
   const filterHistory = useRef<Record<string, string>>({});
+  const authRead = useRef<AbortController>(null);
+  const session = useRef<StaffIdentity>(undefined);
   const menuToggle = useRef<HTMLButtonElement>(null);
   function open(path: string, replace = false) {
     filterHistory.current[filterKey(window.location.pathname)] = window.location.search;
@@ -48,36 +62,77 @@ export function AppShell({ renderWorkArea }: { renderWorkArea?: (area: WorkArea)
     setLocation(currentUrl());
     setMenu(false);
   }
-  function accept(session: StaffIdentity) {
-    if (session.category !== "staff") { setIdentity(null); return; }
-    const initialClinic = rememberedClinic(session);
-    setIdentity(session);
-    setClinicId(initialClinic);
-    if (!allowedSections(session, initialClinic).some(area => isUnder(window.location.pathname, area.path))) {
-      open("/dashboard", true);
-    }
+  function clearWorkspace() {
+    setMenu(false);
+    setDisclosures({});
+    filterHistory.current = {};
   }
-  useEffect(() => {
-    const controller = new AbortController();
+
+  function endSession() {
+    authRead.current?.abort();
+    advanceSession();
+    session.current = undefined;
+    setIdentity(null);
+    setClinicId("");
     setFault("");
-    request<StaffIdentity>("/auth/me", {signal: controller.signal}).then(session => {
-      if (!controller.signal.aborted) accept(session);
-    }).catch(error => {
-      if (controller.signal.aborted) return;
-      if (error instanceof ApiError && error.status === 401) setIdentity(null);
-      else setFault("暂时无法确认登录状态。");
-    });
-    return () => controller.abort();
-  }, [attempt]);
+    clearWorkspace();
+  }
+
+  function accept(next: StaffIdentity) {
+    if (next.category !== "staff") { endSession(); return; }
+    const previous = session.current;
+    const changed = !previous || staffScope(previous) !== staffScope(next);
+    if (!changed) return;
+    advanceSession();
+    clearWorkspace();
+    session.current = next;
+    const initialClinic = rememberedClinic(next);
+    if ((previous && previous.account_id !== next.account_id) ||
+        !allowedSections(next, initialClinic).some(area => isUnder(window.location.pathname, area.path))) {
+      window.history.replaceState({}, "", "/dashboard");
+      setLocation(currentUrl());
+    }
+    setIdentity(next);
+    setClinicId(initialClinic);
+  }
+
   useEffect(() => {
-    const sync = () => { setLocation(currentUrl()); setMenu(false); };
-    const expired = () => {
-      setIdentity(null); setClinicId(""); setMenu(false); setDisclosures({}); setFault(""); filterHistory.current = {};
+    function checkIdentity() {
+      authRead.current?.abort();
+      const controller = new AbortController();
+      authRead.current = controller;
+      setFault("");
+      request<StaffIdentity>("/auth/me", { signal: controller.signal }).then(next => {
+        if (!controller.signal.aborted) accept(next);
+      }).catch(error => {
+        if (controller.signal.aborted) return;
+        if (error instanceof ApiError && (error.status === 401 || error.status === 403)) endSession();
+        else {
+          advanceSession();
+          session.current = undefined;
+          clearWorkspace();
+          setIdentity(undefined);
+          setFault("暂时无法确认登录状态。");
+        }
+      });
+    }
+    const recheck = () => {
+      if (session.current) checkIdentity();
     };
+    const sync = () => { setLocation(currentUrl()); setMenu(false); };
+    checkIdentity();
     window.addEventListener("popstate", sync);
-    window.addEventListener("adc:session-expired", expired);
-    return () => { window.removeEventListener("popstate", sync); window.removeEventListener("adc:session-expired", expired); };
-  }, []);
+    window.addEventListener("focus", recheck);
+    window.addEventListener("adc:permission-denied", recheck);
+    window.addEventListener("adc:session-expired", endSession);
+    return () => {
+      authRead.current?.abort();
+      window.removeEventListener("popstate", sync);
+      window.removeEventListener("focus", recheck);
+      window.removeEventListener("adc:permission-denied", recheck);
+      window.removeEventListener("adc:session-expired", endSession);
+    };
+  }, [attempt]);
   useEffect(() => {
     if (!menu) return;
     function close(event: KeyboardEvent) {
@@ -104,10 +159,11 @@ export function AppShell({ renderWorkArea }: { renderWorkArea?: (area: WorkArea)
     if (event.button || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
     event.preventDefault(); open(path);
   }
+  const scope = identity ? staffScope(identity) + ":" + clinicId : "";
   const alertQuery = new URLSearchParams({date:localDay()});
   if (clinicId) alertQuery.set("clinic_id", clinicId);
   const pendingWork = useRead<Record<string,boolean>>(identity && hasRole(identity,dailyRoles,clinicId)
-    ? "/workbench/alerts?" + alertQuery : undefined);
+    ? "/workbench/alerts?" + alertQuery : undefined, 0, scope);
   const alerts = pendingWork.fault ? undefined : pendingWork.data;
   const pendingGroups:Record<string,boolean> = {
     desk:Boolean(alerts?.schedule), care:Boolean(alerts?.clinical),
@@ -202,7 +258,7 @@ export function AppShell({ renderWorkArea }: { renderWorkArea?: (area: WorkArea)
     </header>
     <main className="workspace" id="workspace" tabIndex={-1}>
       {fault && <p className="error-text" role="alert">{fault}</p>}
-      {chosen ? <div key={identity.account_id + ":" + clinicId} className="workspace-body">
+      {chosen ? <div key={scope} className="workspace-body">
         {tabs.length > 1 && activeGroup?.id !== "desk" && <nav className="workspace-primary-tabs" aria-label={activeGroup?.label}>
           {tabs.map(tab => <a key={tab.path} href={tab.path} aria-current={tab === activeTab ? "page" : undefined}
             onClick={event => navigate(event, tab.path)}>{tab.label}</a>)}

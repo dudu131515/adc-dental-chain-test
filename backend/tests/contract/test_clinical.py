@@ -8,7 +8,7 @@ from django.utils import timezone
 
 from adc.booking.models import Appointment, DepositPayment, DepositRefund, SlotClaim
 from adc.catalog.models import TreatmentPrice, TreatmentType
-from adc.clinical.models import Material, TreatmentItem
+from adc.clinical.models import Material, PatientAllergy, TreatmentItem, Visit
 from adc.scheduling.models import DentalChair, Shift
 from tests.fixtures.scenarios import load_synthetic_base
 
@@ -78,6 +78,38 @@ class ClinicalContractTests(TestCase):
             started = self.action(self.dentist, "start-visit", "clinical-visit")
             self.assertIn(started.status_code, (200, 201), started.content)
         return started.json()["data"]["visit_id"]
+
+
+    def test_current_dentist_receives_only_authorized_history_summary(self):
+        PatientAllergy.objects.create(patient_id=1, allergen_name="合成过敏原")
+        treatment = self.claim.requested_treatment_type
+        history = []
+        for clinic_id in (1, 2):
+            start = self.claim.start_at - timedelta(days=clinic_id + 1)
+            end = start + timedelta(minutes=30)
+            shift = Shift.objects.create(clinic_id=clinic_id, dentist_id=1, start_at=start, end_at=end, status="PUBLISHED")
+            claim = SlotClaim.objects.create(
+                clinic_id=clinic_id, dentist_id=1, patient_id=1, shift=shift, requested_treatment_type=treatment,
+                start_at=start, end_at=end, status="RELEASED",
+            )
+            deposit = DepositPayment.objects.create(claim=claim, status="PAID", paid_at=start)
+            appointment = Appointment.objects.create(
+                claim=claim, deposit=deposit, status="COMPLETED", is_attended=True,
+                appointment_no=f"ADC-CLINICAL-HIST-{clinic_id}",
+            )
+            history.append(Visit.objects.create(
+                appointment=appointment, main_dentist_id=1, started_at=start, ended_at=end,
+                status="COMPLETED", clinical_notes=f"合成病历原文 {clinic_id}",
+            ))
+        response = self.dentist.get(self.route + "/clinical-context")
+        self.assertEqual(response.status_code, 200, response.content)
+        data = response.json()["data"]
+        self.assertEqual(data["allergies"][0]["allergen"], "合成过敏原")
+        self.assertEqual([entry["visit_id"] for entry in data["history"]], [str(history[0].pk)])
+        self.assertNotIn("clinical_notes", data["history"][0])
+        self.assertNotIn("clinical_notes", self.front.get(f"/api/v1/visits/{history[0].pk}").json()["data"])
+        self.assertEqual(self.dentist.get(f"/api/v1/visits/{history[0].pk}").json()["data"]["clinical_notes"], "合成病历原文 1")
+        self.assertEqual(self.front.get(self.route + "/clinical-context").status_code, 403)
 
     def test_finished_visit_list_is_separate_and_dentist_scoped(self):
         visit_id = self.check_in_and_start()
