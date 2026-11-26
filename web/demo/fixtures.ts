@@ -47,10 +47,61 @@ export const funds: Fund[] = [
   {clinic:"river",date:today,id:"ADC-DEMO-INV-131",label:"诊疗已退",type:"treatment",kind:"refund",value:20,time:"14:42"},
 ];
 
-export const comparison = {
-  central: {previous:{arrived:6,total:8,unresolved:1,net:160}, current:{arrived:4,total:8,unresolved:3,net:80}},
-  river: {previous:{arrived:2,total:4,unresolved:2,net:120}, current:{arrived:3,total:4,unresolved:1,net:160}},
-} as const;
+
+export const chairs = [
+  {code:"A-01",clinic:"central",doctor:"林明远",room:"第一诊室",type:"通用"},
+  {code:"A-02",clinic:"central",doctor:"周宁",room:"第二诊室",type:"通用"},
+  {code:"A-03",clinic:"central",doctor:"",room:"第三诊室",type:"通用"},
+  {code:"B-01",clinic:"river",doctor:"何可",room:"第一诊室",type:"通用"},
+  {code:"B-02",clinic:"river",doctor:"顾然",room:"第二诊室",type:"通用"},
+] as const;
+
+export const staffShifts = [
+  {doctor:"林明远",clinic:"central",date:today,time:"08:30–17:00",status:"已发布"},
+  {doctor:"周宁",clinic:"central",date:today,time:"09:00–17:30",status:"已发布"},
+  {doctor:"何可",clinic:"river",date:today,time:"08:30–16:30",status:"已发布"},
+  {doctor:"顾然",clinic:"river",date:today,time:"10:00–17:30",status:"已发布"},
+  {doctor:"林明远",clinic:"central",date:tomorrow,time:"08:30–12:00",status:"已发布"},
+  {doctor:"林明远",clinic:"river",date:tomorrow,time:"14:00–17:30",status:"已发布"},
+  {doctor:"顾然",clinic:"river",date:tomorrow,time:"09:00–17:00",status:"待回应"},
+] as const;
+
+export const catalog = [
+  {code:"EXAM",name:"口腔检查",price:80,duration:30,date:"2026-09-01"},
+  {code:"CLEAN",name:"洁牙护理",price:180,duration:30,date:"2026-09-01"},
+  {code:"FILL",name:"树脂充填",price:280,duration:30,date:"2026-09-01"},
+] as const;
+export const accessRows = [
+  {role:"诊所前台",scope:"中心口腔门诊",actions:"患者登记、签到、开单与收退"},
+  {role:"责任牙医",scope:"中心、滨江口腔门诊",actions:"本人接诊、过敏核对、诊疗记录"},
+  {role:"诊所主管",scope:"滨江口腔门诊",actions:"更正审批、日结、费用核对"},
+  {role:"总部经营查询",scope:"两家授权门店",actions:"经营报表、门店对比、助手"},
+  {role:"总部权限管理",scope:"总部",actions:"门店资料、员工账号与门店授权"},
+] as const;
+export const approvals = [
+  {id:"COR-DEMO-031",appointment:"ADC-DEMO-021",clinic:"river",reason:"计费项目差额",amount:-30,status:"已入账"},
+  {id:"COR-DEMO-032",appointment:"ADC-DEMO-001",clinic:"central",reason:"治疗记录更正",amount:0,status:"待主管复核"},
+] as const;
+
+type Daily = {day:string; clinic:Clinic; arrived:number; total:number; unresolved:number; net:number};
+const reportDays = ["11-17","11-18","11-19","11-24","11-25","11-26"];
+const storeDaily = {
+  central:[[2,3,0,100],[2,2,0,0],[2,3,1,60],[1,3,1,0],[2,3,1,80],[1,2,1,0]],
+  river:[[0,1,1,30],[1,2,1,0],[1,1,0,90],[1,1,0,0],[2,2,0,160],[0,1,1,0]],
+} satisfies Record<Clinic, number[][]>;
+export const offices = Object.keys(clinics) as Clinic[];
+export const dailyFacts:Daily[] = offices.flatMap(clinic => storeDaily[clinic].map(
+  ([arrived,total,unresolved,net],index) => ({clinic,day:reportDays[index],arrived,total,unresolved,net}),
+));
+export function sumFacts(rows:Daily[]) {
+  return rows.reduce((sum,row) => ({
+    arrived:sum.arrived+row.arrived,total:sum.total+row.total,unresolved:sum.unresolved+row.unresolved,net:sum.net+row.net,
+  }),{arrived:0,total:0,unresolved:0,net:0});
+}
+export const comparison = Object.fromEntries(offices.map(clinic => {
+  const rows=dailyFacts.filter(row => row.clinic === clinic);
+  return [clinic,{previous:sumFacts(rows.slice(0,3)),current:sumFacts(rows.slice(3))}];
+})) as Record<Clinic,Record<"previous" | "current",ReturnType<typeof sumFacts>>>;
 export const period = {previous:"11 月 17–19 日", current:"11 月 24–26 日"} as const;
 
 export function money(value: number) {
