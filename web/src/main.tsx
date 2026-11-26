@@ -3,7 +3,7 @@ import { createRoot } from "react-dom/client";
 import { AccessPage } from "./features/admin/AccessPage";
 import { BillingPage } from "./features/billing/BillingPage";
 import { DailyReconciliation } from "./features/billing/DailyReconciliation";
-import { DashboardPage } from "./features/dashboard/DashboardPage";
+import { DashboardPage, ManagementHome } from "./features/dashboard/DashboardPage";
 import { PatientsPage } from "./features/patients/PatientsPage";
 import { CatalogPage } from "./features/catalog/CatalogPage";
 import { ClinicalQueue } from "./features/clinical/ClinicalQueue";
@@ -19,7 +19,8 @@ if (!root) throw new Error("ADC 网站入口缺失。");
 createRoot(root).render(
   <StrictMode>
     <AppShell renderWorkArea={area => {
-      if (area.section === "/dashboard") return <DashboardPage {...area} />;
+      if (area.section === "/dashboard") return <ManagementHome {...area} />;
+      if (area.path === "/schedule/today") return <DashboardPage {...area} />;
       if (area.section === "/patients") return <PatientsPage {...area} />;
       if (area.section === "/schedule") return <SchedulePage {...area} />;
       if (area.section === "/catalog") return <CatalogPage canEdit={area.identity.role_clinic_ids?.HQ_CATALOG === null} />;

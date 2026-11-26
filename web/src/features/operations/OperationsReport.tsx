@@ -38,8 +38,8 @@ function ratio(rate: Rate) {
   return new Intl.NumberFormat("zh-CN", { style: "percent", maximumFractionDigits: 2 }).format(Number(rate.value));
 }
 
-export function OperationsReport({ identity, clinicId, open }: {
-  identity: StaffIdentity; clinicId: string; open: (path: string) => void;
+export function OperationsReport({ identity, clinicId, open, assistantWorkspace = false, inlineAssistantActive = true }: {
+  identity: StaffIdentity; clinicId: string; open: (path: string) => void; assistantWorkspace?:boolean; inlineAssistantActive?:boolean;
 }) {
   const today = localDay();
   const [initial] = useState(() => new URLSearchParams(window.location.search));
@@ -90,6 +90,15 @@ export function OperationsReport({ identity, clinicId, open }: {
     void loadReport("/reports/operations?" + context);
   }
 
+  function resetOriginal() {
+    abort.current?.abort();
+    trigger.current = null;
+    setReport(undefined);
+    setFault("");
+    setSelected(undefined);
+    setBusy(false);
+  }
+
   function openOriginal(reference: string, button: HTMLButtonElement, detail?: AssistantDrilldown) {
     const query = new URLSearchParams({ reference });
     void loadReport("/reports/operations/assistant/report?" + query, button, detail);
@@ -116,7 +125,7 @@ export function OperationsReport({ identity, clinicId, open }: {
   }
 
   return <div className="operations-sections">
-    <section className="schedule-panel">
+    {!assistantWorkspace && <section className="schedule-panel">
       <div className="schedule-heading">
         <h2 ref={heading} tabIndex={-1}>查询经营报告</h2>
         {identity.capabilities.includes("HQ_OPERATIONS_QUERY") && <button type="button" className="button"
@@ -142,9 +151,17 @@ export function OperationsReport({ identity, clinicId, open }: {
         {" · "}统计截止 {dateTime(report.as_of)}
       </p>}
       {report?.snapshot_refreshed && <p role="status">原分析快照已过期，已按原筛选重新查询。原截止 {dateTime(report.original_as_of)}，新截止 {dateTime(report.as_of)}。</p>}
-    </section>
-    {assistantOpen && identity.capabilities.includes("HQ_OPERATIONS_QUERY") &&
-      <AssistantPanel key={context} accountId={identity.account_id} context={context} openOriginal={openOriginal} />}
+    </section>}
+    {(assistantWorkspace || (inlineAssistantActive && assistantOpen)) && identity.capabilities.includes("HQ_OPERATIONS_QUERY") &&
+      <AssistantPanel key={context} accountId={identity.account_id} context={context} openOriginal={openOriginal}
+        workspace={assistantWorkspace} resetOriginal={resetOriginal} />}
+    {assistantWorkspace && (busy || fault || report) && <section className="schedule-panel">
+      <h2 ref={heading} tabIndex={-1}>助手引用的原报表</h2>
+      {busy && <p role="status">正在加载原报表…</p>}
+      {fault && <p role="alert" className="error-text">{fault}</p>}
+      {report && <p>{report.date_from} 至 {report.date_to} · 统计截止 {dateTime(report.as_of)}</p>}
+      {report?.snapshot_refreshed && <p role="status">原分析快照已过期，已按原筛选重新查询。原截止 {dateTime(report.original_as_of)}，新截止 {dateTime(report.as_of)}。</p>}
+    </section>}
     {report && <>
       <section className="schedule-panel">
         <h2>预约履约</h2>

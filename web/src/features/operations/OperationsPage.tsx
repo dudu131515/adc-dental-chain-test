@@ -19,6 +19,7 @@ export function OperationsPage({ identity, clinicId, path, open, showTabs = true
   }, [active]);
   const sections = [
     { id: "report", label: "经营报告", enabled: canReport },
+    { id: "assistant", label: "经营智能助手", enabled: canReport },
     { id: "expenses", label: "费用登记", enabled: canExpense },
     { id: "quarters", label: "季度核算", enabled: canQuarter },
   ];
@@ -33,8 +34,10 @@ export function OperationsPage({ identity, clinicId, path, open, showTabs = true
         }}>{section.label}</button>)}
     </div>}
     {(visitedReport || active === "report") && canReport && <div hidden={active !== "report"}>
-      <OperationsReport identity={identity} clinicId={clinicId} open={target => { setVisitedReport(true); open(target); }} />
+      <OperationsReport identity={identity} clinicId={clinicId} inlineAssistantActive={active !== "assistant"}
+        open={target => { setVisitedReport(true); open(target); }} />
     </div>}
+    {selected?.id === "assistant" && <OperationsReport identity={identity} clinicId={clinicId} open={open} assistantWorkspace/>}
     {selected?.id === "expenses" && <ExpensesPage identity={identity} clinicId={clinicId} />}
     {selected?.id === "quarters" && <QuarterReview identity={identity} periodId={path.split("/")[3]} open={open} />}
     {!selected && <p role="alert">当前账号无权访问该经营页面。</p>}

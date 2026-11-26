@@ -2,7 +2,7 @@ import { useState } from "react";
 import type { WorkArea } from "../../shared/AppShell";
 import { Icon, IconName } from "../../shared/Icons";
 import { localDay } from "../../shared/format";
-import { dailyRoles, hasRole, performanceRoles } from "../../shared/navigation";
+import { allowedSections, dailyRoles, groupedNavigation, hasRole, performanceRoles, workspaceTabs } from "../../shared/navigation";
 import { useRead } from "../../shared/useRead";
 import { Appointment, appointmentStates } from "../schedule/appointmentTypes";
 import { localTime } from "../schedule/types";
@@ -181,10 +181,54 @@ export function DashboardPage(area: WorkArea) {
   }
   return <div className="desk">
     <div className="desk-heading"><div><div className="desk-date"><span/>{dateFormatter.format(new Date((daily ? day : today) + "T12:00:00+08:00"))}</div>
-      <h1>{daily ? "门诊工作台" : "总部工作台"}</h1><p>{scope} · {daily ? "预约与诊疗概况" : "岗位业务概况"}</p></div>
+      <h1>{daily ? "今日门诊" : "总部工作台"}</h1><p>{scope} · {daily ? "预约与诊疗概况" : "岗位业务概况"}</p></div>
       <div className="desk-controls">{daily && <label><span className="sr-only">工作日期</span><input type="date" value={day} onChange={event => chooseDate(event.target.value)}/></label>}
         <button className="button desk-refresh" onClick={() => refresh(value => value + 1)}><Icon name="refresh" size={16}/>刷新</button></div>
     </div>
     {daily ? <DaySchedule key={day} area={area} day={day} revision={revision} alerts={alerts}/> : <Headquarters area={area} revision={revision}/>}
+  </div>;
+}
+
+
+const overviewGroups = {
+  desk: {description: "查看门诊日程，协调人员排班和诊室资源。", alerts: ["schedule"]},
+  care: {description: "管理患者档案、接诊流程与过敏信息。", alerts: ["clinical"]},
+  cashier: {description: "办理费用结算，核对当日收支与资金回执。", alerts: ["billing", "reconciliation", "corrections"]},
+  operations: {description: "比较门店经营结果，维护公司业务与基础设置。", alerts: []},
+} satisfies Record<string, {description: string; alerts: (keyof WorkbenchAlerts)[]}>;
+
+export function ManagementHome({identity, clinicId, open}: WorkArea) {
+  const groups = groupedNavigation(allowedSections(identity, clinicId)).filter(group => group.id !== "home");
+  const day = localDay();
+  const query = new URLSearchParams({date: day});
+  if (clinicId) query.set("clinic_id", clinicId);
+  const alertRead = useRead<WorkbenchAlerts>(hasRole(identity, dailyRoles, clinicId) ? "/workbench/alerts?" + query : undefined);
+  const scope = identity.clinics.find(clinic => clinic.clinic_id === clinicId)?.name || "全部授权门店";
+  return <div className="staff-home">
+    <header className="staff-home-hero">
+      <div><p>{dateFormatter.format(new Date(day + "T12:00:00+08:00"))}</p><h1>连锁管理总览</h1>
+        <p>从一个工作空间查看当前门店与已授权业务。</p></div>
+      <dl><div><dt>当前工作范围</dt><dd>{scope}</dd></div>
+        <div><dt>可用业务区</dt><dd>{groups.length}</dd></div></dl>
+    </header>
+    {groups.length ? <section className="staff-home-groups" aria-label="业务入口">
+      {groups.map(group => {
+        const detail = overviewGroups[group.id as keyof typeof overviewGroups];
+        const tabs = workspaceTabs(group, identity, clinicId);
+        const isPending = !alertRead.fault && detail.alerts.some(key => alertRead.data?.[key]);
+        let href = tabs[0].path;
+        if (group.id === "desk") {
+          const selectedDay = new URLSearchParams(window.location.search).get("date");
+          if (selectedDay) href += "?" + new URLSearchParams({date: selectedDay});
+        }
+        return <a key={group.id} href={href} onClick={event => {
+          if (event.button || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+          event.preventDefault(); open(href);
+        }}><span className="staff-home-icon"><Icon name={group.icon} size={22}/></span>
+          <strong>{group.label}<PendingDot visible={isPending}/></strong><p>{detail.description}</p>
+          <span className="staff-home-card-footer">{tabs.map(tab => tab.label).slice(0, 3).join(" · ")}
+            <Icon name="arrow" size={16}/></span></a>;
+      })}
+    </section> : <section className="desk-panel"><h2>业务入口</h2><p>当前范围暂无已授权业务。</p></section>}
   </div>;
 }

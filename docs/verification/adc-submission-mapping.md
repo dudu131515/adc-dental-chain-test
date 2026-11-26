@@ -1,24 +1,24 @@
 # 课程提交版与 ADC 系统对应关系
 
-核对日期 2026-11-25。主阅文档为 [《安德鲁牙科连锁系统分析与设计》最终提交版（双端演示补充）](../../usecase/安德鲁牙科连锁系统分析与设计_最终提交版（双端演示补充）.docx)。该版本保留 V1.2 正文，并附录 D 保留原工作台设计，附录 E 记录本次课程补充。Word 导出共 69 页。第 17–24 页是系统用例，第 45 页是表 5-4 角色界面与授权，第 68–69 页是附录 D 和 E。这里按业务目的、界面入口和可观察结果核对。
+核对日期 2026-11-25。主阅文档为 [《安德鲁牙科连锁系统分析与设计》最终提交版（双端演示补充）](../../usecase/安德鲁牙科连锁系统分析与设计_最终提交版（双端演示补充）.docx)。该版本保留 V1.2 正文，并附录 D 保留原工作台设计，附录 E 记录本次课程补充。Word 导出共 69 页。第 17–24 页是系统用例，第 45 页是表 5-4 角色界面与授权，第 68–69 页是附录 D 和 E。这里按业务目的、界面入口和可观察结果核对。2026-11-26 更新网站导航。早期截图和视频使用原导航名称，预约工作台现位于「门诊运营 → 今日门诊」。
 
 ## 七个系统用例
 
 | 文档锚点 | 员工管理网站 | 微信小程序 | 可观察结果 |
 | --- | --- | --- | --- |
-| UC01，图 4-2，第 5.5 节 | 排班与预约 → 排班需求、班次、牙医回应及发布 | 医生与时段页使用已发布且合格的可约班次 | 员工端发布班次后，满足资格、椅型和占时条件的资源才进入可约候选。见 [排班界面](../showcase/images/schedule.png)。 |
-| UC02，图 4-3、4-4、4-4a，表 3-2，附录 D.2、D.4 | 工作台或患者档案 → 代办预约、预约日历 → 改期、取消或人工核实 | 首页 → 选诊所和项目 → 医生及时间 → 确认和模拟预约金。预约详情可改期、取消或查看退金。 | 网站与小程序的正式预约使用同一预约号、履约状态及预约金事实。见 [网站预约界面](../showcase/images/appointment.png) 和 [原生模拟器预约详情](submission-images/mini-appointment.png)。 |
+| UC01，图 4-2，第 5.5 节 | 门诊运营 → 排班需求、班次、牙医回应及发布 | 医生与时段页使用已发布且合格的可约班次 | 员工端发布班次后，满足资格、椅型和占时条件的资源才进入可约候选。见 [排班界面](../showcase/images/schedule.png)。 |
+| UC02，图 4-3、4-4、4-4a，表 3-2，附录 D.2、D.4 | 门诊运营的预约日历或患者档案 → 代办预约、预约日历 → 改期、取消或人工核实 | 首页 → 选诊所和项目 → 医生及时间 → 确认和模拟预约金。预约详情可改期、取消或查看退金。 | 网站与小程序的正式预约使用同一预约号、履约状态及预约金事实。见 [网站预约界面](../showcase/images/appointment.png) 和 [原生模拟器预约详情](submission-images/mini-appointment.png)。 |
 | UC03，图 4-5a、4-5，第 5.6 节，附录 D.3 | 预约详情 → 签到与分椅。责任牙医从诊疗队列进入病史与过敏核对，再记录实做、耗材和结束或中止。 | 本人就诊状态通过预约详情展示。 | 签到、分椅、接诊、过敏核对和治疗形成独立记录。见 [接诊队列](../showcase/images/clinical-queue.png)、[诊疗界面](../showcase/images/visit-progress.png) 及[过敏核对记录](adc-workspace.md)。 |
-| UC04，图 4-6、4-6a，第 5.6 节 | 收费与经营 → 结算及日结对账 | 本人诊疗费用单与预约金记录分别查询。 | 只有结束或中止的就诊进入开单，原主单、差额调整、模拟收款和退款可回查。见 [结算队列](../showcase/images/billing-queue.png) 和 [主单](../showcase/images/invoice-part.png)。 |
+| UC04，图 4-6、4-6a，第 5.6 节 | 收费与日结 → 结算及日结对账 | 本人诊疗费用单与预约金记录分别查询。 | 只有结束或中止的就诊进入开单，原主单、差额调整、模拟收款和退款可回查。见 [结算队列](../showcase/images/billing-queue.png) 和 [主单](../showcase/images/invoice-part.png)。 |
 | UC05，图 4-7，表 5-4 | 项目与价格 → 诊疗项目、价格版本和生效区间 | 选项目时显示就诊意向可用项目。 | 总部维护统一标准，历史就诊和主单保留原价格快照。见 [项目与价格](../showcase/images/catalog.png)。 |
-| UC06，图 4-8，第 5.7 节 | 收费与经营 → 经营报告 → 筛选、下钻和经营分析助手 | 经营数据由总部在网站按权限查看。 | 报表可查取消、到诊、未处置和资金口径，明细使用同一查询截止。见 [经营报表](../showcase/images/operations.png)。 |
+| UC06，图 4-8，第 5.7 节 | 经营与配置 → 经营报告或经营智能助手，分别执行筛选下钻和对话回查 | 经营数据由总部在网站按权限查看。 | 报表可查取消、到诊、未处置和资金口径，明细使用同一查询截止。见 [经营报表](../showcase/images/operations.png)。 |
 | UC07，图 4-9，第 5.7 节 | 经营 → 门店费用、季度计算、复核、确认与修订对照 | 季度绩效由网站的授权角色办理。 | 用实际诊疗经济事实和费用形成可复核的季度版本。见 [季度绩效](../showcase/images/quarters.png)。 |
 
 ## 附录 D 与两端实物
 
 | 附录 | 实现入口 | 验收锚点 |
 | --- | --- | --- |
-| D.1 工作台 | React [工作台](../../web/src/features/dashboard/DashboardPage.tsx)，按门店和业务日期统计六种履约状态，点击指标进入对应状态的预约日历。 | AC-X-11 |
+| D.1 工作台 | React [今日门诊](../../web/src/features/dashboard/DashboardPage.tsx)，按门店和业务日期统计六种履约状态，点击指标进入对应状态的预约日历。 | AC-X-11 |
 | D.2 患者档案 | React [患者档案](../../web/src/features/patients/PatientsPage.tsx)，按姓名、患者编号或电话查本店患者，可看预约并打开代办。 | AC-02-16 |
 | D.3 过敏核对 | React [过敏核对](../../web/src/features/clinical/AllergyReview.tsx)，区分未核实、无已知过敏和已知过敏。 | AC-03-05 |
 | D.4 患者小程序 | 原生 [首页](../../mini-program/pages/home/index.wxml)、[预约](../../mini-program/pages/appointments/index.wxml)、[账户](../../mini-program/pages/account/index.wxml)。 | AC-02-17 |
@@ -36,9 +36,9 @@
 
 | 附录 | 应用入口与证据 | 需求与验收 |
 | --- | --- | --- |
-| E.1 | 网站「工作台」现有入口旁的红点，及「基础管理 → 门店与资源／人员与授权」。[现有入口的红点](submission-images/web-b-workbench-dots.jpg) · [人员授权](submission-images/web-b-access.jpg) | FR-010、FR-011 · AC-X-12、AC-X-13 · T069、T070 |
-| E.2 | 网站「收费与经营 → 日结对账」，小程序「我的 → 诊疗费用单」。[网站日结](submission-images/web-b-reconciliation.jpg) · [跨日在途](submission-images/web-b-reconciliation-pending.jpg) · [本地原生账单](submission-images/mini-b-invoice-detail.png) | FR-409、FR-410 · AC-04-08、AC-04-09 · T071、T072 |
-| E.3 | 网站「经营报告 → 经营分析助手」选择并提交建议，开启原报表核对。[选择问题](submission-images/web-b-assistant-suggestions.jpg) · [两店对比](submission-images/web-b-assistant-result.jpg) | FR-606、FR-607 · AC-06-05、AC-06-06 · T073 |
+| E.1 | 网站首页入口旁的红点，及「经营与配置 → 门店与资源／人员与授权」。[现有入口的红点](submission-images/web-b-workbench-dots.jpg) · [人员授权](submission-images/web-b-access.jpg) | FR-010、FR-011 · AC-X-12、AC-X-13 · T069、T070 |
+| E.2 | 网站「收费与日结 → 日结对账」，小程序「我的 → 诊疗费用单」。[网站日结](submission-images/web-b-reconciliation.jpg) · [跨日在途](submission-images/web-b-reconciliation-pending.jpg) · [本地原生账单](submission-images/mini-b-invoice-detail.png) | FR-409、FR-410 · AC-04-08、AC-04-09 · T071、T072 |
+| E.3 | 网站「经营与配置 → 经营智能助手」选择或输入问题，继续提问并核对原报表。[选择问题](submission-images/web-b-assistant-suggestions.jpg) · [两店对比](submission-images/web-b-assistant-result.jpg) | FR-606、FR-607 · AC-06-05、AC-06-06 · T073 |
 | E.4 | 隔离合成库的两端预约 ADC-DEMO-011、账单 ADC-DEMO-INV-120 和双店两个期间。 | FR-006、FR-007 · T074、T075 |
 
 与附录 E 同步的本地证据见[双端补充验收](adc-release-evidence.md#2026-11-26-双端补充验收)。

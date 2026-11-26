@@ -1,7 +1,7 @@
 import { type MouseEvent, useEffect, useRef, useState } from "react";
 import { Brand, Icon } from "../src/shared/Icons";
 import {
-  type Appointment, type Clinic, type Status, appointments, clinics, days, statusLabels,
+  type Appointment, type Clinic, type Status, appointments, clinics, days, funds, money, statusLabels,
 } from "./fixtures";
 import { OperationsDemo, OperationsOverview, SourceTable } from "./OperationsDemo";
 import { AppointmentList, VisitDrawer } from "./AppointmentDetails";
@@ -68,6 +68,34 @@ function Dashboard({rows, onOpen, onCalendar}: {rows:Appointment[]; onCalendar:(
 }
 
 
+
+function HomeOverview({rows,date,clinic,open}:{
+  rows:Appointment[]; date:string; clinic:Clinic|"all"; open:(event:MouseEvent<HTMLAnchorElement>,route:Route)=>void;
+}) {
+  const receipts=funds.filter(row=>row.date===date&&(clinic==="all"||row.clinic===clinic)&&row.kind!=="pending");
+  const net=receipts.filter(row=>row.type==="treatment").reduce((sum,row)=>sum+(row.kind==="refund"?-row.value:row.value),0);
+  const totals=[
+    {label:"门诊运营",value:rows.length+" 笔",helper:"预约总量",icon:"calendar"},
+    {label:"患者与诊疗",value:new Set(rows.map(row=>row.patient)).size+" 位",helper:"涉及患者",icon:"tooth"},
+    {label:"收费与日结",value:money(net),helper:"诊疗净实收",icon:"receipt"},
+    {label:"经营与配置",value:(clinic==="all"?2:1)+" 家",helper:"展示门店",icon:"chart"},
+  ] as const;
+  return <>
+    <section className="pd-home-hero"><div><h2>安德鲁牙科连锁</h2><p>查看门店整体运行情况，再进入对应业务</p></div>
+      <a className="pd-home-assistant" href="#operations/ai" onClick={event=>open(event,"operations/ai")}>
+        <Icon name="activity" size={18}/>问经营助手<Icon name="arrow" size={16}/></a>
+    </section>
+    <div className="pd-metrics pd-compact-metrics">{totals.map(item=><article className="pd-metric" key={item.label}>
+      <div><span>{item.label}</span><strong>{item.value}</strong><small>{item.helper}</small></div>
+      <span className="pd-metric-icon"><Icon name={item.icon} size={19}/></span></article>)}</div>
+    <section className="pd-panel"><div className="pd-panel-title"><div><h2>功能直达</h2></div></div>
+      <div className="pd-home-links">{groups.map(group=><a key={group.id} href={"#"+group.tabs[0].id}
+        onClick={event=>open(event,group.tabs[0].id)}><Icon name={group.icon} size={20}/><span><strong>{group.name}</strong>
+          <small>{group.tabs.slice(0,3).map(item=>item.label).join(" · ")}</small></span><Icon name="chevron" size={16}/></a>)}</div>
+    </section>
+  </>;
+}
+
 export function PagesDemo() {
   const [route,setRoute] = useState(routeFromHash);
   const [clinic,setClinic] = useState<Clinic | "all">("all");
@@ -75,10 +103,18 @@ export function PagesDemo() {
   const [selected,setSelected] = useState<{row:Appointment; bill:boolean}>();
   const trigger = useRef<HTMLButtonElement>(null);
   const active = groups.flatMap(group => group.tabs.map(tab => ({group,tab}))).find(item => item.tab.id === route);
-  const group = active?.group ?? groups[0];
-  const tab = active?.tab ?? groups[0].tabs[0];
+  const group = active?.group;
+  const tab = active?.tab;
+  const [navOpen,setNavOpen] = useState(false);
+  const [expanded,setExpanded] = useState<string>(()=>routeFromHash().split("/")[0]);
+  function switchRoute(next:Route) {
+    setRoute(next);
+    setExpanded(next.split("/")[0]);
+    setNavOpen(false);
+    setSelected(undefined);
+  }
   useEffect(() => {
-    const sync = () => { if (window.location.hash !== "#demo-main") setRoute(routeFromHash()); setSelected(undefined); };
+    const sync = () => { if (window.location.hash !== "#demo-main") switchRoute(routeFromHash()); };
     window.addEventListener("hashchange",sync);
     window.addEventListener("popstate",sync);
     return () => {window.removeEventListener("hashchange",sync); window.removeEventListener("popstate",sync);};
@@ -88,7 +124,7 @@ export function PagesDemo() {
     event.preventDefault();
     if (route === next) return;
     window.history.pushState(null,"","#" + next);
-    setRoute(next); setSelected(undefined);
+    switchRoute(next);
     document.documentElement.scrollTop = 0;
   }
   function inspect(row:Appointment, button:HTMLButtonElement, bill=false) {
@@ -101,24 +137,37 @@ export function PagesDemo() {
   }
   const scoped = appointments.filter(item => clinic === "all" || clinic === item.clinic);
   const rows = scoped.filter(item => item.date === date);
-  const usesDate = group.id !== "operations" && route !== "patients/directory";
+  const usesDate = group?.id !== "operations" && route !== "patients/directory";
   return <div className="pd-app">
     <a className="skip-link" href="#demo-main" onClick={event => {
       event.preventDefault(); document.getElementById("demo-main")?.focus();
     }}>跳至工作区</a>
     <aside className="pd-sidebar">
-      <a className="pd-brand" href="#desk/home" onClick={event => open(event,"desk/home")} aria-label="ADC 工作台"><Brand/></a>
-      <nav aria-label="业务导航">{groups.map(item => <a key={item.id} href={"#" + item.tabs[0].id}
-        aria-current={group.id === item.id ? "page" : undefined} onClick={event => open(event,item.tabs[0].id)}>
-        <Icon name={item.icon} size={19}/><span>{item.name}</span></a>)}</nav>
+      <a className="pd-brand" href="#home" onClick={event => open(event,"home")} aria-label="ADC 首页"><Brand/></a>
+      <button type="button" className="pd-mobile-nav" aria-expanded={navOpen} aria-controls="demo-workspace-tree"
+        onClick={()=>setNavOpen(current=>!current)}><Icon name={navOpen?"close":"menu"} size={19}/>业务导航</button>
+      <nav id="demo-workspace-tree" className="pd-tree" data-open={navOpen} aria-label="业务导航">
+        <a href="#home" aria-current={route==="home"?"page":undefined} onClick={event=>open(event,"home")}>
+          <Icon name="dashboard" size={19}/>首页</a>
+        {groups.map(item => <div className="pd-tree-section" key={item.id}>
+          <button className="pd-tree-heading" type="button" aria-expanded={expanded===item.id}
+            aria-controls={"demo-group-"+item.id} onClick={()=>setExpanded(expanded===item.id?"":item.id)}>
+            <Icon name={item.icon} size={19}/>{item.name}<Icon name="chevron" size={15}/>
+          </button>
+          <ul hidden={expanded!==item.id} id={"demo-group-"+item.id} aria-label={item.name+"子功能"}>
+            {item.tabs.map(child=><li key={child.id}><a href={"#"+child.id} aria-current={route===child.id?"page":undefined}
+              onClick={event=>open(event,child.id)}>{child.label}</a></li>)}
+          </ul>
+        </div>)}
+      </nav>
       <div className="pd-rail-footer"><Icon name="clinic" size={19}/><span>安德鲁牙科连锁</span></div>
     </aside>
     <div className="pd-content">
-      <header className="pd-top"><div><span>管理中心</span><b>/</b>{group.name}</div>
+      <header className="pd-top"><div><span>管理中心</span><b>/</b>{group?.name ?? "首页"}</div>
         <span className="pd-demo"><i aria-hidden="true"/>合成演示</span>
       </header>
       <main className="pd-main" id="demo-main" tabIndex={-1}>
-        <div className="pd-heading"><div><h1>{tab.title}</h1>
+        <div className="pd-heading"><div><h1>{tab?.title ?? "运营首页"}</h1>
           {usesDate && <p>{(clinic === "all" ? "两家门店" : clinics[clinic]) + " · " + date}</p>}</div>
           {(usesDate || route === "patients/directory" || route === "operations/overview") && <div className="pd-filters">
             <label>门店<select value={clinic} onChange={event => setClinic(event.target.value as Clinic | "all")}>
@@ -128,15 +177,13 @@ export function PagesDemo() {
               {days.map(day => <option value={day} key={day}>{day}</option>)}</select></label>}
           </div>}
         </div>
-        <nav className="pd-tabs" aria-label={group.name+"页签"}>{group.tabs.map(item =>
-          <a key={item.id} href={"#"+item.id} aria-current={route===item.id ? "page":undefined} onClick={event=>open(event,item.id)}>
-            {item.label}</a>)}</nav>
+        {route === "home" && <HomeOverview rows={rows} date={date} clinic={clinic} open={open}/>}
         {route === "desk/home" && <Dashboard key={clinic+date} rows={rows} onOpen={inspect} onCalendar={event=>open(event,"desk/calendar")}/>}
         {route === "desk/calendar" && <AppointmentCalendar key={clinic+date} rows={rows} clinic={clinic} onOpen={inspect}/>}
         {(route === "desk/staff" || route === "desk/chairs") && <ClinicResources route={route} date={date} rows={rows} clinic={clinic}/>}
-        {group.id === "patients" && <PatientWorkspace key={route} route={route} rows={rows} scoped={scoped} onOpen={inspect}/>}
+        {group?.id === "patients" && <PatientWorkspace key={route} route={route} rows={rows} scoped={scoped} onOpen={inspect}/>}
         {route === "billing/reconcile" && <Billing date={date} clinic={clinic}/>}
-        {group.id === "billing" && route!=="billing/reconcile" && <FinanceWorkspace key={route} route={route} rows={rows} clinic={clinic} onOpen={inspect}/>}
+        {group?.id === "billing" && route!=="billing/reconcile" && <FinanceWorkspace key={route} route={route} rows={rows} clinic={clinic} onOpen={inspect}/>}
         {route === "operations/overview" && <OperationsOverview clinic={clinic}/>}
         {route === "operations/compare" && <SourceTable title="两店样例指标"/>}
         {route === "operations/ai" && <OperationsDemo/>}

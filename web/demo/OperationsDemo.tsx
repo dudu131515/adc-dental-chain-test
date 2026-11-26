@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Icon } from "../src/shared/Icons";
+import { AgentCanvas, AgentComposer, AgentTurn } from "../src/features/operations/AgentCanvas";
 import { type Clinic, clinics, comparison, dailyFacts, money, offices, period, sumFacts } from "./fixtures";
 
 const options = [
@@ -12,39 +13,50 @@ type Metric = (typeof options)[number]["key"];
 function rate(fact:{arrived:number;total:number}) { return fact.total ? Math.round((fact.arrived/fact.total)*100) : 0; }
 function signed(amount:number) { return amount > 0 ? "+" + amount : amount < 0 ? "−" + Math.abs(amount) : "0"; }
 
+
+type DemoTurn = { prompt:string; metric?:Metric };
+function parsePrompt(prompt:string):Metric|undefined {
+  if (/净实收|收款|营收/.test(prompt)) return "net";
+  if (/到期|未处置|未办理/.test(prompt)) return "unresolved";
+  if (/就诊率|到诊|接诊/.test(prompt)) return "attendance";
+}
+
 export function OperationsDemo() {
-  const [metric,setMetric] = useState<Metric>("attendance");
-  const [result,setResult] = useState<Metric>();
-  const [source,setSource] = useState(false);
-  return <>
-    <section className="pd-panel pd-assistant" aria-labelledby="assistant-title">
-      <div className="pd-panel-title"><div><span className="pd-assistant-mark"><Icon name="chart" size={17}/>报表解读</span>
-        <h2 id="assistant-title">经营分析助手</h2><p>选一个问题，按两期合成报表查看结果。</p></div></div>
-      <div className="pd-questions" aria-label="分析建议">{options.map(option => <button key={option.key} type="button"
-        aria-pressed={metric === option.key} onClick={() => {setMetric(option.key);setResult(undefined);setSource(false);}}>
-        {option.label}</button>)}</div>
-      <div className="pd-analysis-footer"><span>{period.previous} 对比 {period.current}</span>
-        <button className="button primary" type="button" onClick={() => {setResult(metric);setSource(false);}}>查看分析<Icon name="arrow" size={17}/></button></div>
-    </section>
-    {result && <section className="pd-panel" aria-live="polite">
-      <div className="pd-panel-title"><div><h2>{options.find(option => option.key === result)?.label}</h2><p>{period.previous} → {period.current}</p></div>
-        <button className="pd-link" type="button" aria-expanded={source} onClick={() => setSource(value => !value)}>
-          {source ? "收起原报表" : "查看原报表"}<Icon name="chevron" size={16}/></button></div>
-      <div className="pd-comparisons">{offices.map(office => {
-        const {previous,current} = comparison[office];
-        const old = result === "attendance" ? rate(previous) + "%" : result === "net" ? money(previous.net) : previous.unresolved + " 笔";
-        const fresh = result === "attendance" ? rate(current) + "%" : result === "net" ? money(current.net) : current.unresolved + " 笔";
-        const delta = result === "attendance" ? rate(current) - rate(previous)
-          : result === "net" ? current.net - previous.net : current.unresolved - previous.unresolved;
-        const unit = result === "attendance" ? " 个百分点" : result === "net" ? " 元" : " 笔";
-        return <article className="pd-comparison" key={office}>
-          <h3>{clinics[office]}</h3><div className="pd-comparison-values"><span>{old}</span><Icon name="arrow" size={18}/><strong>{fresh}</strong></div>
-          <span className={"pd-delta " + (delta < 0 ? "down" : "up")}>{signed(delta) + unit}</span>
-        </article>;
-      })}</div>
-    </section>}
-    {source && <SourceTable title="两期样例统计"/>}
-  </>;
+  const [question,setQuestion]=useState("");
+  const [turns,setTurns]=useState<DemoTurn[]>([]);
+  const [source,setSource]=useState<number>();
+  function send() {
+    const prompt=question.trim();
+    if (!prompt) return;
+    setTurns(current=>[...current,{prompt,metric:parsePrompt(prompt)}]);setQuestion("");
+  }
+  return <AgentCanvas mode="合成报表演示" turnCount={turns.length}
+    topAction={turns.length ? <button type="button" onClick={()=>{setTurns([]);setSource(undefined);setQuestion("");}}>新对话</button>:undefined}
+    suggestions={<div className="adc-agent-suggestions" aria-label="建议问题">{options.map(option=><button key={option.key} type="button"
+      onClick={()=>setQuestion(option.label)}>{option.label}</button>)}</div>}
+    conversation={turns.map((turn,index)=><AgentTurn prompt={turn.prompt} key={index}>
+      {turn.metric ? <>
+        <h3>{options.find(option=>option.key===turn.metric)?.label}</h3>
+        <p className="muted">{period.previous} → {period.current}</p>
+        <div className="pd-comparisons">{offices.map(office=>{
+          const {previous,current}=comparison[office];
+          const key=turn.metric;
+          const old=key==="attendance"?rate(previous):key==="net"?previous.net:previous.unresolved;
+          const latest=key==="attendance"?rate(current):key==="net"?current.net:current.unresolved;
+          const f=(value:number)=>key==="attendance"?value+"%":key==="net"?money(value):value+" 笔";
+          const unit=key==="attendance"?" 个百分点":key==="net"?" 元":" 笔";
+          return <article className="pd-comparison" key={office}><h4>{clinics[office]}</h4>
+            <div className="pd-comparison-values"><span>{f(old)}</span><Icon name="arrow" size={16}/><strong>{f(latest)}</strong></div>
+            <span className={"pd-delta "+(latest<old?"down":"up")}>{signed(latest-old)+unit}</span>
+          </article>;
+        })}</div>
+        <div className="adc-agent-suggestions"><button type="button" aria-expanded={source===index}
+          onClick={()=>setSource(source===index?undefined:index)}>{source===index?"收起原报表":"查看原报表"}</button>
+          <button type="button" onClick={()=>setQuestion(turn.metric==="net"?options[0].label:options[2].label)}>对比另一项</button></div>
+        {source===index && <SourceTable title="两期样例统计"/>}
+      </> : <p>可以从下方选一个经营问题，或在消息里明确写出就诊率、到期未处置或诊疗净实收。</p>}
+    </AgentTurn>)}
+    composer={<AgentComposer question={question} change={setQuestion} submit={send}/>}/>;
 }
 
 export function SourceTable({title}:{title:string}) {

@@ -256,3 +256,40 @@
 @media(max-width:345px) {
   .pd-sidebar nav a svg {display:none}
 }
+
+.pd-home-hero {padding:23px;min-height:113px;border-radius:14px;display:flex;gap:16px;justify-content:space-between;align-items:center;
+  color:#eaf9f7;background:linear-gradient(115deg,#143e4c,#19746e);}
+.pd-home-hero h2 {margin:0;font-size:22px;}
+.pd-home-hero p {margin:6px 0 0;color:#d0e9e8;font-size:13px;}
+.pd-home-assistant {color:#0f655d;background:#e9fbf5;border-radius:8px;padding:9px 13px;text-decoration:none;display:flex;
+  align-items:center;gap:6px;white-space:nowrap;font-weight:680;font-size:13px;}
+.pd-home-links {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;}
+.pd-home-links a {display:flex;align-items:center;gap:12px;min-width:0;min-height:65px;padding:12px;border:1px solid #dce8ec;border-radius:9px;
+  background:#f7fbfb;color:#23475b;text-decoration:none;}
+.pd-home-links a:hover {background:#eef8f5;border-color:#b7d8d0;}
+.pd-home-links a span {display:grid;gap:4px;flex:1;min-width:0;}
+.pd-home-links a small,.pd-home-hero + .pd-metrics .pd-metric > div > small {font-size:11px;color:#5c7581;}
+.pd-sidebar nav.pd-tree {display:grid; gap:4px; grid-template-columns:minmax(0,1fr);overflow:visible;}
+.pd-tree-heading {display:flex;align-items:center;gap:11px;width:100%;background:none;border:0;border-radius:8px;
+  font-size:14px;color:#cfe2ea;padding:12px 10px;text-align:left;font-weight:640;min-height:44px;}
+.pd-tree-heading:hover,.pd-tree-heading[aria-expanded="true"] {background:#214b58;color:#fff;}
+.pd-tree-heading > svg:last-child {margin-left:auto;}
+.pd-tree-heading[aria-expanded="true"] > svg:last-child {transform:rotate(90deg);}
+.pd-tree ul {padding:1px 0 2px 14px;margin:1px 0 1px 16px;border-left:1px solid #436070;list-style:none;}
+.pd-tree ul a {min-height:33px;padding:6px 8px;font-size:12px;font-weight:560;white-space:normal;}
+.pd-tree ul a[aria-current="page"] {background:#25585a;color:#e8fff7;}
+.pd-tree .pd-tree-section a::after {display:none;}
+.pd-sidebar .pd-mobile-nav {display:none;}
+.pd-comparison h4 {margin:0 0 9px;}
+@media(max-width:770px) {
+  .pd-sidebar {position:relative;min-height:58px; }
+  .pd-sidebar .pd-mobile-nav {display:flex;position:absolute;right:14px;top:12px;align-items:center;gap:5px;
+    background:#234858;border:1px solid #416473;color:#effffb;min-height:34px;border-radius:7px;font-size:12px;padding:4px 7px;}
+  .pd-sidebar nav.pd-tree[data-open="false"] {display:none;}
+  .pd-sidebar nav.pd-tree[data-open="true"] {display:grid;}
+  .pd-tree-heading {min-height:38px;}
+}
+@media(max-width:480px) {
+  .pd-home-links {grid-template-columns:1fr;}
+  .pd-home-hero {align-items:start;flex-direction:column;padding:16px;}
+}

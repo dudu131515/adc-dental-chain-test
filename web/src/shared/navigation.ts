@@ -19,7 +19,7 @@ export function hasRole(identity: StaffIdentity, roles: string[], clinic: string
 }
 type Section = {path: string; label: string; icon: IconName; roles?: string[]};
 export const navigation: Section[] = [
-  {path: "/dashboard", label: "工作台", icon: "dashboard"},
+  {path: "/dashboard", label: "首页", icon: "dashboard"},
   {path: "/schedule", label: "排班与预约", icon: "calendar", roles: dailyRoles},
   {path: "/patients", label: "患者档案", icon: "patients", roles: ["FRONT_DESK"]},
   {path: "/clinical", label: "诊疗", icon: "tooth", roles: ["DENTIST"]},
@@ -34,18 +34,18 @@ export function allowedSections(identity: StaffIdentity, clinic = "") {
     : (!section.roles || hasRole(identity, section.roles, clinic)));
 }
 
-const groups: { label: string; icon: IconName; paths: string[] }[] = [
-  {label: "工作台", icon: "dashboard", paths: ["/dashboard"]},
-  {label: "排班与预约", icon: "calendar", paths: ["/schedule"]},
-  {label: "患者与诊疗", icon: "patients", paths: ["/patients", "/clinical"]},
-  {label: "收费与经营", icon: "receipt", paths: ["/billing", "/operations"]},
-  {label: "基础管理", icon: "layers", paths: ["/admin", "/catalog"]},
+const groups: { id: string; label: string; icon: IconName; paths: string[] }[] = [
+  {id: "home", label: "首页", icon: "dashboard", paths: ["/dashboard"]},
+  {id: "desk", label: "门诊运营", icon: "calendar", paths: ["/schedule"]},
+  {id: "care", label: "患者与诊疗", icon: "patients", paths: ["/patients", "/clinical"]},
+  {id: "cashier", label: "收费与日结", icon: "receipt", paths: ["/billing"]},
+  {id: "operations", label: "经营与配置", icon: "chart", paths: ["/operations", "/admin", "/catalog"]},
 ];
 
 export function groupedNavigation(choices: Section[]) {
   return groups.flatMap(group => {
     const sections = group.paths.flatMap(path => choices.filter(section => section.path === path));
-    return sections.length ? [{...group, sections, path: sections[0].path === "/admin" ? "/admin/clinics" : sections[0].path}] : [];
+    return sections.length ? [{...group, sections}] : [];
   });
 }
 
@@ -55,17 +55,30 @@ export function canSeeDailyReconciliation(identity: StaffIdentity, clinic: strin
 
 type WorkspaceTab = {path: string; label: string};
 
+export function scheduleViews(identity: StaffIdentity, clinic: string) {
+  const canPlan = hasRole(identity, ["HQ_SCHEDULER", "CLINIC_MANAGER"], clinic);
+  return [
+    {id: "appointments", label: "预约日历"},
+    ...(canPlan || hasRole(identity, ["DENTIST"], clinic) ? [{id: "shifts", label: "跨店排班"}] : []),
+    ...(canPlan ? [{id: "demands", label: "排班需求"}, {id: "resources", label: "牙椅停用"}] : []),
+  ];
+}
+
 export function workspaceTabs(group: ReturnType<typeof groupedNavigation>[number], identity: StaffIdentity, clinic: string) {
   const canReport = hasRole(identity, ["HQ_OPERATIONS_QUERY"], clinic);
   const canQuarter = hasRole(identity, performanceRoles, clinic);
   const canExpense = canQuarter || hasRole(identity, ["CLINIC_MANAGER"], clinic);
   return group.sections.flatMap<WorkspaceTab>(section => {
+    if (section.path === "/schedule") return [
+      {path: "/schedule/today", label: "今日门诊"},
+      ...scheduleViews(identity, clinic).map(view => ({path: "/schedule?view=" + view.id, label: view.label})),
+    ];
     if (section.path === "/billing") return [
       {path: "/billing", label: "结算"},
       ...(canSeeDailyReconciliation(identity, clinic) ? [{path: "/billing/reconciliation", label: "日结对账"}] : []),
     ];
     if (section.path === "/operations") return [
-      ...(canReport ? [{path: "/operations/report", label: "经营报告"}] : []),
+      ...(canReport ? [{path: "/operations/report", label: "经营报告"}, {path: "/operations/assistant", label: "经营智能助手"}] : []),
       ...(!canReport && canQuarter && !hasRole(identity, ["CLINIC_MANAGER"], clinic)
         ? [{path: "/operations/quarters", label: "季度核算"}, {path: "/operations/expenses", label: "费用登记"}]
         : [

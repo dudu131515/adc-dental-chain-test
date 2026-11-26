@@ -1,4 +1,5 @@
 import { FormEvent, useEffect, useRef, useState } from "react";
+import { AgentCanvas, AgentComposer, AgentTurn } from "./AgentCanvas";
 import { ApiError, request } from "../../shared/api";
 import { dateTime, errorMessage, money } from "../../shared/format";
 
@@ -26,7 +27,7 @@ type Period = { date_from: string; date_to: string; as_of: string; reference: st
   scope: { clinic_ids: string[]; dentist_ids: string[] } };
 type Change = { clinic_id: string | null; percentage_points?: string | null; availability?: "MISSING" | "NOT_APPLICABLE" } & Partial<MoneyValues>;
 type Step = { id: "change_period" | "unprocessed_details" | "money_breakdown" | "report_rules"; label: string; period_index?: number };
-type PendingAnalysis = { key: string; body?: Record<string, unknown> };
+type PendingAnalysis = { key: string; body?: Record<string, unknown>; prompt?: string };
 type Result = {
   analysis_id: string; metric: Metric; mode: "template" | "deepseek"; model_status: string; as_of: string;
   date_from: string; date_to: string; scope: { clinic_ids: string[]; dentist_ids: string[] };
@@ -60,9 +61,11 @@ function readPending(storageKey: string): PendingAnalysis | undefined {
   }
 }
 
-export function AssistantPanel({ accountId, context, openOriginal }: {
+export function AssistantPanel({ accountId, context, openOriginal, workspace = false, resetOriginal }: {
   accountId: string;
   context: string;
+  workspace?: boolean;
+  resetOriginal?: () => void;
   openOriginal: (reference: string, button: HTMLButtonElement, detail?: AssistantDrilldown) => void;
 }) {
   const storageKey = "adc:operations-analysis:" + accountId;
@@ -70,6 +73,9 @@ export function AssistantPanel({ accountId, context, openOriginal }: {
   const [options, setOptions] = useState<AssistantOptions>();
   const [selection, setSelection] = useState<Selection>();
   const [result, setResult] = useState<Result>();
+  const [turns,setTurns]=useState<{prompt:string; result:Result}[]>([]);
+  const [currentPrompt,setCurrentPrompt]=useState("");
+  const rangeDetails=useRef<HTMLDetailsElement>(null);
   const [question, setQuestion] = useState("");
   const [ask, setAsk] = useState(false);
   const [comparing, setComparing] = useState(false);
@@ -96,7 +102,7 @@ export function AssistantPanel({ accountId, context, openOriginal }: {
     return () => controller.abort();
   }, [context, retry]);
   useEffect(() => () => analysisRequest.current?.abort(), []);
-  useEffect(() => { if (result) resultHeading.current?.focus(); }, [result]);
+  useEffect(() => { if (result && !workspace) resultHeading.current?.focus(); }, [result,workspace]);
 
   function choose(next: Selection) {
     setSelection(next);
@@ -123,22 +129,31 @@ export function AssistantPanel({ accountId, context, openOriginal }: {
     setPending(next);
   }
 
-  function analyze(event: FormEvent) {
-    event.preventDefault();
+  function analyze(event?: FormEvent) {
+    event?.preventDefault();
     if (pending || analysisRequest.current || !selection || !options) return;
     if (!selection.clinic_ids.length) {
       setFault("请至少选择一家门店。");
       return;
     }
+    if (!selection.date_from || !selection.date_to || selection.date_from > selection.date_to) {
+      setFault("请核对本期起止日期。");
+      return;
+    }
     const { metric, clinic_ids, comparison_date_from, comparison_date_to, ...filters } = selection;
-    const comparison = comparing && (ask || !["deposit_refund", "report_rules"].includes(metric))
+    const compareRequired=comparing && (ask || !["deposit_refund", "report_rules"].includes(metric));
+    if (compareRequired && (!comparison_date_from || !comparison_date_to || comparison_date_from > comparison_date_to)) {
+      setFault("请核对对比期起止日期。");
+      return;
+    }
+    const comparison = compareRequired
       ? { comparison_date_from, comparison_date_to }
       : {};
     const body = {
       ...filters, ...comparison, ...(clinic_ids.length < options.clinics.length ? { clinic_ids } : {}),
-      ...(ask ? { question } : { metric }),
+      ...(ask ? { question:question.trim() } : { metric }),
     };
-    const action = { key: crypto.randomUUID(), body };
+    const action = { key: crypto.randomUUID(), body, prompt:workspace ? question.trim() || labels[metric] : undefined };
     remember(action);
     void runAnalysis(action, false);
   }
@@ -150,6 +165,7 @@ export function AssistantPanel({ accountId, context, openOriginal }: {
     const details = { actionKey: action.key, signal: controller.signal };
     setFault("");
     setBusy(true);
+    if (workspace) setCurrentPrompt(action.prompt || "恢复原分析");
     try {
       let result: Result | undefined;
       if (recover) {
@@ -163,6 +179,10 @@ export function AssistantPanel({ accountId, context, openOriginal }: {
       if (!controller.signal.aborted) {
         remember();
         setResult(response);
+        if (workspace) {
+          setQuestion("");
+          setTurns(previous=>[...previous,{prompt:action.prompt || labels[response.metric],result:response}]);
+        }
       }
     } catch (error) {
       if (controller.signal.aborted) return;
@@ -175,14 +195,18 @@ export function AssistantPanel({ accountId, context, openOriginal }: {
         : errorMessage(error, "暂时无法分析，请重试。"));
     } finally {
       analysisRequest.current = null;
-      if (!controller.signal.aborted) setBusy(false);
+      if (!controller.signal.aborted) { setBusy(false); setCurrentPrompt(""); }
     }
   }
 
   function nextStep(step: Step, button: HTMLButtonElement, current: Result) {
-    if (step.id === "change_period") dateInput.current?.focus();
+    if (step.id === "change_period") {
+      if (rangeDetails.current) rangeDetails.current.open=true;
+      dateInput.current?.focus();
+    }
     if (step.id === "report_rules" && selection) {
       choose({ ...selection, metric: "report_rules", comparison_date_from: undefined, comparison_date_to: undefined });
+      if (workspace) setQuestion(labels.report_rules);
       dateInput.current?.focus();
     }
     const period = current.periods[step.period_index ?? 0];
@@ -193,28 +217,21 @@ export function AssistantPanel({ accountId, context, openOriginal }: {
   const locked = busy || Boolean(pending);
   const fields = selection && options;
   const showComparison = selection && (ask || !["deposit_refund", "report_rules"].includes(selection.metric));
-  return <section id="operations-assistant" className="schedule-panel assistant-panel" aria-labelledby="assistant-title">
-    <h2 id="assistant-title">经营分析助手</h2>
+  const feedback = <>
     {suggestionLoading && <p role="status">正在读取可选问题…</p>}
     {fault && <p className="error-text" role="alert">{fault}</p>}
-    {pending && <button className="button" disabled={busy} onClick={() => void runAnalysis(pending, true)}>
-      核对原分析结果
-    </button>}
+    {pending && <button className="button" disabled={busy} onClick={() => void runAnalysis(pending, true)}>核对原分析结果</button>}
     {!options && fault && <button className="button" onClick={() => {
       setFault(""); setSuggestionLoading(true); setRetry(value => value + 1);
     }}>重新读取建议</button>}
-    {fields && selection && <>
-      <div className="assistant-suggestions" aria-label="分析建议">
-        {fields.suggestions.map(item => <button key={item.id} className="button" type="button"
-          disabled={locked} onClick={() => choose(item.selection)}>{item.label}</button>)}
-      </div>
-      <form onSubmit={analyze}>
-        <div className="schedule-tabs" aria-label="提问方式">
+  </>;
+  const filters = fields && selection &&       <form onSubmit={analyze}>
+        {!workspace && <div className="schedule-tabs" aria-label="提问方式">
           <button type="button" className="button" aria-pressed={!ask} onClick={() => setAsk(false)} disabled={locked}>选择指标</button>
           <button type="button" className="button" aria-pressed={ask} onClick={() => setAsk(true)} disabled={locked}>中文提问</button>
-        </div>
+        </div>}
         <div className="schedule-form">
-          {ask ? <label className="assistant-question">经营问题<input required maxLength={160} value={question} disabled={locked}
+          {workspace ? null : ask ? <label className="assistant-question">经营问题<input required maxLength={160} value={question} disabled={locked}
             placeholder="例如 查询本周与上周的实际就诊率" onChange={event => setQuestion(event.target.value)} /></label>
             : <label>分析指标<select value={selection.metric} disabled={locked} onChange={event => edit({ metric: event.target.value as Metric })}>
               {Object.entries(labels).map(([key, label]) => <option key={key} value={key}>{label}</option>)}
@@ -243,11 +260,16 @@ export function AssistantPanel({ accountId, context, openOriginal }: {
               min={selection.comparison_date_from} onChange={event => edit({ comparison_date_to: event.target.value })} /></label>
           </>}
         </div>}
-        <button className="button primary" disabled={locked}>{busy ? "正在分析…" : "开始分析"}</button>
-      </form>
-    </>}
-    {result && <div className="assistant-result" aria-labelledby="assistant-result-title">
-      <h3 id="assistant-result-title" ref={resultHeading} tabIndex={-1}>{labels[result.metric]}分析</h3>
+        {!workspace && <button className="button primary" disabled={locked}>{busy ? "正在分析…" : "开始分析"}</button>}
+      </form>;
+  const suggestions = fields && selection && <div className={workspace ? "adc-agent-suggestions" : "assistant-suggestions"} aria-label="分析建议">
+    {fields.suggestions.map(item => <button key={item.id} className="button" type="button" disabled={locked}
+      onClick={() => {choose(item.selection); if(workspace) setQuestion(item.label);}}>{item.label}</button>)}
+  </div>;
+
+  function renderAnswer(result:Result) {
+    return <div className="assistant-result" aria-labelledby={"assistant-result-" + result.analysis_id}>
+      <h3 id={"assistant-result-" + result.analysis_id} ref={workspace ? undefined : resultHeading} tabIndex={-1}>{labels[result.metric]}分析</h3>
       <p className="muted">
         {result.mode === "deepseek" ? "DeepSeek 生成解读" : result.model_status === "limit_reached" ? "模型已达用量上限，显示报表解读"
           : result.model_status === "disabled" ? "显示报表解读" : "模型暂不可用，显示报表解读"}
@@ -297,6 +319,23 @@ export function AssistantPanel({ accountId, context, openOriginal }: {
         {result.next_steps.map(step => <button className="button" key={step.id} disabled={busy}
           onClick={event => nextStep(step, event.currentTarget, result)}>{step.label}</button>)}
       </div>}
-    </div>}
+    </div>;
+  }
+
+  if (workspace) return <AgentCanvas mode="授权经营报表" turnCount={turns.length} busy={busy}
+    topAction={turns.length>0 ? <button type="button" disabled={locked} onClick={()=>{
+      setTurns([]);setQuestion("");setFault("");setResult(undefined);resetOriginal?.();
+    }}>新对话</button>:undefined}
+    conversation={<>{turns.map(turn=><AgentTurn key={turn.result.analysis_id} prompt={turn.prompt}>
+      {renderAnswer(turn.result)}</AgentTurn>)}{currentPrompt&&<p className="adc-agent-prompt">{currentPrompt}</p>}</>}
+    suggestions={<>{feedback}{suggestions}{filters&&<details ref={rangeDetails} className="adc-agent-range">
+      <summary>查看或调整分析范围</summary>{filters}</details>}</>}
+    composer={<AgentComposer question={question} locked={locked||!fields} busy={busy} change={value=>{
+      setQuestion(value);setAsk(true);
+    }} submit={()=>analyze()}/>}/>;
+
+  return <section id="operations-assistant" className="schedule-panel assistant-panel" aria-labelledby="assistant-title">
+    <h2 id="assistant-title">经营分析助手</h2>
+    {feedback}{suggestions}{filters}{result&&renderAnswer(result)}
   </section>;
 }

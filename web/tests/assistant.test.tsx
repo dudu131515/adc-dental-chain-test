@@ -1,5 +1,6 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, expect, test, vi } from "vitest";
+import { OperationsPage } from "../src/features/operations/OperationsPage";
 import { OperationsReport } from "../src/features/operations/OperationsReport";
 
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); sessionStorage.clear(); });
@@ -148,4 +149,26 @@ test("suggested follow-up opens eligible comparison-period details", async () =>
   expect(await screen.findByText("PRIOR-PERIOD-EVIDENCE")).toBeTruthy();
   expect(fetcher.mock.calls.some(([path]) => path.includes("reference=signed-prior"))).toBe(true);
   expect(fetcher.mock.calls.at(-1)?.[0]).toContain("report_token=prior-token&metric=unprocessed");
+});
+
+test("the standalone assistant sends typed text to Django and renders a conversation", async () => {
+  const fetcher=vi.fn(async (path:string, options:RequestInit) => {
+    if (path.endsWith("/csrf")) return response({csrf_token:"demo"});
+    if (path.includes("/suggestions?")) return response({clinics:identity.clinics,
+      suggestions:[{id:"weekly_attendance",label:"对比两店就诊率",selection}]});
+    if (path.endsWith("/analysis")) return response({
+      analysis_id:"workspace-1",metric:"attendance_rate",mode:"deepseek",model_status:"success",as_of:cutoff,
+      periods:[],comparison:null,sources:[],questions:[],next_steps:[],
+      observations:[{id:"o",text:"Django 授权分析已返回"}],
+    });
+    throw new Error(path);
+  });
+  vi.stubGlobal("fetch",fetcher);
+  render(<OperationsPage identity={identity} clinicId="" path="/operations/assistant" section="/operations" open={()=>{}}/>);
+  await screen.findByRole("button",{name:"对比两店就诊率"});
+  fireEvent.change(screen.getByRole("textbox",{name:"经营问题"}),{target:{value:"查看实际就诊率"}});
+  fireEvent.click(screen.getByRole("button",{name:"发送"}));
+  expect(await screen.findByText("Django 授权分析已返回")).toBeTruthy();
+  expect(JSON.parse(String(fetcher.mock.calls.find(([path])=>path.endsWith("/analysis"))?.[1].body)).question).toBe("查看实际就诊率");
+  expect(screen.getByRole("log",{name:"经营对话"})).toBeTruthy();
 });

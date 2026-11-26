@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, expect, test, vi } from "vitest";
 
 import { AppShell } from "../src/shared/AppShell";
@@ -19,7 +19,12 @@ test("an authorized scheduler opens the schedule and sees only authorized sectio
     },
   }), { status: 200 }));
   render(<AppShell />);
-  await screen.findByRole("link", { name: "排班与预约" });
+  const group = await screen.findByRole("button", {name:"门诊运营"});
+  expect(group.getAttribute("aria-expanded")).toBe("false");
+  fireEvent.click(group);
+  expect(screen.getByRole("link", {name:"预约日历"})).toBeTruthy();
+  expect(screen.getByRole("link", {name:"今日门诊"})).toBeTruthy();
+  expect(screen.getByRole("link", {name:"跨店排班"})).toBeTruthy();
   expect(screen.queryByRole("link", { name: "结算" })).toBeNull();
   expect(window.location.pathname).toBe("/dashboard");
   expect(screen.getByText("合成门店")).toBeTruthy();
@@ -42,10 +47,13 @@ test("the staff navigation groups existing URLs, and a billing URL still opens t
     clinics:[{clinic_id:"1",name:"合成门店"}], role_clinic_ids:{FRONT_DESK:["1"]},
   }})));
   render(<AppShell renderWorkArea={area => <p>{area.section} {area.path}</p>}/>);
-  const group = await screen.findByRole("link", {name:"收费与经营"});
-  expect(group.getAttribute("aria-current")).toBe("page");
-  expect(screen.getByRole("link", {name:"患者与诊疗"})).toBeTruthy();
-  expect(screen.getByRole("link", {name:"日结对账"})).toBeTruthy();
+  const group = await screen.findByRole("button", {name:"收费与日结"});
+  expect(group.getAttribute("aria-expanded")).toBe("true");
+  expect(screen.getByRole("button", {name:"患者与诊疗"})).toBeTruthy();
+  const side = screen.getByRole("navigation", {name:"业务导航"});
+  expect(within(side).getByRole("link", {name:"日结对账"})).toBeTruthy();
+  fireEvent.click(group);
+  expect(within(side).queryByRole("link", {name:"日结对账"})).toBeNull();
   expect(screen.getByText("/billing /billing/invoices/7")).toBeTruthy();
 });
 
@@ -57,11 +65,12 @@ test("reconciliation filters survive switching to billing and back", async () =>
     clinics:[{clinic_id:"1",name:"合成门店"}], role_clinic_ids:{FRONT_DESK:["1"]},
   }})));
   render(<AppShell />);
-  const otherTab = await screen.findByRole("link", {name:"结算", exact:true});
+  const workTabs = await screen.findByRole("navigation", {name:"收费与日结"});
+  const otherTab = within(workTabs).getByRole("link", {name:"结算", exact:true});
   fireEvent.click(otherTab);
   expect(window.location.pathname).toBe("/billing");
   expect(window.location.search).toBe("");
-  fireEvent.click(screen.getByRole("link", {name:"日结对账"}));
+  fireEvent.click(within(workTabs).getByRole("link", {name:"日结对账"}));
   expect(window.location.pathname).toBe("/billing/reconciliation");
   expect(window.location.search).toBe("?clinic_id=1&date=2026-11-03");
 });
