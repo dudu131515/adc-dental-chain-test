@@ -8,3 +8,4 @@
 .env.local
 *.log
 /mini-program/project.private.config.json
+/web/demo/dist/

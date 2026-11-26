@@ -9,7 +9,9 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
-    "test": "node --disable-warning=ExperimentalWarning --test tests/project.test.mjs && vitest run --environment jsdom --exclude tests/project.test.mjs"
+    "test": "node --disable-warning=ExperimentalWarning --test tests/project.test.mjs && vitest run --environment jsdom --exclude tests/project.test.mjs",
+    "build:demo": "tsc --noEmit && vite build --config vite.demo.config.ts",
+    "dev:demo": "vite --config vite.demo.config.ts"
   },
   "dependencies": {
     "react": "19.2.9",
