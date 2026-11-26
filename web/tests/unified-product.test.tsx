@@ -17,7 +17,9 @@ test("Pages uses the staff product shell and formal calendar at the legacy publi
   expect(await screen.findByRole("heading", {name:"排班与预约"})).toBeTruthy();
   const navigation = screen.getByRole("navigation", {name:"业务导航"});
   expect(within(navigation).getByRole("link", {name:"预约日历"}).getAttribute("href")).toBe("#/schedule?view=appointments");
-  expect(await screen.findByRole("region", {name:"林明远"})).toBeTruthy();
+  const doctor = await screen.findByRole("region", {name:"林明远"});
+  expect(within(doctor).getByRole("button", {name:/08:30.*履约结束/})).toBeTruthy();
+  expect(within(doctor).queryByRole("button", {name:/08:30.*候选空档/})).toBeNull();
   expect(window.location.pathname).toBe("/adc-demo/");
   expect(window.location.search).toBe("?release=qa");
   expect(network).not.toHaveBeenCalled();

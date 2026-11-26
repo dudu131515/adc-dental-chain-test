@@ -13,7 +13,7 @@ import { createSampleBilling } from "./sampleBilling";
 import { createSampleClinical } from "./sampleClinical";
 
 export const sampleDate = days[0];
-export const sampleTime = sampleDate + "T08:00:00+08:00";
+export const sampleTime = sampleDate + "T15:30:00+08:00";
 
 export const sampleRoles = {
   visitor: {label:"参观总览", employee:"0", roles:[]},
