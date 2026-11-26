@@ -5,7 +5,7 @@ import { useApiRequest } from "./ApiTransport";
 import { useWorkspaceRuntime } from "./WorkspaceRuntime";
 import { useRead } from "./useRead";
 import { Brand, Icon } from "./Icons";
-import { allowedSections, canSeeDailyReconciliation, dailyRoles, groupedNavigation, hasAccessAdministration, hasRole, inferredJob, roleNames, workspaceTabs } from "./navigation";
+import { allowedSections, canSeeDailyReconciliation, dailyRoles, groupedNavigation, hasAccessAdministration, hasRole, homeLabel, jobLabel, roleNames, workspaceTabs } from "./navigation";
 import type { StaffIdentity } from "./navigation";
 
 export type { StaffIdentity } from "./navigation";
@@ -27,6 +27,11 @@ function rememberedClinic(identity: StaffIdentity) {
     return "";
   }
 }
+function profileKey(identity: StaffIdentity) {
+  return JSON.stringify([identity.full_name, identity.employee_no, identity.job_code, identity.home_clinic,
+    identity.employee_status, identity.account_status]);
+}
+
 function staffScope(identity: StaffIdentity) {
   const capabilities = [...identity.capabilities].sort();
   return JSON.stringify([
@@ -93,7 +98,13 @@ export function AppShell({ renderWorkArea, sample }: {
     if (next.category !== "staff") { endSession(); return; }
     const previous = session.current;
     const changed = !previous || staffScope(previous) !== staffScope(next);
-    if (!changed) return;
+    if (!changed) {
+      if (previous && profileKey(previous) !== profileKey(next)) {
+        session.current = next;
+        setIdentity(next);
+      }
+      return;
+    }
     invalidateWorkspace();
     clearWorkspace();
     session.current = next;
@@ -258,13 +269,14 @@ export function AppShell({ renderWorkArea, sample }: {
       <details className="rail-account">
         <summary>
           <span className="staff-avatar"><Icon name="user"/></span>
-          <span className="rail-account-name"><strong>{inferredJob(identity.capabilities)}</strong>
-            <small>账号 {identity.account_id}</small>
+          <span className="rail-account-name"><strong>{identity.full_name || "员工账号"}</strong>
+            <small>{identity.employee_no || identity.account_id} · {jobLabel(identity.job_code)}</small>
             {hasAccessAdministration(identity) && <small className="rail-admin-label">管理员权限</small>}
           </span>
           <Icon name="chevron" size={13} />
         </summary>
         <div className="rail-permissions">
+          <p className="rail-home">所属机构 · {homeLabel(identity)}</p>
           <strong>功能权限与门店范围</strong>
           {identity.capabilities.length ? <dl>{identity.capabilities.map(role => {
             const access = identity.role_clinic_ids?.[role];
@@ -284,6 +296,9 @@ export function AppShell({ renderWorkArea, sample }: {
         <span className="breadcrumb-origin">管理中心</span><span className="breadcrumb-divider">/</span><strong>{activeTab?.label || chosen?.label || "员工工作空间"}</strong></div>
       <div className="topbar-controls">
         {sample?.controls}
+        {identity.full_name && <div className="topbar-staff" title={jobLabel(identity.job_code) + " · " + homeLabel(identity)}>
+          <Icon name="user" size={15}/><span>{identity.full_name}</span>
+        </div>}
         {identity.clinics.length > 0 && <div className="scope-control"><Icon name="clinic" size={16}/>
           {identity.clinics.length > 1 ? <select aria-label="工作门店" disabled={loggingOut} value={clinicId} onChange={e => changeClinic(e.target.value)}>
             <option value="">全部授权门店</option>

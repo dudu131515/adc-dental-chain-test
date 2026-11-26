@@ -30,6 +30,29 @@ class AccountStatusChange(serializers.Serializer):
     reason = serializers.CharField(max_length=500)
 
 
+class EmployeeProfileChange(serializers.Serializer):
+    job_code = serializers.ChoiceField(choices=Employee.Job.values)
+    home_clinic_id = serializers.IntegerField(allow_null=True, min_value=1, max_value=2**63 - 1)
+    expected_job_code = serializers.ChoiceField(choices=Employee.Job.values, allow_null=True)
+    expected_home_clinic_id = serializers.IntegerField(allow_null=True, min_value=1, max_value=2**63 - 1)
+    reason = serializers.CharField(max_length=500)
+
+    def validate(self, fields):
+        headquarters = fields["job_code"] == Employee.Job.HEADQUARTERS
+        if headquarters != (fields["home_clinic_id"] is None):
+            raise serializers.ValidationError({"home_clinic_id": "总部岗位归属总部，门店岗位请选择所属门店。"})
+        return fields
+
+
+def employee_profile(employee):
+    clinic = employee.home_clinic
+    return {
+        "employee_no": employee.employee_no, "full_name": employee.full_name,
+        "employee_status": employee.status, "job_code": employee.job_code,
+        "home_clinic": {"clinic_id": str(clinic.pk), "name": clinic.clinic_name} if clinic else None,
+    }
+
+
 def deployment_managed(role_code, clinic_id):
     return role_code in DEPLOYMENT_ROLES or (role_code in HQ_ROLES and clinic_id is None)
 
@@ -68,23 +91,29 @@ def access_directory(request):
         "employee_id", "role__role_code", "scope_clinic_id",
     )
     protected = set()
-    scoped_grants = {}
+    scoped_grants, permissions = {}, {}
     for employee_id, role_code, clinic_id in role_rows:
-        if deployment_managed(role_code, clinic_id):
+        managed = deployment_managed(role_code, clinic_id)
+        if managed:
             protected.add(employee_id)
+        grant = {"role_code": role_code, "clinic_id": str(clinic_id) if clinic_id is not None else None}
+        if (role_code in LOCAL_ROLES and clinic_id is not None) or role_code in HQ_ROLES or (
+            role_code == ACCESS_ADMIN_ROLE and clinic_id is None
+        ):
+            permissions.setdefault(employee_id, []).append({**grant, "managed_by_deployment": managed})
         if role_code in PRESET_ROLES and clinic_id is not None:
-            scoped_grants.setdefault(employee_id, []).append({"role_code": role_code, "clinic_id": str(clinic_id)})
+            scoped_grants.setdefault(employee_id, []).append(grant)
 
     employees = []
-    for employee_id, number, name, employee_status, account_status in Employee.objects.order_by(
-        "employee_no",
-    ).values_list("pk", "employee_no", "full_name", "status", "useraccount__status"):
-        other_employee = employee_id != request.user.employee_id
+    for employee in Employee.objects.select_related("home_clinic", "useraccount").order_by("employee_no"):
+        account = getattr(employee, "useraccount", None)
+        account_status = account.status if account else None
+        other_employee = employee.pk != request.user.employee_id
         employees.append({
-            "employee_id": str(employee_id), "employee_no": number, "full_name": name,
-            "employee_status": employee_status, "account_status": account_status,
-            "can_manage_account": other_employee and employee_id not in protected and account_status in ACCOUNT_STATUSES,
-            "can_manage_grants": other_employee, "grants": scoped_grants.get(employee_id, []),
+            **employee_profile(employee), "employee_id": str(employee.pk), "account_status": account_status,
+            "can_manage_account": other_employee and employee.pk not in protected and account_status in ACCOUNT_STATUSES,
+            "can_manage_grants": other_employee, "can_manage_profile": other_employee,
+            "grants": scoped_grants.get(employee.pk, []), "permissions": permissions.get(employee.pk, []),
         })
     return success({
         "clinics": [clinic_summary(clinic) for clinic in clinic_choices()],
@@ -202,6 +231,40 @@ def employee_account_status(request, employee_id):
         return change_result(event)
 
 
+@api_view(["POST"])
+def change_employee_profile(request, employee_id):
+    request.user.require(ACCESS_ADMIN_ROLE)
+    payload = EmployeeProfileChange(data=request.data)
+    payload.is_valid(raise_exception=True)
+    data = dict(payload.validated_data)
+    operation = OperationKey.from_request(
+        request, command="EMPLOYEE_PROFILE_CHANGED", target={"employee_id": employee_id},
+    )
+    with transaction.atomic():
+        lock_access_target(request, employee_id)
+        prior_id = operation.result_id(data)
+        if prior_id is not None:
+            return change_result(AuditLog.objects.get(pk=prior_id))
+        employee = Employee.objects.get(pk=employee_id)
+        current = (employee.job_code, employee.home_clinic_id)
+        expected = (data["expected_job_code"], data["expected_home_clinic_id"])
+        desired = (data["job_code"], data["home_clinic_id"])
+        require_expected_state(current, expected, desired)
+        if desired[1] is not None:
+            get_object_or_404(Clinic, pk=desired[1])
+        employee.job_code, employee.home_clinic_id = desired
+        employee.save(update_fields=["job_code", "home_clinic"])
+        before = {"job_code": current[0], "home_clinic_id": str(current[1]) if current[1] is not None else None}
+        after = {"job_code": desired[0], "home_clinic_id": str(desired[1]) if desired[1] is not None else None,
+                 "reason": data["reason"]}
+        event = record_event(
+            account_id=request.user.account_id, action="EMPLOYEE_PROFILE_CHANGED", target_type="employee",
+            target_id=employee_id, visible_fields=("job_code", "home_clinic_id", "reason"), before=before, after=after,
+        )
+        operation.record_result(event.pk, data)
+        return change_result(event)
+
+
 @api_view(["GET"])
 def employee_history(request, employee_id):
     request.user.require(ACCESS_ADMIN_ROLE)
@@ -209,6 +272,7 @@ def employee_history(request, employee_id):
     fields = {
         "EMPLOYEE_SCOPE_CHANGED": ("clinic_id", "role_code", "granted"),
         "EMPLOYEE_ACCOUNT_STATUS_CHANGED": ("status",),
+        "EMPLOYEE_PROFILE_CHANGED": ("job_code", "home_clinic_id"),
     }
     events = AuditLog.objects.filter(
         action__in=fields, target_type="employee", target_id=employee_id,
@@ -230,5 +294,6 @@ urlpatterns = [
     path("admin/access", access_directory),
     path("admin/access/employees/<int:employee_id>/grants", employee_grants),
     path("admin/access/employees/<int:employee_id>/history", employee_history),
+    path("admin/access/employees/<int:employee_id>/profile", change_employee_profile),
     path("admin/access/employees/<int:employee_id>/account-status", employee_account_status),
 ]

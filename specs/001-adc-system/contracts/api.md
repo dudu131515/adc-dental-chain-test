@@ -25,7 +25,7 @@
 | POST `/auth/web/login` | 网站及 CSRF | `login_identity,password` → 设置会话 Cookie，返回员工身份及权限范围 | FR-001、FR-002 |
 | POST `/auth/mini/login` | 微信入口 | `code` → 服务端换取微信身份。已绑定返回 bearer，未绑定返回短期 `profile_token` 和 `profile_required` | FR-001、FR-002 |
 | POST `/auth/mini/bind-profile` | 小程序首次绑定 | `profile_token`、本人必填档案 → 原子创建本人患者与账号并签发患者 bearer。已预置患者按环境提供的受控关联就绪后登录 | FR-001、FR-002、FR-201 |
-| GET `/auth/me` | P 或授权员工 | 当前 `account_id`、类别、`capabilities`、可用门店及本人关联标识 | FR-001、FR-002 |
+| GET `/auth/me` | P 或授权员工 | 当前 `account_id`、类别、`capabilities`、可用门店及本人关联标识。员工会话同时返回姓名、工号、岗位代码、所属门店、员工和账号状态。 | FR-001、FR-002 |
 | POST `/auth/logout` | P 或授权员工 | 撤销当前会话，网站清除 Cookie，小程序清除本地令牌 | FR-001、FR-002 |
 
 档案字段为 `full_name,birth_date,billing_address,phone,email,emergency_name,emergency_phone`。第一阶段微信仅服务课程合成身份。微信 `openid` 由服务端取得，禁止使用客户端提供的微信身份或按姓名、手机号自动认领既有档案。首次绑定令牌只用于建立本人资料，重复提交回读既有合法绑定，不建立重复档案。
@@ -160,8 +160,9 @@
 | --- | --- | --- |
 | FR-010 | GET /workbench/alerts | 可按 clinic_id、date 过滤。网站员工使用，返回 schedule、clinical、billing、reconciliation、corrections 五个布尔值。 |
 | FR-011 | GET /admin/clinics | 全局总部权限管理员使用。items 返回门店编号、名称、地址、工作联系方式和状态。 |
-| FR-011 | GET /admin/access | 返回可选门店、员工最小资料、可维护角色与范围。 |
+| FR-011 | GET /admin/access | 返回可选门店、员工档案、账号状态、全部有效功能权限及其范围，并标注哪些授权由部署维护。 |
 | FR-011 | POST /admin/access/employees/{employee_id}/grants | 传 role_code、clinic_id、expected_granted、granted、reason 和 Idempotency-Key。 |
+| FR-011、产品任务 02 | POST /admin/access/employees/{employee_id}/profile | 管理员提交 job_code、home_clinic_id、expected_job_code、expected_home_clinic_id、reason 与 Idempotency-Key。仅更新独立岗位资料并审计。总部岗位的 home_clinic_id 为空，三个门店岗位须指定所属门店。 |
 | FR-011 | POST /admin/access/employees/{employee_id}/account-status | 传 expected_status、status、reason 和 Idempotency-Key。已过期状态返回 STALE_ACCESS_STATE，要求查新后提交。 |
 | FR-409 | GET /billing/reconciliation | 须指定 clinic_id、date。返回上海营业日、统计截止、历史日标识、totals、settled、pending、refund_due、retained 和适用的原业务引用。 |
 | FR-410 | GET /patients/me/invoices | 患者会话。可按 appointment_id 查本人记录，支持 limit、cursor 和 next_cursor。 |
@@ -172,4 +173,4 @@
 | FR-607 | GET /reports/operations/assistant/analysis/by-action | 传原 Idempotency-Key。按原账号和现行授权回查；处理中、已过期或同键异载荷分别返回明确状态。 |
 | FR-607 | GET /reports/operations/assistant/report | 使用本地签名 reference 打开原报表。快照失效时，在权限允许的前提下按原筛选重新查询并标注新旧截止。 |
 
-权限管理页的 GET /admin/access/employees/{id}/history 仅允许总部权限管理账号读取，返回指定员工最近 50 条授权或账号状态变更，包含原因、操作者、时间及白名单中的变更前后值。对应 FR-011。
+权限管理页的 GET /admin/access/employees/{id}/history 仅允许总部权限管理账号读取，返回指定员工最近 50 条岗位资料、授权或账号状态变更，包含原因、操作者、时间及白名单中的变更前后值。对应 FR-011。

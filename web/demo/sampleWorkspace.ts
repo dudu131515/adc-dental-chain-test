@@ -1,4 +1,4 @@
-import type { StaffIdentity } from "../src/shared/navigation";
+import { jobLabels, roleNames, type JobCode, type StaffIdentity } from "../src/shared/navigation";
 import { addDays, localDate as shanghaiDate, localTime } from "../src/features/schedule/types";
 import type { Candidate } from "../src/features/schedule/appointmentTypes";
 import type { Dentist, Shift } from "../src/features/schedule/types";
@@ -17,38 +17,46 @@ export const sampleTime = sampleDate + "T15:30:00+08:00";
 
 export const sampleRoles = {
   visitor: {label:"参观总览", employee:"0", roles:[]},
-  scheduler: {label:"总部排班与经营", employee:"6", roles:["HQ_SCHEDULER","HQ_OPERATIONS_QUERY"]},
-  dentist: {label:"牙医 · 林明远", employee:"1", roles:["DENTIST"]},
-  dentist2: {label:"牙医 · 周宁", employee:"2", roles:["DENTIST"]},
-  dentist3: {label:"牙医 · 何可", employee:"3", roles:["DENTIST"]},
-  dentist4: {label:"牙医 · 顾然", employee:"13", roles:["DENTIST"]},
-  manager: {label:"中心门诊主管", employee:"5", roles:["CLINIC_MANAGER"]},
-  front: {label:"中心门诊前台", employee:"4", roles:["FRONT_DESK"]},
+  scheduler: {label:"总部管理人员", employee:"6", roles:["HQ_SCHEDULER","HQ_CATALOG","HQ_OPERATIONS_QUERY",
+    "HQ_PERFORMANCE_CALCULATE","HQ_PERFORMANCE_REVIEW","HQ_PERFORMANCE_CONFIRM"]},
+  dentist: {label:"牙医", employee:"1", roles:[]},
+  dentist2: {label:"牙医 · 周宁", employee:"2", roles:[]},
+  dentist3: {label:"牙医 · 何可", employee:"3", roles:[]},
+  dentist4: {label:"牙医 · 顾然", employee:"13", roles:[]},
+  manager: {label:"诊所主管", employee:"5", roles:[]},
+  front: {label:"前台", employee:"4", roles:[]},
   reports: {label:"总部经营查询", employee:"8", roles:["HQ_OPERATIONS_QUERY"]},
   calculate: {label:"总部绩效核算", employee:"9", roles:["HQ_PERFORMANCE_CALCULATE"]},
   review: {label:"总部绩效复核", employee:"10", roles:["HQ_PERFORMANCE_REVIEW"]},
   confirm: {label:"总部绩效确认", employee:"11", roles:["HQ_PERFORMANCE_CONFIRM"]},
   catalog: {label:"总部项目管理", employee:"7", roles:["HQ_CATALOG"]},
-  admin: {label:"总部权限管理员", employee:"12", roles:["HQ_ACCESS_ADMIN"]},
+  admin: {label:"系统管理员", employee:"12", roles:["HQ_ACCESS_ADMIN"]},
 } as const;
 export type SampleRole = keyof typeof sampleRoles;
 const branches = Object.entries(clinics).map(([clinic_id,name], index) => ({
   clinic_id, name, clinic_no:index ? "ADC-B02" : "ADC-A01", status:"ACTIVE",
   address:index ? "示例大道 56 号" : "示例路 18 号", phone:null, email:null,
 }));
-const roleNames: Record<string,string> = {
-  FRONT_DESK:"诊所前台", DENTIST:"责任牙医", CLINIC_MANAGER:"诊所主管",
-  HQ_SCHEDULER:"总部排班", HQ_CATALOG:"总部项目管理", HQ_OPERATIONS_QUERY:"总部经营查询",
-};
+const editable = ["FRONT_DESK","DENTIST","CLINIC_MANAGER","HQ_SCHEDULER","HQ_CATALOG","HQ_OPERATIONS_QUERY"];
 const grants = (role_code:string, ...ids:string[]) => ids.map(clinic_id=>({role_code,clinic_id}));
-const originalEmployees = [
-  ["1","林明远",grants("DENTIST","central","river")],["2","周宁",grants("DENTIST","central")],
-  ["3","何可",grants("DENTIST","river")],["4","陈晓前",grants("FRONT_DESK","central")],
-  ["5","苏文",grants("CLINIC_MANAGER","central")],["6","彭航",[]],["7","邵敏",[]],
-  ["8","江静",[]],["9","程瑜",[]],["10","柳嘉",[]],["11","李岚",[]],
-  ["12","陈虹",[]],["13","顾然",grants("DENTIST","river")],["14","潘云",grants("FRONT_DESK","river")],
-  ["15","胡怡",grants("CLINIC_MANAGER","river")],["16","纪诚",[]],
-] as const;
+const originalEmployees: [string,string,JobCode,string|null,ReturnType<typeof grants>][] = [
+  ["1","林明远","DENTIST","central",grants("DENTIST","central","river")],
+  ["2","周宁","DENTIST","central",grants("DENTIST","central")],
+  ["3","何可","DENTIST","river",grants("DENTIST","river")],
+  ["4","陈晓前","FRONT_DESK","central",grants("FRONT_DESK","central")],
+  ["5","苏文","CLINIC_MANAGER","central",grants("CLINIC_MANAGER","central")],
+  ["6","彭航","HEADQUARTERS",null,[]],["7","邵敏","HEADQUARTERS",null,[]],
+  ["8","江静","HEADQUARTERS",null,[]],["9","程瑜","HEADQUARTERS",null,[]],
+  ["10","柳嘉","HEADQUARTERS",null,[]],["11","李岚","HEADQUARTERS",null,[]],
+  ["12","陈虹","HEADQUARTERS",null,[]],
+  ["13","顾然","DENTIST","river",grants("DENTIST","river")],
+  ["14","潘云","FRONT_DESK","river",grants("FRONT_DESK","river")],
+  ["15","胡怡","CLINIC_MANAGER","river",grants("CLINIC_MANAGER","river")],
+  ["16","纪诚","HEADQUARTERS",null,[]],
+];
+const globalStaffRoles = new Map<string, readonly string[]>(
+  Object.values(sampleRoles).map(({employee,roles}) => [employee,roles]),
+);
 const qualifications = [
   {qualification_id:"1",name:"口腔执业医师"}, {qualification_id:"2",name:"牙体牙髓治疗"},
   {qualification_id:"3",name:"儿童口腔诊疗"},
@@ -113,8 +121,8 @@ export function createSampleWorkspace() {
     payment:{deposit_id:string;amount:string;status:string}; appointment_id?:string;appointment_no?:string};
   const holds = new Map<string,Hold>();
   const holdActions = new Map<string,Hold>();
-  const employees = originalEmployees.map(([employee_id,full_name,roles])=>({
-    employee_id,employee_no:"ADC-E"+employee_id.padStart(3,"0"),full_name,
+  const employees = originalEmployees.map(([employee_id,full_name,job_code,home_clinic_id,roles])=>({
+    employee_id,full_name,job_code,home_clinic_id,employee_no:"ADC-E"+employee_id.padStart(3,"0"),
     employee_status:employee_id==="16"?"ON_LEAVE":"ACTIVE",account_status:employee_id==="16"?"INACTIVE":"ACTIVE",
     can_manage_grants:employee_id!=="12",can_manage_account:["1","2","3","4","5","13","14","15","16"].includes(employee_id),
     grants:[...roles],
@@ -181,15 +189,26 @@ export function createSampleWorkspace() {
   const billing = createSampleBilling({bills,appointments:previewAppointments,id,clockDate:sampleDate,visit:clinical.visit,
     doctorId,bookingDeposits:() => deposits});
 
+  function homeClinic(clinicId: string | null) {
+    const branch = branches.find(c => c.clinic_id === clinicId);
+    return branch ? {clinic_id:branch.clinic_id,name:branch.name} : null;
+  }
+
   function identity(role:SampleRole):StaffIdentity {
-    const actor=sampleRoles[role], owner=employees.find(e=>e.employee_id===actor.employee);
-    if (role!=="visitor" && owner?.account_status!=="ACTIVE") return {account_id:actor.employee,employee_id:actor.employee,category:"staff",capabilities:[],clinics:[]};
-    const scoped=actor.roles.some(roleCode=>roleCode==="DENTIST")||role==="front"||role==="manager";
-    const authorized=scoped ? owner?.grants ?? [] : [];
-    const capabilities=scoped ? [...new Set(authorized.map(g=>g.role_code))] : [...actor.roles];
-    const clinics=scoped ? branches.filter(c=>authorized.some(g=>g.clinic_id===c.clinic_id)) : branches;
+    const actor = sampleRoles[role];
+    const owner = employees.find(e => e.employee_id === actor.employee);
+    const active = owner?.account_status === "ACTIVE" && owner.employee_status !== "INACTIVE";
+    const global = active ? globalStaffRoles.get(actor.employee) ?? [] : [];
+    const scoped = active ? owner.grants : [];
+    const capabilities = [...new Set([...global, ...scoped.map(grant => grant.role_code)])];
+    const clinics = global.some(code => code !== "HQ_ACCESS_ADMIN") ? branches
+      : branches.filter(clinic => scoped.some(grant => grant.clinic_id === clinic.clinic_id));
     return {account_id:actor.employee,employee_id:actor.employee,category:"staff",capabilities,clinics,
-      role_clinic_ids:Object.fromEntries(capabilities.map(code=>[code,scoped?authorized.filter(g=>g.role_code===code).map(g=>g.clinic_id):null]))};
+      full_name:owner?.full_name,employee_no:owner?.employee_no,job_code:owner?.job_code,
+      home_clinic:homeClinic(owner?.home_clinic_id ?? null),employee_status:owner?.employee_status,
+      account_status:owner?.account_status ?? null,
+      role_clinic_ids:Object.fromEntries(capabilities.map(code =>
+        [code,global.includes(code) ? null : scoped.filter(grant => grant.role_code === code).map(grant => grant.clinic_id)]))};
   }
 
   function transport(role:SampleRole) {
@@ -203,8 +222,10 @@ export function createSampleWorkspace() {
         ||staff.role_clinic_ids[code]!.includes(clinic));
     };
     const need=(code:string,clinic?:string)=>{if (!capability(code,clinic)) problem(403,"当前样例身份无权办理此项操作。");};
-    const scheduleVisible=(row:Shift)=>role==="manager"?capability("CLINIC_MANAGER",row.clinic_id):
-      capability("DENTIST")?row.dentist_id===sampleRoles[role].employee&&capability("DENTIST",row.clinic_id)&&row.status!=="DRAFT":true;
+    const scheduleVisible = (row:Shift, dayView:boolean) => capability("HQ_SCHEDULER",row.clinic_id)
+      || capability("CLINIC_MANAGER",row.clinic_id)
+      || (dayView && capability("FRONT_DESK",row.clinic_id) && row.status === "PUBLISHED")
+      || (row.dentist_id === sampleRoles[role].employee && capability("DENTIST",row.clinic_id) && row.status !== "DRAFT");
     const wanted=(filter:string|null,value:string)=>!filter||filter===value;
 
     const actor: SampleActor = {
@@ -290,11 +311,11 @@ export function createSampleWorkspace() {
     }
 
     function sampleBilling(q: URLSearchParams, raw: string) {
-      if (role !== "visitor") need("FRONT_DESK", q.get("clinic_id") ?? undefined);
+      need("FRONT_DESK", q.get("clinic_id") ?? undefined);
       const term = raw.trim().toLowerCase();
       const filter = q.get("status");
       const items = previewAppointments.filter(row => row.status === "done" && wanted(q.get("clinic_id"), row.clinic)
-        && wanted(q.get("date"), row.date) && (role === "visitor" || capability("FRONT_DESK", row.clinic)))
+        && wanted(q.get("date"), row.date) && capability("FRONT_DESK", row.clinic))
         .flatMap(row => {
           const bill = row.invoice ? bills[row.invoice] : undefined;
           const phone = registry.patient(row.clinic,row.patientId)?.phone ?? "";
@@ -343,7 +364,7 @@ export function createSampleWorkspace() {
       if (route === "/holds/by-action") {
         const prior = holdActions.get(options.actionKey ?? "");
         if (!prior || prior.clinic_id !== selected || prior.patient_id !== q.get("patient_id")) problem(404, "暂无该样例占位。");
-        if (role !== "visitor") need("FRONT_DESK", prior.clinic_id);
+        need("FRONT_DESK", prior.clinic_id);
         return prior;
       }
       if (route === "/holds" && !read) {
@@ -367,7 +388,7 @@ export function createSampleWorkspace() {
       if (holdRoute) {
         const hold = holds.get(holdRoute[1]);
         if (!hold) problem(404, "暂无该样例占位。");
-        if (role !== "visitor") need("FRONT_DESK", hold.clinic_id);
+        need("FRONT_DESK", hold.clinic_id);
         if (holdRoute[2] && hold.status === "HOLD") hold.status = "RELEASED";
         return hold;
       }
@@ -375,7 +396,7 @@ export function createSampleWorkspace() {
       if (depositRoute) {
         const hold = [...holds.values()].find(row => row.payment.deposit_id === depositRoute[1]);
         if (!hold) problem(404, "暂无该样例预约金。");
-        if (role !== "visitor") need("FRONT_DESK", hold.clinic_id);
+        need("FRONT_DESK", hold.clinic_id);
         if (depositRoute[2] && hold.status !== "CONFIRMED") {
           if (hold.status !== "HOLD" || Date.parse(hold.expires_at) <= Date.now()) problem(409, "样例占位已失效。");
           const name = registry.patient(hold.clinic_id,hold.patient_id)?.full_name;
@@ -399,7 +420,7 @@ export function createSampleWorkspace() {
       if(route==="/schedule/dentists") return {items:people.filter(p=>!selected||employees.some(e=>e.employee_id===p.dentist_id&&e.grants.some(g=>g.clinic_id===selected)))};
       if(route==="/schedule/board") {
         const dayspan = (start:string,end:string) => end > (q.get("date_from") ?? "") && start <= (q.get("date_to") ?? "9999");
-        return {shifts:shifts.filter(row=>scheduleVisible(row)&&wanted(selected,row.clinic_id)
+        return {shifts:shifts.filter(row=>scheduleVisible(row,q.get("view")==="day")&&wanted(selected,row.clinic_id)
           && wanted(q.get("dentist_id"),row.dentist_id) && dayspan(dateOf(row.start_at), addDays(dateOf(row.end_at),1))),
           appointments:registry.rows(q,actor).filter(row=>dayspan(row.date,addDays(row.date,1))).map(row=>{
             const view = registry.projection(row,actor);
@@ -474,22 +495,42 @@ export function createSampleWorkspace() {
       }
       if(route==="/admin/clinics"||route==="/admin/access"){
         need("HQ_ACCESS_ADMIN");
-        return route.endsWith("clinics")?{items:branches}:{clinics:branches,employees,
-          roles:Object.entries(roleNames).map(([role_code,role_name])=>({role_code,role_name}))};
+        return route.endsWith("clinics") ? {items:branches} : {clinics:branches,
+          employees:employees.map(({home_clinic_id,...employee}) => ({
+            ...employee,home_clinic:homeClinic(home_clinic_id),can_manage_profile:employee.employee_id!==sampleRoles[role].employee,
+            permissions:[
+              ...employee.grants.map(grant => ({...grant,managed_by_deployment:false})),
+              ...(globalStaffRoles.get(employee.employee_id) ?? []).map(role_code =>
+                ({role_code,clinic_id:null,managed_by_deployment:true})),
+            ],
+          })),
+          roles:editable.map(role_code => ({role_code,role_name:roleNames[role_code]}))};
       }
-      const admin=route.match(/^\/admin\/access\/employees\/(\d+)\/(grants|account-status|history)$/);
+      const admin=route.match(/^\/admin\/access\/employees\/(\d+)\/(grants|account-status|history|profile)$/);
       if(admin){
         need("HQ_ACCESS_ADMIN");
         const employee=employees.find(e=>e.employee_id===admin[1]);
         if(!employee) problem(404,"找不到员工。");
         if(admin[2]==="history") return {items:audits.get(employee.employee_id)??[]};
-        const reason=String(b.reason??"").trim(),isGrant=admin[2]==="grants";
+        const reason=String(b.reason??"").trim(),isGrant=admin[2]==="grants",isProfile=admin[2]==="profile";
         if(!reason) problem(400,"请填写变更原因。");
-        if(isGrant? !employee.can_manage_grants:!employee.can_manage_account) problem(403,"该目标由部署维护。");
+        if(isProfile ? employee.employee_id===sampleRoles[role].employee
+          : isGrant ? !employee.can_manage_grants : !employee.can_manage_account) problem(403,"该目标由部署维护。");
         let before:Body,after:Body;
-        if(isGrant){
+        if(isProfile){
+          const job_code = b.job_code as JobCode, home_clinic_id = b.home_clinic_id === null ? null : String(b.home_clinic_id);
+          if (!Object.hasOwn(jobLabels,job_code) || (job_code === "HEADQUARTERS" ? home_clinic_id !== null : !homeClinic(home_clinic_id)))
+            problem(400,"请核对岗位和所属机构。");
+          if (b.expected_job_code !== employee.job_code || b.expected_home_clinic_id !== employee.home_clinic_id)
+            problem(409,"资料已更新，请重新查询。");
+          if (job_code === employee.job_code && home_clinic_id === employee.home_clinic_id)
+            problem(400,"请选择需要变更的岗位资料。");
+          before = {job_code:employee.job_code,home_clinic_id:employee.home_clinic_id};
+          Object.assign(employee,{job_code,home_clinic_id});
+          after = {job_code,home_clinic_id,reason};
+        }else if(isGrant){
           const clinic_id=String(b.clinic_id),role_code=String(b.role_code);
-          if(!Object.hasOwn(roleNames,role_code)||!branches.some(c=>c.clinic_id===clinic_id)) problem(403,"该角色或门店不可授权。");
+          if(!editable.includes(role_code)||!branches.some(c=>c.clinic_id===clinic_id)) problem(403,"该角色或门店不可授权。");
           const matches=(g:{role_code:string;clinic_id:string})=>g.clinic_id===clinic_id&&g.role_code===role_code;
           const granted=employee.grants.some(matches);
           if(granted!==b.expected_granted||granted===b.granted) problem(409,"资料已更新，请重新查询。");
@@ -499,7 +540,7 @@ export function createSampleWorkspace() {
           if(employee.account_status!==b.expected_status||!["ACTIVE","INACTIVE"].includes(String(b.status))||employee.account_status===b.status) problem(409,"资料已更新，请重新查询。");
           before={status:employee.account_status};employee.account_status=String(b.status);after={status:employee.account_status,reason};
         }
-        const record={audit_id:id(),action:isGrant?"EMPLOYEE_SCOPE_CHANGED":"EMPLOYEE_ACCOUNT_STATUS_CHANGED",
+        const record={audit_id:id(),action:isProfile?"EMPLOYEE_PROFILE_CHANGED":isGrant?"EMPLOYEE_SCOPE_CHANGED":"EMPLOYEE_ACCOUNT_STATUS_CHANGED",
           occurred_at:new Date().toISOString(),actor_account_id:sampleRoles[role].employee,before,after};
         audits.set(employee.employee_id,[record,...(audits.get(employee.employee_id)??[])]);
         return {employee_id:employee.employee_id};

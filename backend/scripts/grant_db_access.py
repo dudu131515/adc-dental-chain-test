@@ -136,6 +136,9 @@ def configure_access(cursor, layer, application_role):
 
     cursor.execute(sql.SQL("GRANT SELECT ON ALL TABLES IN SCHEMA public TO {}").format(role))
     cursor.execute(sql.SQL("GRANT USAGE ON ALL SEQUENCES IN SCHEMA public TO {}").format(role))
+    cursor.execute(sql.SQL(
+        "GRANT UPDATE (job_code, home_clinic_id) ON public.employee TO {}"
+    ).format(role))
     for table, column in BUSINESS_REFERENCE_LOCKS:
         cursor.execute(
             sql.SQL("GRANT UPDATE ({}) ON {} TO {}").format(

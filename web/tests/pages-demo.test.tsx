@@ -14,6 +14,24 @@ function open(hash: string, role = "front") {
   render(<PagesDemo />);
 }
 
+test("the four standard roles are separated from special accounts and headquarters uses one workspace", async () => {
+  open("home");
+  const roles = await screen.findByRole("combobox", {name:"样例身份"});
+  expect(within(roles).getAllByRole("option").map(option => option.textContent)).toEqual([
+    "前台", "牙医", "诊所主管", "总部管理人员",
+  ]);
+  fireEvent.change(roles, {target:{value:"scheduler"}});
+  const nav = await screen.findByRole("navigation", {name:"业务导航"});
+  fireEvent.click(within(nav).getByRole("button", {name:/经营与配置/}));
+  for (const name of ["经营报告", "项目与价格", "季度核算"]) {
+    expect(within(nav).getByRole("link", {name})).toBeTruthy();
+  }
+  expect(within(nav).queryByRole("link", {name:"员工与权限"})).toBeNull();
+  expect(within(roles).queryByRole("option", {name:"系统管理员"})).toBeNull();
+  fireEvent.click(screen.getByText("更多身份", {exact:true}));
+  expect(screen.getByRole("button", {name:"系统管理员"})).toBeTruthy();
+});
+
 test("the same appointment form creates an appointment visible in its patient record", async () => {
   open("desk/calendar");
   const doctor = await screen.findByRole("region", {name:"林明远"});
@@ -82,10 +100,18 @@ test("sample administrator uses the formal access editor and the same directory 
   fireEvent.change(screen.getByLabelText("授权变更原因"),{target:{value:"滨江临时支援"}});
   fireEvent.click(screen.getByRole("button",{name:"授予权限"}));
   expect(await screen.findByText("门店授权已更新。")).toBeTruthy();
+  fireEvent.click(await screen.findByRole("button", {name:"编辑岗位与所属门店"}));
+  fireEvent.change(screen.getByLabelText("所属岗位",{exact:true}), {target:{value:"CLINIC_MANAGER"}});
+  fireEvent.change(screen.getByLabelText("岗位资料变更原因"), {target:{value:"合成入职资料核验"}});
+  fireEvent.click(screen.getByRole("button", {name:"保存岗位资料"}));
+  expect(await screen.findByText("岗位与所属门店已更新。")).toBeTruthy();
   fireEvent.change(screen.getByLabelText("样例身份"),{target:{value:"front"}});
   expect(await screen.findByRole("heading",{name:"连锁管理总览"})).toBeTruthy();
   expect((screen.getByLabelText("工作门店") as HTMLSelectElement).options).toHaveLength(3);
   expect(screen.queryByRole("button",{name:"授予权限"})).toBeNull();
+  expect(screen.getByText(/ADC-E004 · 诊所主管/)).toBeTruthy();
+  const nav = screen.getByRole("navigation", {name:"业务导航"});
+  expect(within(nav).queryByRole("button", {name:"经营与配置"})).toBeNull();
 });
 
 test("the shared quarterly review keeps trial results across sample identities", async () => {
@@ -93,12 +119,14 @@ test("the shared quarterly review keeps trial results across sample identities",
   fireEvent.click(await screen.findByRole("button",{name:"2026 年第 4 季度"}));
   fireEvent.click(await screen.findByRole("button",{name:"运行试算"}));
   expect(await screen.findByRole("heading",{name:/第 1 版 · 待核对/})).toBeTruthy();
-  fireEvent.change(screen.getByLabelText("样例身份"),{target:{value:"review"}});
+  fireEvent.click(screen.getByText("更多身份", {exact:true}));
+  fireEvent.click(screen.getByRole("button", {name:"总部绩效复核",exact:true}));
   fireEvent.change(await screen.findByLabelText("查看版本"),{target:{value:"1"}});
   fireEvent.change(await screen.findByLabelText("复核理由"),{target:{value:"核过合成总账和分摊依据"}});
   fireEvent.click(screen.getByRole("button",{name:"提交复核"}));
   expect(await screen.findByText(/核过合成总账和分摊依据/)).toBeTruthy();
-  fireEvent.change(screen.getByLabelText("样例身份"),{target:{value:"confirm"}});
+  fireEvent.click(screen.getByText("更多身份", {exact:true}));
+  fireEvent.click(screen.getByRole("button", {name:"总部绩效确认",exact:true}));
   fireEvent.change(await screen.findByLabelText("查看版本"),{target:{value:"1"}});
   fireEvent.click(await screen.findByRole("button",{name:"确认第 1 版"}));
   expect(await screen.findByRole("heading",{name:/第 1 版 · 正式确认/})).toBeTruthy();

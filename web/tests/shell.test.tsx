@@ -133,7 +133,8 @@ test("an older unauthorized response cannot end the workspace after a clinic swi
 
 test("one headquarters employee uses scheduling and operations in the same account and workbench", async () => {
   const identity = {
-    account_id: "42", employee_id: "42", category: "staff",
+    account_id: "42", employee_id: "42", category: "staff", full_name: "合成总部员工",
+    job_code: "HEADQUARTERS", home_clinic: null,
     capabilities: ["HQ_SCHEDULER", "HQ_OPERATIONS_QUERY"],
     clinics: [{ clinic_id: "1", name: "中心门诊" }, { clinic_id: "2", name: "滨江门诊" }],
     role_clinic_ids: { HQ_SCHEDULER: null, HQ_OPERATIONS_QUERY: ["1"] },
@@ -142,7 +143,7 @@ test("one headquarters employee uses scheduling and operations in the same accou
     data: url === "/api/v1/auth/me" ? identity : {},
   })));
   render(<AppShell renderWorkArea={area => <p>{area.section} 员工 {area.identity.employee_id}</p>} />);
-  expect(await screen.findByText("总部管理人员", {exact:true})).toBeTruthy();
+  expect(await screen.findByText(/42 · 总部管理人员/)).toBeTruthy();
   const nav = screen.getByRole("navigation", {name:"业务导航"});
   fireEvent.click(within(nav).getByRole("button", {name:"门诊运营"}));
   fireEvent.click(within(nav).getByRole("link", {name:"跨店排班"}));
@@ -150,20 +151,20 @@ test("one headquarters employee uses scheduling and operations in the same accou
   fireEvent.click(within(nav).getByRole("button", {name:"经营与配置"}));
   fireEvent.click(within(nav).getByRole("link", {name:"经营报告"}));
   expect(screen.getByText("/operations 员工 42")).toBeTruthy();
-  expect(within(nav).queryByRole("link", {name:"人员与授权"})).toBeNull();
+  expect(within(nav).queryByRole("link", {name:"员工与权限"})).toBeNull();
   fireEvent.change(screen.getByRole("combobox", {name:"工作门店"}), {target:{value:"2"}});
   expect(screen.getByText("/dashboard 员工 42")).toBeTruthy();
   expect(within(nav).queryByRole("button", {name:"经营与配置"})).toBeNull();
 });
 
-test("a pure access administrator has special authorization without an inferred business job", async () => {
+test("a legacy administrator has special authorization while profile details await entry", async () => {
   vi.stubGlobal("fetch", async () => new Response(JSON.stringify({ data: {
     account_id: "42", employee_id: "42", category: "staff",
     capabilities: ["HQ_ACCESS_ADMIN"], clinics: [], role_clinic_ids: { HQ_ACCESS_ADMIN: null },
   } })));
   render(<AppShell />);
   expect(await screen.findByText("管理员权限", {exact:true})).toBeTruthy();
-  expect(screen.queryByText("总部管理人员", {exact:true})).toBeNull();
+  expect(screen.getByText(/岗位待补录/)).toBeTruthy();
   expect(screen.queryByRole("button", {name:/门诊运营|收费与日结/})).toBeNull();
 });
 

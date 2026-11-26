@@ -16,7 +16,7 @@ from adc.clinical.models import ChairUsage, DentistWorkSession, PatientAllergy, 
 from adc.identity.audit import record_event
 from adc.identity.models import AppRole, Clinic, Employee, EmployeeRole, Patient, UserAccount
 from adc.common.idempotency import OperationKey
-from adc.identity.permissions import ACCESS_ADMIN_ROLE, current_principal
+from adc.identity.permissions import ACCESS_ADMIN_ROLE, HQ_ROLES, current_principal
 from adc.reporting.models import OperatingExpense
 from adc.reporting.period_locks import BUSINESS_ZONE, lock_period
 from adc.reporting.quarter_versions import calculate, confirm, review
@@ -36,14 +36,31 @@ def seed():
         ("access", "合成总部权限管理员", access_role, None),
         ("reports-a", "合成中心店经营查询", report_role, 1),
     ):
-        employee = Employee.objects.create(employee_no="ADC-DEMO-" + suffix.upper(), full_name=label)
+        employee = Employee.objects.create(employee_no="ADC-DEMO-" + suffix.upper(), full_name=label,
+                                           job_code=Employee.Job.HEADQUARTERS)
         UserAccount.objects.create(employee=employee, login_identity="demo." + suffix)
         EmployeeRole.objects.create(employee=employee, role=role, scope_clinic_id=clinic)
+    profiles = (
+        ("DENTIST", Employee.Job.DENTIST, 1),
+        ("FRONT-A", Employee.Job.FRONT_DESK, 1), ("FRONT-B", Employee.Job.FRONT_DESK, 2),
+        ("MANAGER-A", Employee.Job.CLINIC_MANAGER, 1), ("MANAGER-B", Employee.Job.CLINIC_MANAGER, 2),
+    )
+    for suffix, job, clinic in profiles:
+        Employee.objects.filter(employee_no="ADC-DEMO-" + suffix).update(job_code=job, home_clinic_id=clinic)
+    office = Employee.objects.filter(employee_no__in=[
+        "ADC-DEMO-SCHEDULER", "ADC-DEMO-CATALOG", "ADC-DEMO-REPORTS", "ADC-DEMO-CALCULATE",
+        "ADC-DEMO-REVIEW", "ADC-DEMO-CONFIRM",
+    ])
+    office.update(job_code=Employee.Job.HEADQUARTERS)
+    headquarters = office.get(employee_no="ADC-DEMO-SCHEDULER")
+    for role in AppRole.objects.filter(role_code__in=HQ_ROLES):
+        EmployeeRole.objects.get_or_create(employee=headquarters, role=role, scope_clinic=None)
     roles = dict(UserAccount.objects.filter(employee_id__isnull=False).values_list("login_identity", "pk"))
     Clinic.objects.filter(pk=1).update(clinic_name="中心口腔门诊", postal_address="示例路 18 号 · 2 层")
     Clinic.objects.filter(pk=2).update(clinic_name="滨江口腔门诊", postal_address="示例大道 56 号 · 1 层")
     Employee.objects.filter(pk=1).update(full_name="林明远")
-    doctor = Employee.objects.create(employee_no="ADC-PREVIEW-DOCTOR-2", full_name="周宁")
+    doctor = Employee.objects.create(employee_no="ADC-PREVIEW-DOCTOR-2", full_name="周宁",
+                                     job_code=Employee.Job.DENTIST, home_clinic_id=1)
     second_doctor_account = UserAccount.objects.create(employee=doctor, login_identity="demo.dentist-center2")
     roles[second_doctor_account.login_identity] = second_doctor_account.pk
     grant = EmployeeRole.objects.filter(employee_id=1, role__role_code="DENTIST", scope_clinic_id=1).get()

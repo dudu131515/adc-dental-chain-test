@@ -16,10 +16,10 @@ from rest_framework.decorators import api_view, authentication_classes, permissi
 from rest_framework.permissions import AllowAny
 
 from adc.common.http import ApiProblem, success, unavailable
-from adc.identity.admin_api import urlpatterns as admin_patterns
+from adc.identity.admin_api import employee_profile, urlpatterns as admin_patterns
 from adc.identity.audit import record_event
 from adc.identity.authentication import create_token, load_token
-from adc.identity.models import Clinic, Patient, UserAccount
+from adc.identity.models import Clinic, Employee, Patient, UserAccount
 from adc.identity.permissions import HQ_ROLES, LOCAL_ROLES, current_principal
 
 
@@ -56,6 +56,8 @@ def principal_data(principal):
         clinics = clinics.filter(pk__in=scope)
     return {
         **data,
+        **employee_profile(Employee.objects.select_related("home_clinic").get(pk=principal.employee_id)),
+        "account_status": "ACTIVE",
         "employee_id": str(principal.employee_id),
         "capabilities": principal.capabilities,
         "role_clinic_ids": {

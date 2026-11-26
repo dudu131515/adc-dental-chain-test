@@ -23,10 +23,10 @@ END $$;
 DO $$
 BEGIN
  PERFORM pg_temp.adc_assert((SELECT count(*)=40 FROM pg_tables WHERE schemaname='public'),'40 tables');
- PERFORM pg_temp.adc_assert((SELECT count(*)=268 FROM information_schema.columns col
+ PERFORM pg_temp.adc_assert((SELECT count(*)=270 FROM information_schema.columns col
   JOIN information_schema.tables tbl USING(table_schema,table_name)
-  WHERE col.table_schema='public' AND tbl.table_type='BASE TABLE'),'268 table fields');
- PERFORM pg_temp.adc_assert((SELECT count(*)=70 FROM pg_constraint WHERE contype='f' AND connamespace='public'::regnamespace),'70 physical FKs');
+  WHERE col.table_schema='public' AND tbl.table_type='BASE TABLE'),'270 table fields');
+ PERFORM pg_temp.adc_assert((SELECT count(*)=71 FROM pg_constraint WHERE contype='f' AND connamespace='public'::regnamespace),'71 physical FKs');
  PERFORM pg_temp.adc_assert((SELECT count(*)=4 FROM pg_views WHERE schemaname='public'),'4 reporting views');
 END $$;
 
@@ -40,6 +40,10 @@ INSERT INTO employee_role(employee_id,role_id,scope_clinic_id) VALUES(3,2,1);
 INSERT INTO user_account(id,employee_id,login_identity) VALUES(1,3,'demo-front-desk');
 DO $$ BEGIN
  PERFORM pg_temp.adc_reject('INSERT INTO employee_role(employee_id,role_id) VALUES(1,1)','23505','global role uniqueness');
+ PERFORM pg_temp.adc_reject('UPDATE employee SET job_code=''DENTIST'' WHERE employee_id=3','23514','local job requires a home clinic');
+ UPDATE employee SET job_code='DENTIST', home_clinic_id=2 WHERE employee_id=3;
+ PERFORM pg_temp.adc_assert((SELECT e.job_code='DENTIST' AND e.home_clinic_id=2 AND er.scope_clinic_id=1
+  FROM employee e JOIN employee_role er USING(employee_id) WHERE e.employee_id=3),'job, home clinic and grant are independent');
 END $$;
 INSERT INTO shift(shift_id,clinic_id,dentist_id,start_at,end_at,status) VALUES
  (1,1,1,'2026-06-30 21:00+08','2026-07-01 04:00+08','PUBLISHED'),

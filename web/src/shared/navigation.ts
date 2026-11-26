@@ -1,9 +1,28 @@
 import type { IconName } from "./Icons";
 
-export type StaffIdentity = {
+export const jobLabels = {
+  HEADQUARTERS: "总部管理人员",
+  CLINIC_MANAGER: "诊所主管",
+  FRONT_DESK: "前台",
+  DENTIST: "牙医",
+} as const;
+export type JobCode = keyof typeof jobLabels;
+export type StaffProfile = {
+  job_code?: JobCode | null; home_clinic?: { clinic_id: string; name: string } | null;
+  employee_no?: string; full_name?: string; employee_status?: string; account_status?: string | null;
+};
+export type StaffIdentity = StaffProfile & {
   account_id: string; category: "staff"; employee_id: string; capabilities: string[];
   clinics: { clinic_id: string; name: string }[]; role_clinic_ids?: Record<string, string[] | null>;
 };
+
+export function jobLabel(job?: JobCode | null) {
+  return job ? jobLabels[job] : "岗位待补录";
+}
+
+export function homeLabel(profile: StaffProfile) {
+  return profile.home_clinic?.name ?? (profile.job_code === "HEADQUARTERS" ? "总部" : "待补录");
+}
 export function canWorkAt(identity: StaffIdentity, role: string, clinic: string) {
   if (!identity.capabilities.includes(role)) return false;
   const scope = identity.role_clinic_ids?.[role];
@@ -13,19 +32,7 @@ export const dailyRoles = ["FRONT_DESK", "DENTIST", "CLINIC_MANAGER", "HQ_SCHEDU
 export const performanceRoles = ["HQ_OPERATIONS_QUERY", "HQ_PERFORMANCE_CALCULATE", "HQ_PERFORMANCE_REVIEW", "HQ_PERFORMANCE_CONFIRM"];
 export const roleNames: Record<string, string> = { FRONT_DESK: "诊所前台", DENTIST: "责任牙医", CLINIC_MANAGER: "诊所主管",
   HQ_SCHEDULER: "总部排班", HQ_CATALOG: "项目管理", HQ_OPERATIONS_QUERY: "经营查询",
-  HQ_PERFORMANCE_CALCULATE: "绩效核算", HQ_PERFORMANCE_REVIEW: "绩效复核", HQ_PERFORMANCE_CONFIRM: "绩效确认", HQ_ACCESS_ADMIN: "总部权限管理" };
-
-const jobRoles = [
-  { label: "总部管理人员", permissions: ["HQ_SCHEDULER", "HQ_CATALOG", ...performanceRoles] },
-  { label: "诊所主管", permissions: ["CLINIC_MANAGER"] },
-  { label: "前台", permissions: ["FRONT_DESK"] },
-  { label: "牙医", permissions: ["DENTIST"] },
-];
-
-export function inferredJob(capabilities: string[]) {
-  const jobs = jobRoles.filter(job => job.permissions.some(role => capabilities.includes(role)));
-  return jobs.length === 1 ? jobs[0].label : jobs.length ? "岗位待核对" : "员工";
-}
+  HQ_PERFORMANCE_CALCULATE: "绩效核算", HQ_PERFORMANCE_REVIEW: "绩效复核", HQ_PERFORMANCE_CONFIRM: "绩效确认", HQ_ACCESS_ADMIN: "系统管理" };
 
 export function hasAccessAdministration(identity: StaffIdentity) {
   return identity.capabilities.includes("HQ_ACCESS_ADMIN") && identity.role_clinic_ids?.HQ_ACCESS_ADMIN === null;
@@ -109,7 +116,7 @@ export function workspaceTabs(group: ReturnType<typeof groupedNavigation>[number
     ];
     if (section.path === "/admin") return [
       {path: "/admin/clinics", label: "门店与资源"},
-      {path: "/admin/access", label: "人员与授权"},
+      {path: "/admin/access", label: "员工与权限"},
     ];
     return [{path: section.path, label: section.label}];
   });

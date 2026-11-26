@@ -19,7 +19,18 @@ python backend/manage.py migrate --database=runtime
 python backend/manage.py createcachetable adc_report_snapshot --database=runtime
 ```
 
-用 `python backend/scripts/grant_db_access.py --help` 核对授权参数。初始化环境注入两库所有者的连接 URL，为独立运行账号授予脚本定义的最小权限。应用服务只注入运行 URL，完成体验夹具填充及账号哈希配置后执行 `python backend/manage.py check --deploy`。账户的工作范围通过现有授权角色控制。 员工、诊所和牙椅的参考行用于事务串行化。运行账号仅获这三张表的主键列 UPDATE 权限以允许 SELECT FOR UPDATE，业务流程不写入这些主键。运行账号应使用单独创建的角色，由初始化账号执行授权脚本。
+用 `python backend/scripts/grant_db_access.py --help` 核对授权参数。初始化环境注入两库所有者的连接 URL，为独立运行账号授予脚本定义的最小权限。应用服务只注入运行 URL，完成体验夹具填充及账号哈希配置后执行 `python backend/manage.py check --deploy`。账户的工作范围通过现有授权角色控制。 员工、诊所和牙椅的参考行用于事务串行化。运行账号可锁定这三张表的参考行。员工表只额外开放岗位和所属门店两列的更新权限，由管理接口检查管理员权限并记录审计。运行账号应使用单独创建的角色，由初始化账号执行授权脚本。
+
+### 已有业务库升级员工档案
+
+先在计划的发布窗口备份业务库。由数据库所有者执行：
+
+```sh
+pg_dump -Fc -d adc_business -f adc_business_before_employee_profiles.dump
+psql -X -v ON_ERROR_STOP=1 --single-transaction -d adc_business -f backend/scripts/upgrade_employee_profiles.sql
+```
+
+随后重新运行本节的业务库授权脚本，再部署新的 Django 和 React。旧员工先保留为空，由管理员到「员工与权限」按已核实的资料补录。所属门店与授权门店分别保留，升级不改现有授权、员工账号和业务记录。若需要回退，恢复上一个应用版本即可，新增资料列可留在库中供再次升级时使用。若必须恢复旧库结构，先在独立数据库还原备份并核对发布后的新增业务数据，再安排切换。
 
 ## 启动并核对入口
 

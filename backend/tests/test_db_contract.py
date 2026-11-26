@@ -39,7 +39,7 @@ class DatabaseStructureTests(TransactionTestCase):
                 WHERE t.table_schema = 'public' AND t.table_type = 'BASE TABLE'
                 """
             )
-            self.assertEqual(cursor.fetchone()[0], 268)
+            self.assertEqual(cursor.fetchone()[0], 270)
             cursor.execute(
                 """
                 SELECT count(*)
@@ -47,7 +47,17 @@ class DatabaseStructureTests(TransactionTestCase):
                 WHERE constraint_type = 'FOREIGN KEY' AND table_schema = 'public'
                 """
             )
-            self.assertEqual(cursor.fetchone()[0], 70)
+            self.assertEqual(cursor.fetchone()[0], 71)
+            cursor.execute(
+                """
+                SELECT column_name, is_nullable
+                FROM information_schema.columns
+                WHERE table_schema = 'public' AND table_name = 'employee'
+                    AND column_name IN ('job_code', 'home_clinic_id')
+                ORDER BY column_name
+                """
+            )
+            self.assertEqual(cursor.fetchall(), [("home_clinic_id", "YES"), ("job_code", "YES")])
 
     def test_runtime_stores_sessions_and_report_snapshots_only(self):
         session = Session.objects.create(

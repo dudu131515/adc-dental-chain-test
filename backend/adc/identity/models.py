@@ -3,6 +3,12 @@ from django.utils import timezone
 
 
 class Employee(models.Model):
+    class Job(models.TextChoices):
+        HEADQUARTERS = "HEADQUARTERS", "总部管理人员"
+        CLINIC_MANAGER = "CLINIC_MANAGER", "诊所主管"
+        FRONT_DESK = "FRONT_DESK", "前台"
+        DENTIST = "DENTIST", "牙医"
+
     employee_id = models.BigAutoField(primary_key=True)
     employee_no = models.CharField(max_length=40, unique=True)
     full_name = models.CharField(max_length=100)
@@ -11,6 +17,8 @@ class Employee(models.Model):
     phone = models.CharField(max_length=40, null=True)
     email = models.CharField(max_length=120, null=True)
     status = models.CharField(max_length=20, default="ACTIVE")
+    job_code = models.CharField(max_length=20, choices=Job.choices, null=True)
+    home_clinic = models.ForeignKey("Clinic", on_delete=models.PROTECT, related_name="home_employees", null=True)
 
     class Meta:
         db_table = "employee"

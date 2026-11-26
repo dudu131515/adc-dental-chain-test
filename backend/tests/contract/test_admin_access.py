@@ -86,7 +86,8 @@ class AdminAccessTests(TestCase):
         target = employees[str(self.target.employee_id)]
         self.assertEqual(
             set(target), {"employee_id", "employee_no", "full_name", "employee_status", "account_status",
-                          "can_manage_account", "can_manage_grants", "grants"},
+                          "can_manage_account", "can_manage_grants", "can_manage_profile", "grants", "permissions",
+                          "job_code", "home_clinic"},
         )
         self.assertTrue(target["can_manage_account"])
         self.assertFalse(employees[str(self.protected.employee_id)]["can_manage_account"])
@@ -105,6 +106,27 @@ class AdminAccessTests(TestCase):
         self.assertEqual(me["capabilities"], ["HQ_ACCESS_ADMIN"])
         self.assertEqual(me["role_clinic_ids"], {"HQ_ACCESS_ADMIN": None})
         self.assertEqual(me["clinics"], [])
+
+    def test_employee_profile_is_independent_of_grants_and_audited(self):
+        directory = self.staff.get(ACCESS).json()["data"]["employees"]
+        employee = next(row for row in directory if row["employee_id"] == str(self.target.employee_id))
+        self.assertIsNone(employee["job_code"])
+        profile_url = f"{ACCESS}/employees/{self.target.employee_id}/profile"
+        body = {"job_code": "FRONT_DESK", "home_clinic_id": self.clinic.pk,
+                "expected_job_code": None, "expected_home_clinic_id": None, "reason": "核对入职资料"}
+        self.assertEqual(self.sign_in(self.target).post(profile_url, body, content_type="application/json",
+                                                       HTTP_IDEMPOTENCY_KEY="forbidden").status_code, 403)
+        changed = self.staff.post(profile_url, body, content_type="application/json", HTTP_IDEMPOTENCY_KEY="profile-one")
+        self.assertEqual(changed.status_code, 200, changed.content)
+        self.assertEqual(self.change_grant(role="CLINIC_MANAGER").status_code, 200)
+        me = self.sign_in(self.target).get("/api/v1/auth/me").json()["data"]
+        self.assertEqual(me["job_code"], "FRONT_DESK")
+        self.assertEqual(me["home_clinic"]["clinic_id"], str(self.clinic.pk))
+        self.assertEqual(me["role_clinic_ids"]["CLINIC_MANAGER"], [str(self.other_clinic.pk)])
+        self.assertNotIn("HQ_ACCESS_ADMIN", me["capabilities"])
+        events = self.staff.get(f"{ACCESS}/employees/{self.target.employee_id}/history").json()["data"]["items"]
+        self.assertEqual(events[1]["action"], "EMPLOYEE_PROFILE_CHANGED")
+        self.assertEqual(events[1]["after"]["reason"], "核对入职资料")
 
     def test_scoped_admin_and_ordinary_employee_cannot_administer_other_clinics(self):
         other = self.sign_in(self.target)

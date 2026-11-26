@@ -27,7 +27,7 @@ const runtime = { router, sampleTime: Date.parse(sampleTime) };
 const storageKey = "adc:demo-identity";
 const mainRoles = ["front", "dentist", "manager", "scheduler"] as const;
 const otherRoles = (Object.keys(sampleRoles) as SampleRole[]).filter(role =>
-  role !== "visitor" && !mainRoles.some(main => main === role));
+  role !== "visitor" && role !== "admin" && !mainRoles.some(main => main === role));
 function initialRole(): SampleRole {
   try {
     const stored = sessionStorage.getItem(storageKey);
@@ -67,10 +67,21 @@ export function PagesDemo() {
   }, [workspace, role, transport]);
   const controls = <div className="demo-controls">
     <span className="demo-label">合成数据演示</span>
-    <select aria-label="样例身份" value={role ?? ""} onChange={event => switchRole(event.target.value as SampleRole)}>
-      <optgroup label="日常体验">{mainRoles.map(key => <option key={key} value={key}>{sampleRoles[key].label}</option>)}</optgroup>
-      <optgroup label="其他样例">{otherRoles.map(key => <option key={key} value={key}>{sampleRoles[key].label}</option>)}</optgroup>
+    <select aria-label="样例身份" value={mainRoles.some(key => key === role) ? role ?? "" : ""}
+      onChange={event => switchRole(event.target.value as SampleRole)}>
+      {role && !mainRoles.some(key => key === role) && <option value="" disabled>{sampleRoles[role].label}</option>}
+      {mainRoles.map(key => <option key={key} value={key}>{sampleRoles[key].label}</option>)}
     </select>
+    <details className="demo-extra">
+      <summary>更多身份</summary>
+      <div className="demo-extra-menu">
+        <button className="button" onClick={() => switchRole("admin")}>系统管理员</button>
+        <span>专项体验</span>
+        {otherRoles.map(key => <button className="button" key={key} onClick={() => switchRole(key)}>
+          {sampleRoles[key].label}
+        </button>)}
+      </div>
+    </details>
   </div>;
   const signIn = <><h1>体验诊所工作台</h1><p className="login-summary">选择身份进入合成数据演示。</p>
     <div className="demo-signin">{mainRoles.map(key =>

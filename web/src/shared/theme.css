@@ -67,6 +67,9 @@ input:focus-visible,select:focus-visible,textarea:focus-visible { border-color: 
 .breadcrumb-origin { color: var(--secondary); }
 .breadcrumb-divider { color: #a4b5bf; padding-inline: 4px; }
 .topbar-controls { gap: 15px; min-width: 0; }
+.topbar-staff { display: flex; align-items: center; gap: 6px; white-space: nowrap; font-size: 13px; }
+.rail-home { margin: 0 0 8px; color: #aec1cc; font-size: 12px; }
+@media (max-width: 900px) { .topbar-staff { display: none; } }
 .scope-control { min-width: 0; color: #3f5a67; font-size: 13px; }
 .scope-control svg { color: #477771; flex: none; }
 .scope-control select { min-width: 0; padding: 5px 3px; border: 0; color: inherit; font-size: inherit; }
