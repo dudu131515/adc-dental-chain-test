@@ -183,10 +183,11 @@ def approved_metrics(metric, results, details):
         } for row in results.get("clinics", [])]
     if metric == "business_change":
         operation = results.get("operations", {})
+        finance = {key: operation.get(key, "0.00") for key in ("revenue", "material_cost", "operating_cost", "net_profit")}
         return [{
-            "clinic_id": None, "finance": operation, "display_label": "收入与成本",
-            "display": "收入 ¥" + operation.get("revenue", "0.00") + " · 成本 ¥" + operation.get("material_cost", "0.00")
-                       + " · 费用 ¥" + operation.get("operating_cost", "0.00") + " · 利润 ¥" + operation.get("net_profit", "0.00"),
+            "clinic_id": None, "finance": finance, "display_label": "收入与成本",
+            "display": "收入 ¥" + finance["revenue"] + " · 成本 ¥" + finance["material_cost"]
+                       + " · 费用 ¥" + finance["operating_cost"] + " · 利润 ¥" + finance["net_profit"],
         }]
     rows = []
     for office in results["appointments"]["by_clinic"]:
@@ -408,7 +409,12 @@ def model_context(metric, scopes, periods, comparison, sources, observations, qu
     approved = [{**window, "metrics": [anonymize(row) for row in period["metrics"]]}
                 for window, period in zip(windows, periods, strict=True)]
     intent = {"metric": metric, "periods": windows, "clinic_aliases": list(aliases.values())}
-    candidates = {"observations": observations, "questions": questions}
+    candidates = {
+        "observations": [{"id": key, "text": value[0], "source_id": value[1]}
+                         for key, value in observations.items()],
+        "questions": [{"id": key, "text": text} for key, text in questions.items()],
+        "sources": list(sources.values()),
+    }
     topic = metric if metric in POLICY_TOPICS else ("cash_flow" if metric == "net_received" else "report_rules")
     tools = {
         "search_policy": Tool("检索当前主题的批准制度条款。", {"topic": topic},

@@ -14,9 +14,11 @@ MAX_REQUEST_BYTES = 24 * 1024
 REQUEST_TIMEOUT = 5
 TOTAL_TIMEOUT = 12
 SYSTEM_MESSAGE = (
-    "你是合成环境的 ADC 经营助手。先调用工具。依据工具给出的可用观察、待核实问题和来源，"
-    "输出 JSON 对象，且仅包含 observations、questions、sources 三个数组。数组只填工具返回的 ID。"
-    "至少选择一条观察并引用它对应的来源；可以排序或忽略次要内容。问题仅用于提示人工核实原因。"
+    "你是合成环境的 ADC 经营助手。先调用工具。工具返回 observations（每项含 id、text、source_id）、"
+    "questions（每项含 id、text）和 sources（每项含 id）。最终只输出 JSON 对象，且仅包含 "
+    "observations、questions、sources 三个数组。observations 数组只能填 observations[].id，"
+    "questions 数组只能填 questions[].id，sources 数组只能填 sources[].id。"
+    "至少选择一条观察并引用它对应的 source_id；可以排序或忽略次要内容。"
     "不要输出原文、客户资料、数字、因果结论或其它字段。"
 )
 
@@ -50,7 +52,7 @@ class Tool:
 
 
 def json_text(value):
-    return json.dumps(value, ensure_ascii=False, separators=(",", ":"))
+    return json.dumps(value, ensure_ascii=False, separators=(",", ":"), default=str)
 
 
 def read_completion(messages, tools, choice, deadline):
@@ -88,11 +90,15 @@ def arrange(intent, tools, required_tool, guard_scope, used_tools, usage):
     call_ids = set()
 
     for round_index in range(MAX_CALLS):
-        choice = {"type": "function", "function": {"name": required_tool}} if round_index == 0 else (
-            "none" if round_index == MAX_CALLS - 1 else "auto"
-        )
+        # The first round fetches the authorized summary/report evidence. Later rounds are
+        # answer-only; DeepSeek otherwise tends to emit parallel tool calls that cannot be
+        # mapped back to a single approved observation set.
+        choice = {"type": "function", "function": {"name": required_tool}} if round_index == 0 else "none"
+        # DeepSeek may return several parallel calls when more tools are visible. The first
+        # round only needs the required summary/report tool, so expose exactly that one.
+        round_definitions = [tools[required_tool].schema(required_tool)] if round_index == 0 else definitions
         usage["calls"] += 1
-        result = read_completion(messages, definitions, choice, deadline)
+        result = read_completion(messages, round_definitions, choice, deadline)
         for key in ("prompt_tokens", "completion_tokens"):
             count = (result.get("usage") or {}).get(key, 0)
             if type(count) is int and 0 <= count <= 1_000_000:
