@@ -217,3 +217,77 @@ class SchedulingContractTests(TestCase):
         response = self.transition(self.scheduler, shift_id, "withdraw", reason="合成停诊")
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()["data"]["status"], "CANCELLED")
+
+    def test_batch_publish_rolls_back_until_every_doctor_and_route_check_succeeds(self):
+        batch = "/shifts/batch"
+        payload = {
+            "action": "draft",
+            "shifts": [
+                {
+                    "clinic_id": str(clinic), "dentist_id": "1",
+                    "start_at": f"2030-10-22T{start}:00+08:00", "end_at": f"2030-10-22T{end}:00+08:00",
+                }
+                for clinic, start, end in ((1, "09:00", "10:00"), (2, "11:00", "12:00"))
+            ],
+        }
+        self.assertEqual(self.post(self.manager, batch, payload).status_code, 403)
+        headers = {"HTTP_IDEMPOTENCY_KEY": "synthetic-batch-2030-10-22"}
+        draft = self.scheduler.post("/api/v1" + batch, payload, content_type="application/json", **headers)
+        self.assertEqual(draft.status_code, 200, draft.content)
+        replay = self.scheduler.post("/api/v1" + batch, payload, content_type="application/json", **headers)
+        self.assertEqual(replay.json(), draft.json())
+        entries = [{"shift_id": row["shift_id"]} for row in draft.json()["data"]["items"]]
+        first, second = [entry["shift_id"] for entry in entries]
+        self.assertEqual(self.post(self.scheduler, batch, {"action": "submit", "shifts": entries}).status_code, 200)
+        self.assertEqual(self.transition(self.dentist, first, "respond", decision="ACCEPTED").status_code, 200)
+
+        publish = {"action": "publish", "shifts": entries}
+        denied = self.post(self.scheduler, batch, publish)
+        self.assertEqual(denied.status_code, 409, denied.content)
+        self.assertEqual(denied.json()["error"]["code"], "INVALID_TRANSITION")
+        self.assertEqual(Shift.objects.get(pk=first).status, "ACCEPTED")
+
+        self.assertEqual(self.transition(self.dentist, second, "respond", decision="ACCEPTED").status_code, 200)
+        route_missing = self.post(self.scheduler, batch, publish)
+        self.assertEqual(route_missing.status_code, 409, route_missing.content)
+        self.assertEqual(route_missing.json()["error"]["details"]["shift_id"], second)
+        self.assertEqual(Shift.objects.get(pk=first).status, "ACCEPTED")
+
+        entries[1].update(route_feasible=True, evidence_ref="合成跨店路线核验")
+        published = self.post(self.scheduler, batch, publish)
+        self.assertEqual(published.status_code, 200, published.content)
+        self.assertEqual([row["status"] for row in published.json()["data"]["items"]], ["PUBLISHED", "PUBLISHED"])
+
+        copied = self.post(self.scheduler, batch, {
+            "action": "copy", "source_shift_id": first, "target_date": "2030-10-29",
+        })
+        self.assertEqual(copied.status_code, 200, copied.content)
+        self.assertEqual(copied.json()["data"]["items"][0]["status"], "DRAFT")
+        reused = self.post(self.scheduler, batch, {"action": "reuse_week", "target_week": "2030-10-28"})
+        self.assertEqual(reused.status_code, 200, reused.content)
+        self.assertEqual(reused.json()["data"]["skipped_count"], 1)
+        self.assertEqual([row["clinic_id"] for row in reused.json()["data"]["items"]], ["2"])
+
+    def test_filtered_week_warns_about_visible_cross_clinic_drafts_and_staggered_staffing(self):
+        first = self.draft(1, "2030-10-23T09:00:00+08:00", "2030-10-23T10:00:00+08:00")
+        second = self.draft(2, "2030-10-23T10:30:00+08:00", "2030-10-23T12:00:00+08:00")
+        demand = self.post(self.manager, "/shift-demands", {
+            "clinic_id": "1", "start_at": "2030-10-23T09:00:00+08:00",
+            "end_at": "2030-10-23T11:00:00+08:00", "required_count": 1,
+        })
+        self.assertEqual(demand.status_code, 201, demand.content)
+        self.assertEqual(self.transition(self.scheduler, first, "submit").status_code, 200)
+        self.assertEqual(self.transition(self.dentist, first, "respond", decision="ACCEPTED").status_code, 200)
+        self.assertEqual(self.transition(self.scheduler, first, "publish").status_code, 200)
+
+        params = {"date_from": "2030-10-21", "date_to": "2030-10-27", "clinic_id": "1", "view": "week"}
+        response = self.scheduler.get("/api/v1/schedule/board", params)
+        self.assertEqual(response.status_code, 200, response.content)
+        data = response.json()["data"]
+        self.assertEqual([row["shift_id"] for row in data["shifts"]], [first])
+        self.assertEqual(data["conflicts"][0]["code"], "CROSS_CLINIC_TRAVEL")
+        self.assertEqual(data["conflicts"][0]["shift_ids"], [first, second])
+        self.assertEqual(data["shortages"][0]["missing_count"], 1)
+        local = self.manager.get("/api/v1/schedule/board", params)
+        self.assertEqual(local.status_code, 200, local.content)
+        self.assertEqual(local.json()["data"]["conflicts"], [])

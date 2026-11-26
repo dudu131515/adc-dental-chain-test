@@ -4,16 +4,16 @@ import type { FormEvent } from "react";
 import { ActionFeedback } from "../../shared/ActionFeedback";
 import type { WorkArea } from "../../shared/AppShell";
 import { useAction } from "../../shared/useAction";
-import { hasAccessAdministration, homeLabel, jobLabel, jobLabels, roleNames, type JobCode, type StaffProfile } from "../../shared/navigation";
+import { hasAccessAdministration, hasResourceAdministration, homeLabel, jobLabel, jobLabels, roleNames, type JobCode, type StaffProfile } from "../../shared/navigation";
 import { dateTime } from "../../shared/format";
 import { useRead } from "../../shared/useRead";
-import "../catalog/catalog.css";
 import "../schedule/schedule.css";
+import {
+  ChoiceOptions, DirectoryDialog, DirectoryFilter, DirectoryPanel, DirectorySearch, DirectoryTable,
+  fields, matches, Status, statusLabel, type ClinicChoice,
+} from "./DirectoryUI";
+import { ChairDirectory, ClinicDirectory, DentistDirectory, MaterialDirectory, QualificationDirectory } from "./ResourceDirectories";
 
-const statuses = new Map([["ACTIVE", "启用"], ["INACTIVE", "停用"], ["ON_LEAVE", "休假"]]);
-
-type ClinicChoice = { clinic_id: string; clinic_no: string; name: string; status: string };
-type Clinic = ClinicChoice & { address: string; phone: string | null; email: string | null };
 type Grant = { role_code: string; clinic_id: string };
 type Employee = StaffProfile & {
   employee_id: string;
@@ -39,36 +39,58 @@ type AccessEvent = {
   after: AccessEvent["before"] & {role_code?: string; clinic_id?: string; granted?: boolean; reason?: string};
 };
 
-function statusLabel(status: string | null) {
-  if (status === null) return "未配置";
-  return statuses.get(status) ?? status;
+const jobs = Object.entries(jobLabels).map(([value, label]) => ({ value, label }));
+const permissionOptions = Object.entries(roleNames).map(([value, label]) => ({ value, label }));
+const accountOptions = [
+  { value: "ACTIVE", label: "启用" }, { value: "INACTIVE", label: "停用" }, { value: "UNCONFIGURED", label: "未配置" },
+];
+
+function AccountFields() {
+  return <>
+    <label>登录名<input name="login_identity" maxLength={180} autoComplete="off" required /></label>
+    <label>初始密码<input name="password" type="password" minLength={12} maxLength={512} autoComplete="new-password" required />
+      <small>至少 12 位，避免常见密码和纯数字。</small>
+    </label>
+  </>;
 }
 
-function ClinicDirectory() {
-  const [revision, setRevision] = useState(0);
-  const { data, loading, fault } = useRead<{ items: Clinic[] }>("/admin/clinics", revision);
-  return <section className="catalog-panel">
-    <div className="catalog-toolbar">
-      <h1>门店资料</h1>
-      <button className="button" type="button" onClick={() => setRevision(value => value + 1)} disabled={loading}>
-        重新查询
-      </button>
-    </div>
-    {loading && <p role="status">正在查询门店。</p>}
-    {fault && <p className="error-text" role="alert">{fault}</p>}
-    {!loading && !fault && data && (data.items.length ? <div className="catalog-scroll">
-      <table className="catalog-table">
-        <thead><tr>
-          <th scope="col">门店编号</th><th scope="col">门店名称</th><th scope="col">地址</th><th scope="col">电话</th>
-          <th scope="col">邮箱</th><th scope="col">状态</th>
-        </tr></thead>
-        <tbody>{data.items.map(clinic => <tr key={clinic.clinic_id}>
-          <td>{clinic.clinic_no}</td><th scope="row">{clinic.name}</th><td>{clinic.address}</td>
-          <td>{clinic.phone || "—"}</td><td>{clinic.email || "—"}</td><td>{statusLabel(clinic.status)}</td>
-        </tr>)}</tbody>
-      </table>
-    </div> : <p>暂无门店资料。</p>)}
-  </section>;
+function accountFields(form: FormData) {
+  return { login_identity: fields(form, "login_identity"), password: String(form.get("password") ?? "") };
+}
+
+function EmployeeCreate({ directory, disabled, save }: {
+  directory: AccessDirectory; disabled: boolean; save: (body: unknown) => void;
+}) {
+  const [job, setJob] = useState<JobCode | "">("");
+  const [withAccount, setWithAccount] = useState(false);
+  function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    save({
+      employee_no: fields(form, "employee_no"), full_name: fields(form, "full_name"), job_code: job,
+      home_clinic_id: job === "HEADQUARTERS" ? null : fields(form, "home_clinic_id"),
+      ...(withAccount ? { account: accountFields(form) } : {}),
+    });
+  }
+  return <form className="admin-form" onSubmit={submit}>
+    <fieldset className="admin-fields" disabled={disabled}>
+      <label>工号<input name="employee_no" maxLength={40} required /></label>
+      <label>姓名<input name="full_name" maxLength={100} required /></label>
+      <label>所属岗位<select required value={job} onChange={event => setJob(event.target.value as JobCode | "")}>
+        <option value="">选择岗位</option><ChoiceOptions choices={jobs} />
+      </select></label>
+      {job && job !== "HEADQUARTERS" && <label>所属门店<select name="home_clinic_id" required defaultValue="">
+        <option value="">选择门店</option>
+        <ChoiceOptions choices={directory.clinics.filter(clinic => clinic.status === "ACTIVE")
+          .map(clinic => ({ value: clinic.clinic_id, label: clinic.name }))} />
+      </select></label>}
+      <label className="admin-full-field admin-check">
+        <input type="checkbox" checked={withAccount} onChange={event => setWithAccount(event.target.checked)} />同时配置登录账号
+      </label>
+      {withAccount && <AccountFields />}
+    </fieldset>
+    <div className="admin-controls"><button className="button primary" disabled={disabled}>保存员工</button></div>
+  </form>;
 }
 
 function EmployeeEditor({ employee, directory, disabled, change }: {
@@ -82,11 +104,13 @@ function EmployeeEditor({ employee, directory, disabled, change }: {
   const [grantReason, setGrantReason] = useState("");
   const [accountReason, setAccountReason] = useState("");
   const [editingProfile, setEditingProfile] = useState(false);
+  const [creatingAccount, setCreatingAccount] = useState(false);
   const [job, setJob] = useState<JobCode | "">(employee.job_code ?? "");
   const [home, setHome] = useState(employee.home_clinic?.clinic_id ?? "");
   const [profileReason, setProfileReason] = useState("");
   const homeClinicId = job === "HEADQUARTERS" ? null : home || null;
   const profileChanged = job !== employee.job_code || homeClinicId !== (employee.home_clinic?.clinic_id ?? null);
+  const activeGrantClinic = directory.clinics.some(clinic => clinic.clinic_id === clinicId && clinic.status === "ACTIVE");
   const granted = employee.grants.some(grant => grant.clinic_id === clinicId && grant.role_code === roleCode);
   const inactive = employee.account_status === "INACTIVE";
 
@@ -116,7 +140,7 @@ function EmployeeEditor({ employee, directory, disabled, change }: {
   }
 
   return <section className="catalog-panel" aria-labelledby="employee-access-heading">
-    <h2 id="employee-access-heading">{employee.full_name} · {employee.employee_no}</h2>
+    <h2 id="employee-access-heading">员工档案</h2>
     <dl className="inline-facts" aria-label="员工档案">
       <div><dt>所属岗位</dt><dd>{jobLabel(employee.job_code)}</dd></div>
       <div><dt>所属机构</dt><dd>{homeLabel(employee)}</dd></div>
@@ -133,7 +157,8 @@ function EmployeeEditor({ employee, directory, disabled, change }: {
         </select></label>
         {job !== "HEADQUARTERS" && <label>所属门店<select required disabled={disabled} value={home} onChange={event => setHome(event.target.value)}>
           <option value="">选择门店</option>
-          {directory.clinics.map(clinic => <option key={clinic.clinic_id} value={clinic.clinic_id}>{clinic.name}</option>)}
+          {directory.clinics.filter(clinic => clinic.status === "ACTIVE" || clinic.clinic_id === employee.home_clinic?.clinic_id)
+            .map(clinic => <option key={clinic.clinic_id} value={clinic.clinic_id}>{clinic.name}</option>)}
         </select></label>}
         <label>岗位资料变更原因<input required maxLength={500} value={profileReason} disabled={disabled}
           onChange={event => setProfileReason(event.target.value)} /></label>
@@ -156,7 +181,7 @@ function EmployeeEditor({ employee, directory, disabled, change }: {
         <label>授权门店<select required value={clinicId} disabled={disabled} onChange={event => setClinicId(event.target.value)}>
           <option value="">选择门店</option>
           {directory.clinics.map(clinic => <option key={clinic.clinic_id} value={clinic.clinic_id}>
-            {clinic.name}（{clinic.clinic_no}）
+            {clinic.name}（{clinic.clinic_no}）{clinic.status === "INACTIVE" ? " · 已停用" : ""}
           </option>)}
         </select></label>
         <label>功能权限<select required value={roleCode} disabled={disabled} onChange={event => setRoleCode(event.target.value)}>
@@ -165,7 +190,7 @@ function EmployeeEditor({ employee, directory, disabled, change }: {
         </select></label>
         <label>授权变更原因<input required maxLength={500} value={grantReason} disabled={disabled}
           onChange={event => setGrantReason(event.target.value)} /></label>
-        <button className="button primary" disabled={disabled || !clinicId || !roleCode || !grantReason.trim()}>
+        <button className="button primary" disabled={disabled || !clinicId || !roleCode || (!granted && !activeGrantClinic) || !grantReason.trim()}>
           {granted ? "撤销权限" : "授予权限"}
         </button>
       </form>}
@@ -178,7 +203,18 @@ function EmployeeEditor({ employee, directory, disabled, change }: {
         <button className="button" disabled={disabled || !accountReason.trim()}>
           {inactive ? "启用账号" : "停用账号"}
         </button>
-      </form> : <p className="muted">
+      </form> : employee.account_status === null && employee.employee_status === "ACTIVE" && employee.can_manage_profile
+        && !employee.permissions?.some(grant => grant.managed_by_deployment) ? <>
+        <button className="button" type="button" aria-expanded={creatingAccount} disabled={disabled}
+          onClick={() => setCreatingAccount(!creatingAccount)}>配置登录账号</button>
+        {creatingAccount && <form className="catalog-form" onSubmit={event => {
+          event.preventDefault();
+          change("account", accountFields(new FormData(event.currentTarget)), "登录账号已配置。");
+        }}>
+          <AccountFields />
+          <button className="button primary" disabled={disabled}>保存登录账号</button>
+        </form>}
+      </> : <p className="muted">
         {employee.account_status === null ? "该员工尚未配置账号。" : "该账号由部署维护。"}
       </p>}
     </div>
@@ -192,6 +228,8 @@ function EmployeeAccess() {
   const [jobFilter, setJobFilter] = useState("");
   const [grantFilter, setGrantFilter] = useState("");
   const [accountFilter, setAccountFilter] = useState("");
+  const [clinicFilter, setClinicFilter] = useState("");
+  const [adding, setAdding] = useState(false);
   const [notice, setNotice] = useState("");
   const [showActionFault, setShowActionFault] = useState(false);
   const [needsReload, setNeedsReload] = useState(false);
@@ -201,13 +239,13 @@ function EmployeeAccess() {
   const directory = !loading && !fault ? data : undefined;
   const employee = directory?.employees.find(row => row.employee_id === employeeId);
   const history = useRead<{items: AccessEvent[]}>(employee ? "/admin/access/employees/" + employee.employee_id + "/history" : undefined, revision);
-  const search = query.trim().toLowerCase();
   const visible = directory?.employees.filter(row =>
-    (row.full_name.toLowerCase().includes(search) || row.employee_no.toLowerCase().includes(search))
+    matches(query, row.full_name, row.employee_no)
     && (!jobFilter || (row.job_code ?? "UNSET") === jobFilter)
     && (!grantFilter || (row.permissions ?? row.grants).some(grant => grant.role_code === grantFilter))
-    && (!accountFilter || (row.account_status ?? "UNCONFIGURED") === accountFilter),
-  );
+    && (!accountFilter || (row.account_status ?? "UNCONFIGURED") === accountFilter)
+    && (!clinicFilter || (row.home_clinic?.clinic_id ?? (row.job_code === "HEADQUARTERS" ? "HQ" : "UNSET")) === clinicFilter),
+  ) ?? [];
 
   function reload() {
     setShowActionFault(false);
@@ -226,76 +264,103 @@ function EmployeeAccess() {
     });
   }
 
+  function create(body: unknown) {
+    if (waiting) return;
+    action.execute<{ employee_id: string }>("/admin/access/employees", body, result => {
+      setAdding(false);
+      setEmployeeId(result.employee_id);
+      setNotice("员工已保存。");
+      reload();
+    }, undefined, { onStart: () => setShowActionFault(true) });
+  }
+
+  function dismiss() {
+    setEmployeeId("");
+    setAdding(false);
+    setShowActionFault(false);
+    if (needsReload) reload();
+  }
+
+  function historyLabel(event: AccessEvent) {
+    if (event.action === "EMPLOYEE_CREATED") return "新增员工";
+    if (event.action === "EMPLOYEE_ACCOUNT_CREATED") return "配置登录账号";
+    if (event.action === "EMPLOYEE_SCOPE_CHANGED") {
+      const role = directory?.roles.find(row => row.role_code === event.after.role_code);
+      return (event.after.granted ? "授予" : "撤销") + " · " + (role?.role_name ?? event.after.role_code);
+    }
+    if (event.action === "EMPLOYEE_PROFILE_CHANGED") {
+      return "岗位资料 · " + jobLabel(event.before.job_code) + " → " + jobLabel(event.after.job_code);
+    }
+    return statusLabel(event.before.status ?? null) + " → " + statusLabel(event.after.status ?? null);
+  }
+
+  const showDirectoryNotice = !employeeId && !adding;
+  const feedback = <ActionFeedback fault={showActionFault ? action.fault : ""} unknown={action.unknown}
+    retry={action.retry} busy={action.busy} />;
+  const reloadButton = <button className="button" type="button" disabled={loading || waiting} onClick={() => {
+    setNotice("");
+    reload();
+  }}>重新查询</button>;
   return <div className="catalog-page">
-    <section className="catalog-panel" aria-labelledby="employee-directory-heading">
-      <div className="catalog-toolbar">
-        <h1 id="employee-directory-heading">员工与权限</h1>
-        <button className="button" type="button" disabled={loading || waiting} onClick={() => {
+    <DirectoryPanel title="员工与权限" loading={loading} fault={employeeId ? "" : fault} notice={showDirectoryNotice ? notice : undefined}
+      controls={<>
+        {!employeeId && reloadButton}
+        <button className="button primary" type="button" aria-haspopup="dialog" disabled={!directory || waiting} onClick={() => {
           setNotice("");
-          reload();
-        }}>重新查询</button>
-      </div>
-      {fault && <p className="error-text" role="alert">{fault}</p>}
-      {loading && <p role="status">正在查询员工权限。</p>}
-      {notice && <p role="status">{notice}</p>}
-      <ActionFeedback fault={showActionFault ? action.fault : ""} unknown={action.unknown}
-        retry={action.retry} busy={action.busy} />
-      {visible && <>
-        <dl className="staff-summary">
-          <div><dt>员工</dt><dd>{directory?.employees.length}</dd></div>
-          <div><dt>启用账号</dt><dd>{directory?.employees.filter(row=>row.account_status==="ACTIVE").length}</dd></div>
-          <div><dt>门店授权</dt><dd>{directory?.employees.reduce((sum,row)=>sum+row.grants.length,0)}</dd></div>
-        </dl>
-        <div className="catalog-form">
-          <label>查找员工<input type="search" placeholder="姓名或工号" value={query}
-            onChange={event => setQuery(event.target.value)} /></label>
-          <label>所属岗位筛选<select value={jobFilter} onChange={event => setJobFilter(event.target.value)}>
-            <option value="">全部岗位</option><option value="UNSET">待补录</option>
-            {Object.entries(jobLabels).map(([code,label]) => <option key={code} value={code}>{label}</option>)}
-          </select></label>
-          <label>功能权限筛选<select value={grantFilter} onChange={event=>setGrantFilter(event.target.value)}>
-            <option value="">全部功能权限</option>
-            {Object.entries(roleNames).map(([code,label]) => <option key={code} value={code}>{label}</option>)}
-          </select></label>
-          <label>账号状态<select value={accountFilter} onChange={event=>setAccountFilter(event.target.value)}>
-            <option value="">全部状态</option><option value="ACTIVE">启用</option><option value="INACTIVE">停用</option>
-            <option value="UNCONFIGURED">未配置</option>
-          </select></label>
-        </div>
-        {visible.length ? <div className="catalog-scroll">
-          <table className="catalog-table">
-            <thead><tr>
-              <th scope="col">工号</th><th scope="col">姓名</th><th scope="col">所属岗位</th><th scope="col">所属机构</th>
-              <th scope="col">员工状态</th><th scope="col">账号状态</th>
-            </tr></thead>
-            <tbody>{visible.map(row => <tr key={row.employee_id}>
-              <td>{row.employee_no}</td>
-              <th scope="row"><button className="catalog-link" type="button" disabled={waiting}
-                aria-pressed={employeeId === row.employee_id} onClick={() => {
-                  setEmployeeId(row.employee_id);
-                  setNotice("");
-                }}>{row.full_name}</button></th>
-              <td>{jobLabel(row.job_code)}</td><td>{homeLabel(row)}</td>
-              <td>{statusLabel(row.employee_status)}</td><td>{statusLabel(row.account_status)}</td>
-            </tr>)}</tbody>
-          </table>
-        </div> : <p>没有符合条件的员工。</p>}
+          setShowActionFault(false);
+          setAdding(true);
+        }}>新增员工</button>
       </>}
-    </section>
-    {directory && employee && <>
+      filters={<>
+        <DirectorySearch label="查找员工" placeholder="姓名或工号" value={query} onChange={setQuery} />
+        <DirectoryFilter label="所属岗位筛选" all="全部岗位" choices={[{ value: "UNSET", label: "待补录" }, ...jobs]}
+          value={jobFilter} onChange={setJobFilter} />
+        <DirectoryFilter label="所属机构筛选" all="全部机构" choices={[
+          { value: "HQ", label: "总部" }, { value: "UNSET", label: "待补录" },
+          ...(directory?.clinics.map(clinic => ({ value: clinic.clinic_id, label: clinic.name })) ?? []),
+        ]} value={clinicFilter} onChange={setClinicFilter} />
+        <DirectoryFilter label="功能权限筛选" all="全部功能权限" choices={permissionOptions} value={grantFilter} onChange={setGrantFilter} />
+        <DirectoryFilter label="账号状态" all="全部状态" choices={accountOptions} value={accountFilter} onChange={setAccountFilter} />
+      </>}>
+      {directory && <>
+        <dl className="staff-summary">
+          <div><dt>员工</dt><dd>{directory.employees.length}</dd></div>
+          <div><dt>启用账号</dt><dd>{directory.employees.filter(row => row.account_status === "ACTIVE").length}</dd></div>
+          <div><dt>门店授权</dt><dd>{directory.employees.reduce((sum, row) => sum + row.grants.length, 0)}</dd></div>
+        </dl>
+        <DirectoryTable rows={visible} identify={row => row.employee_id} empty="没有符合条件的员工。"
+          columns={[
+            { label: "工号", cell: row => row.employee_no },
+            { label: "姓名", rowHeader: true, cell: row => <button className="catalog-link" type="button" disabled={waiting}
+              aria-haspopup="dialog" onClick={() => { setEmployeeId(row.employee_id); setNotice(""); }}>{row.full_name}</button> },
+            { label: "所属岗位", cell: row => jobLabel(row.job_code) }, { label: "所属机构", cell: row => homeLabel(row) },
+            { label: "员工状态", cell: row => <Status value={row.employee_status} /> },
+            { label: "账号状态", cell: row => <Status value={row.account_status} /> },
+          ]} />
+      </>}
+    </DirectoryPanel>
+    {adding && directory && <DirectoryDialog title="新增员工" onClose={dismiss} disabled={waiting}>
+      <EmployeeCreate directory={directory} disabled={waiting} save={create} />
+      {feedback}
+    </DirectoryDialog>}
+    {employeeId && <DirectoryDialog title={employee ? employee.full_name + " · " + employee.employee_no : "员工详情"}
+      onClose={dismiss} disabled={waiting} wide>
+      {notice && <p className="admin-notice" role="status">{notice}</p>}
+      {feedback}
+      {needsReload && <div className="admin-controls">{reloadButton}</div>}
+      {loading && <p role="status">正在查询员工权限。</p>}
+      {fault && <><p className="error-text" role="alert">{fault}</p>{reloadButton}</>}
+      {!loading && !fault && !employee && <p className="muted">找不到该员工。</p>}
+      {directory && employee && <>
       <EmployeeEditor key={employee.employee_id} employee={employee}
         directory={directory} disabled={waiting || needsReload} change={change} />
       <section className="catalog-panel">
         <h2>权限变更记录</h2>
         {history.loading && <p role="status">正在读取权限记录…</p>}
         {history.fault && <p className="error-text" role="alert">{history.fault}</p>}
-        {history.data && <><p className="muted">{employee.full_name} · 最近 50 条岗位、授权或登录状态变更</p>
+        {history.data && <><p className="muted">{employee.full_name} · 最近 50 条档案、授权或账号变更</p>
           <ul className="compact-list">{history.data.items.map(event => <li key={event.audit_id}>
-            <strong>{event.action==="EMPLOYEE_SCOPE_CHANGED"
-              ? (event.after.granted ? "授予" : "撤销") + " · " +
-                (directory.roles.find(role=>role.role_code===event.after.role_code)?.role_name ?? event.after.role_code)
-              : event.action === "EMPLOYEE_PROFILE_CHANGED" ? "岗位资料 · " + jobLabel(event.before.job_code) + " → " + jobLabel(event.after.job_code)
-              : statusLabel(event.before.status ?? null) + " → " + statusLabel(event.after.status ?? null)}</strong>
+            <strong>{historyLabel(event)}</strong>
             {event.after.clinic_id && <span>{directory.clinics.find(clinic=>clinic.clinic_id===event.after.clinic_id)?.name ?? event.after.clinic_id}</span>}
             {event.after.home_clinic_id && <span>{directory.clinics.find(clinic => clinic.clinic_id === event.after.home_clinic_id)?.name}</span>}
             <span>{event.after.reason}</span><small>{dateTime(event.occurred_at)} · 操作账号 {event.actor_account_id ?? "—"}</small>
@@ -303,13 +368,21 @@ function EmployeeAccess() {
           {!history.data.items.length && <p>暂无权限变更。</p>}
         </>}
       </section>
-    </>}
+      </>}
+    </DirectoryDialog>}
   </div>;
 }
 
 export function AccessPage({ path, identity }: WorkArea) {
-  if (!hasAccessAdministration(identity)) {
-    return <section className="catalog-panel"><h1>当前页面无权访问</h1></section>;
+  const access = hasAccessAdministration(identity);
+  const resources = hasResourceAdministration(identity);
+  if (access && (path === "/admin" || path === "/admin/clinics")) return <ClinicDirectory />;
+  if (access && path === "/admin/access") return <EmployeeAccess />;
+  if (resources) {
+    if (path === "/admin/dentists" || path === "/admin") return <DentistDirectory />;
+    if (path === "/admin/qualifications") return <QualificationDirectory />;
+    if (path === "/admin/chairs") return <ChairDirectory />;
+    if (path === "/admin/materials") return <MaterialDirectory />;
   }
-  return path === "/admin/clinics" ? <ClinicDirectory /> : <EmployeeAccess />;
+  return <section className="catalog-panel"><h1>当前页面无权访问</h1></section>;
 }

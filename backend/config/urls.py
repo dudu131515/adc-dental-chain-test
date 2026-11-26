@@ -5,6 +5,7 @@ from adc.common.http import not_found
 
 urlpatterns = [
     path("api/v1/", include("adc.identity.api")),
+    path("api/v1/", include("adc.identity.master_data_api")),
     path("api/v1/", include("adc.identity.workbench_api")),
     path("api/v1/", include("adc.scheduling.api")),
     path("api/v1/", include("adc.scheduling.resource_api")),

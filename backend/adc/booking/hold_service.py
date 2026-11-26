@@ -96,7 +96,7 @@ def list_available(
     beginning = datetime.combine(service_date, time.min, BUSINESS_ZONE)
     ending = beginning + timedelta(days=1)
     shifts = Shift.objects.filter(
-        clinic_id=clinic_id, status="PUBLISHED", start_at__lt=ending, end_at__gt=beginning,
+        clinic_id=clinic_id, status="PUBLISHED", start_at__lt=ending, end_at__gt=beginning, dentist__status="ACTIVE",
     ).exclude(pk__in=withdrawal_requests()).select_related("dentist")
     if exclude_shift_id is not None:
         shifts = shifts.exclude(pk=exclude_shift_id)
@@ -136,6 +136,8 @@ def validate_candidate(shift, treatment, start_at, end_at, now, *, exclude_claim
         shift.status != "PUBLISHED" or AuditLog.objects.filter(
             action="SHIFT_WITHDRAWAL_REQUESTED", target_type="shift", target_id=shift.pk,
         ).exists()
+        or not Clinic.objects.filter(pk=shift.clinic_id, status="ACTIVE").exists()
+        or not Employee.objects.filter(pk=shift.dentist_id, status="ACTIVE").exists()
         or start_at < now or start_at < shift.start_at or end_at > shift.end_at
         or not qualified(shift.dentist_id, treatment.required_qualification_id, start_at, end_at)
     ):

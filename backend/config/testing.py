@@ -6,6 +6,7 @@ from django.test.runner import DiscoverRunner
 
 
 DESIGN_SQL = Path(__file__).resolve().parents[2] / "usecase" / "ADC_PostgreSQL_设计与统计.sql"
+MASTER_DATA_SQL = Path(__file__).resolve().parents[1] / "scripts" / "master_data_access.sql"
 
 
 class ADCTestRunner(DiscoverRunner):
@@ -22,6 +23,7 @@ class ADCTestRunner(DiscoverRunner):
                     cursor.execute("SELECT to_regclass('public.appointment')")
                     if cursor.fetchone()[0] is None:
                         cursor.execute(DESIGN_SQL.read_text(encoding="utf-8-sig"))
+                    cursor.execute(MASTER_DATA_SQL.read_text(encoding="utf-8"))
             if aliases is None or "runtime" in aliases:
                 call_command("createcachetable", "adc_report_snapshot", database="runtime", verbosity=0)
         except Exception:

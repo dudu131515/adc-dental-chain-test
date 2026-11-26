@@ -1,305 +1,385 @@
-import { useWorkspaceRuntime } from "../../shared/WorkspaceRuntime";
-import { FormEvent, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import type { StaffIdentity } from "../../shared/AppShell";
-import { canWorkAt, hasRole } from "../../shared/navigation";
-import { ApiError } from "../../shared/api";
 import { useApiRequest } from "../../shared/ApiTransport";
-import { AffectedAppointments } from "./ResourceImpactPanel";
-import type { Demand } from "./ShiftDemandForm";
-import { addDays, AppointmentSummary, Dentist, localDate, localTime, Shift, shiftLabels, toOffset } from "./types";
+import { ApiError } from "../../shared/api";
+import { canWorkAt } from "../../shared/navigation";
+import { useWorkspaceRuntime } from "../../shared/WorkspaceRuntime";
+import { ShiftBatchPanel } from "./ShiftBatchPanel";
+import { ShiftDetails, ShiftEditor } from "./ShiftDetails";
+import {
+  BatchAction, BatchResult, BoardDentist, BoardShift, ClinicOption, DraftContext, RunBatch, Shortage, WeeklySchedule,
+  conflictLabels, dentistsAt,
+} from "./shiftBoardTypes";
+import { addDays, localDate, localTime, shiftLabels } from "./types";
+import "./shift-board.css";
 
-type Context = { identity: StaffIdentity; clinicId: string; onAppointment?: (id: string, start: string) => void };
+type Context = {
+  identity: StaffIdentity;
+  clinicId: string;
+  onAppointment?: (id: string, start: string) => void;
+  initialWeek?: string;
+};
+
+type BatchMode = Exclude<BatchAction["action"], "copy">;
+
+const boardRoles = ["HQ_SCHEDULER", "CLINIC_MANAGER", "DENTIST"];
+const weekday = new Intl.DateTimeFormat("zh-CN", { timeZone: "UTC", weekday: "short" });
+
+function monday(date: string) {
+  const day = new Date(date + "T00:00:00Z").getUTCDay();
+  return addDays(date, -((day + 6) % 7));
+}
 
 function weekStart(queryString: string, today: string) {
   const query = new URLSearchParams(queryString).get("week");
   if (query && /^\d{4}-\d{2}-\d{2}$/.test(query) && !Number.isNaN(Date.parse(query))) return query;
-  const day = new Date(today + "T00:00:00Z").getUTCDay();
-  return addDays(today, -((day + 6) % 7));
+  return monday(today);
 }
 
-function currentLocalTime(value?: string) {
-  return value ? localDate(value) + "T" + localTime(value) : "";
+function overlapsDay(item: { start_at: string; end_at: string }, day: string) {
+  const start = Date.parse(day + "T00:00:00+08:00");
+  const end = Date.parse(addDays(day, 1) + "T00:00:00+08:00");
+  return Date.parse(item.start_at) < end && Date.parse(item.end_at) > start;
 }
 
-function ShiftEditor({
-  identity, clinicId, dentists, shift, onSave, draftDay,
-}: Context & { dentists: Dentist[]; shift?: Shift; onSave: (shift: Shift) => void; draftDay?: string }) {
-  const request = useApiRequest();
-  const [demands, setDemands] = useState<Demand[]>([]);
-  const editableClinics = identity.clinics.filter(item => canWorkAt(identity, "HQ_SCHEDULER", item.clinic_id));
-  const [clinic, setClinic] = useState(shift?.clinic_id || clinicId || editableClinics[0]?.clinic_id || "");
-  const [pending, setPending] = useState(false);
-  const [error, setError] = useState("");
-
-  useEffect(() => {
-    const controller = new AbortController();
-    if (clinic) {
-      request<{ items: Demand[] }>("/shift-demands?clinic_id=" + encodeURIComponent(clinic), { signal: controller.signal })
-        .then(result => setDemands(result.items)).catch(failure => {
-          if (!controller.signal.aborted) setError(failure.message);
-        });
-    }
-    return () => controller.abort();
-  }, [clinic]);
-
-  async function save(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (pending) return;
-    setPending(true);
-    setError("");
-    const fields = new FormData(event.currentTarget);
-    const body = {
-      clinic_id: clinic, dentist_id: fields.get("dentist_id"),
-      demand_id: fields.get("demand_id") || null,
-      start_at: toOffset(fields.get("start_at")), end_at: toOffset(fields.get("end_at")),
-      ...(shift ? { expected_status: shift.status, reason: fields.get("reason") } : {}),
-    };
-    try {
-      const saved = await request<Shift>(shift ? "/shifts/" + shift.shift_id : "/shifts", {
-        method: shift ? "PATCH" : "POST", actionKey: crypto.randomUUID(), body,
-      });
-      onSave(saved);
-    } catch (failure) {
-      setError(failure instanceof Error ? failure.message : "无法保存班次。");
-    } finally {
-      setPending(false);
-    }
-  }
-
-  return <form className="schedule-form" aria-label={shift ? "调整班次" : "拟排班次"} onSubmit={save}>
-    <label>门店<select value={clinic} onChange={event => setClinic(event.target.value)} required>
-      {editableClinics.map(item => <option value={item.clinic_id} key={item.clinic_id}>{item.name}</option>)}
-    </select></label>
-    <label>牙医<select name="dentist_id" defaultValue={shift?.dentist_id} required>
-      {dentists.map(person => <option key={person.dentist_id} value={person.dentist_id}>{person.name}</option>)}
-    </select></label>
-    <label>关联需求<select name="demand_id" defaultValue={shift?.demand_id || ""} key={clinic}>
-      <option value="">无关联需求</option>
-      {demands.map(item => <option key={item.demand_id} value={item.demand_id}>
-        {localDate(item.start_at)} {localTime(item.start_at)}–{localTime(item.end_at)} · {item.required_count} 人
-      </option>)}
-    </select></label>
-    <label>开始<input name="start_at" type="datetime-local" defaultValue={currentLocalTime(shift?.start_at) || (draftDay ? draftDay + "T09:00" : "")} required /></label>
-    <label>结束<input name="end_at" type="datetime-local" defaultValue={currentLocalTime(shift?.end_at) || (draftDay ? draftDay + "T12:00" : "")} required /></label>
-    {shift && <label>调整原因<input name="reason" required /></label>}
-    <button className="button primary" disabled={pending || !dentists.length}>{shift ? "保存调整" : "保存草案"}</button>
-    {error && <p className="error-text" role="alert">{error}</p>}
-  </form>;
-}
-
-function ShiftDetails({ shift, identity, clinicId, dentists, onUpdate, onClose, onAppointment }: Context & {
-  shift: Shift;
-  dentists: Dentist[];
-  onUpdate: (shift: Shift) => void;
-  onClose: () => void;
-}) {
-  const request = useApiRequest();
-  const [error, setError] = useState("");
-  const [affected, setAffected] = useState<AppointmentSummary[]>();
-  const [pending, setPending] = useState(false);
-  const close = useRef<HTMLButtonElement>(null);
-  const scheduler = canWorkAt(identity, "HQ_SCHEDULER", shift.clinic_id);
-  const dentist = identity.capabilities.includes("DENTIST") && identity.employee_id === shift.dentist_id;
-  const canCoordinate = scheduler || canWorkAt(identity, "CLINIC_MANAGER", shift.clinic_id);
-  const doctor = dentists.find(item => item.dentist_id === shift.dentist_id);
-
-  useEffect(() => { close.current?.focus(); }, []);
-
-  async function action(endpoint: string, body: Record<string, unknown> = {}) {
-    if (pending) return;
-    setPending(true);
-    setError("");
-    try {
-      const saved = await request<Shift>("/shifts/" + shift.shift_id + "/" + endpoint, {
-        method: "POST", actionKey: crypto.randomUUID(), body,
-      });
-      onUpdate(saved);
-    } catch (failure) {
-      setError(failure instanceof Error ? failure.message : "无法办理班次。");
-      if (failure instanceof ApiError && Array.isArray(failure.error.details?.appointments)) {
-        setAffected(failure.error.details.appointments as AppointmentSummary[]);
-      }
-    } finally {
-      setPending(false);
-    }
-  }
-
-  async function showAffected() {
-    try {
-      const result = await request<{ items: AppointmentSummary[] }>("/shifts/" + shift.shift_id + "/affected-appointments");
-      setAffected(result.items);
-    } catch (error) {
-      setError(error instanceof Error ? error.message : "无法读取受影响预约。");
-    }
-  }
-
-  return <aside className="schedule-drawer" aria-labelledby="shift-detail-title" onKeyDown={event => {
-    if (event.key === "Escape") onClose();
-  }}>
-    <div className="schedule-heading">
-      <h2 id="shift-detail-title">班次详情</h2>
-      <button className="button" ref={close} onClick={onClose}>关闭</button>
-    </div>
-    <p>{identity.clinics.find(c => c.clinic_id === shift.clinic_id)?.name} · {doctor?.name || "本人"}</p>
-    <p>{localDate(shift.start_at)} {localTime(shift.start_at)}–{localTime(shift.end_at)}</p>
-    <span className="status-tag" data-state={shift.status}>{shiftLabels[shift.status] || shift.status}</span>
-    {doctor?.qualifications.length ? <ul className="compact-list">
-      {doctor.qualifications.map(qualification => <li key={qualification.qualification_id}>
-        <strong>{qualification.name}</strong>
-        <span>{qualification.valid_from || "无起始限制"} 至 {qualification.valid_until || "无截止限制"}</span>
-      </li>)}
-    </ul> : null}
-    {scheduler && (shift.status === "DRAFT" || shift.status === "REJECTED") && <ShiftEditor
-      key={shift.status + ":" + shift.shift_id} identity={identity} clinicId={clinicId}
-      dentists={dentists} shift={shift} onSave={onUpdate}
-    />}
-    {scheduler && shift.status === "DRAFT" &&
-      <button className="button primary" disabled={pending} onClick={() => action("submit")}>提交牙医确认</button>}
-    {dentist && shift.status === "PENDING" && <form className="schedule-form" onSubmit={event => {
-      event.preventDefault();
-      const data = new FormData(event.currentTarget);
-      action("respond", { decision: data.get("decision"), reason: data.get("reason") });
-    }}>
-      <label>答复<select name="decision"><option value="ACCEPTED">接受</option><option value="REJECTED">拒绝</option></select></label>
-      <label>原因<input name="reason" placeholder="拒绝时必填" /></label>
-      <button className="button primary" disabled={pending}>提交答复</button>
-    </form>}
-    {scheduler && shift.status === "ACCEPTED" && <form className="schedule-form" onSubmit={event => {
-      event.preventDefault();
-      const fields = new FormData(event.currentTarget);
-      const verified = fields.get("route_feasible") === "on";
-      action("publish", verified ? { route_feasible: true, evidence_ref: fields.get("evidence_ref") } : {});
-    }}>
-      <label className="inline-control"><input type="checkbox" name="route_feasible" />已与牙医核对跨店路线可行</label>
-      <label>路线核验依据<input name="evidence_ref" /></label>
-      <button className="button primary" disabled={pending}>复查并发布</button>
-    </form>}
-    {canCoordinate && shift.status === "PUBLISHED" &&
-      <button className="button" onClick={showAffected}>查看受影响预约</button>}
-    {scheduler && shift.status === "PUBLISHED" && <form className="schedule-form" onSubmit={event => {
-      event.preventDefault();
-      action("withdraw", { reason: new FormData(event.currentTarget).get("reason") });
-    }}>
-      <label>停诊原因<input name="reason" required /></label>
-      <button className="button" disabled={pending}>撤销班次</button>
-    </form>}
-    {error && <p role="alert" className="error-text">{error}</p>}
-    {affected && <AffectedAppointments items={affected} onAppointment={onAppointment} />}
-  </aside>;
-}
-
-export function ShiftBoard({ identity, clinicId, onAppointment, initialWeek }: Context & {initialWeek?: string}) {
+export function ShiftBoard({ identity, clinicId, onAppointment, initialWeek }: Context) {
   const { router, workday } = useWorkspaceRuntime();
   const request = useApiRequest();
   const [week, setWeek] = useState(() => initialWeek ?? weekStart(router.read().search, workday));
+  const [clinic, setClinic] = useState(clinicId);
+  const [dentist, setDentist] = useState("");
   const [listView, setListView] = useState(false);
-  const [shifts, setShifts] = useState<Shift[]>([]);
-  const [dentists, setDentists] = useState<Dentist[]>([]);
-  const [selected, setSelected] = useState<Shift>();
-  const [creating, setCreating] = useState(false);
-  const [error, setError] = useState("");
+  const [board, setBoard] = useState<WeeklySchedule>({ shifts: [] });
+  const [dentists, setDentists] = useState<BoardDentist[]>([]);
+  const [activeClinics, setActiveClinics] = useState<ClinicOption[]>([]);
+  const [selected, setSelected] = useState<BoardShift>();
+  const [draft, setDraft] = useState<DraftContext>();
+  const [mode, setMode] = useState<BatchMode>();
+  const [chosen, setChosen] = useState<string[]>([]);
+  const [feedback, setFeedback] = useState({ message: "", error: "" });
+  const [readError, setReadError] = useState("");
   const [loading, setLoading] = useState(true);
+  const [refresh, setRefresh] = useState(0);
+  const [batchPending, setBatchPending] = useState(false);
+  const pendingBatch = useRef(false);
+  const retry = useRef<{ signature: string; actionKey: string } | undefined>(undefined);
   const origin = useRef<HTMLButtonElement | null>(null);
-  const scheduler = hasRole(identity, ["HQ_SCHEDULER"], clinicId);
-  const directory = hasRole(identity, ["HQ_SCHEDULER", "CLINIC_MANAGER"], clinicId);
+  const closeNew = useRef<HTMLButtonElement>(null);
+
+  const clinics = identity.clinics.filter(row => boardRoles.some(role => canWorkAt(identity, role, row.clinic_id)));
+  const writableClinics = activeClinics.filter(row => canWorkAt(identity, "HQ_SCHEDULER", row.clinic_id));
+  const scheduler = writableClinics.some(row => !clinic || row.clinic_id === clinic);
   const days = Array.from({ length: 7 }, (_, i) => addDays(week, i));
+  const shifts = board.shifts;
+  const shortages = board.shortages ?? [];
+  const conflicts = board.conflicts ?? [];
+
+  useEffect(() => {
+    setClinic(clinicId);
+    setDentist("");
+    setSelected(undefined);
+    setDraft(undefined);
+    setMode(undefined);
+    setChosen([]);
+  }, [clinicId]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    request<{ items: ClinicOption[] }>("/clinics", { signal: controller.signal }).then(result => {
+      if (!controller.signal.aborted && Array.isArray(result.items)) setActiveClinics(result.items);
+    }).catch(failure => {
+      if (!controller.signal.aborted) setReadError(failure.message || "无法读取可排班门店。");
+    });
+    return () => controller.abort();
+  }, [request]);
 
   useEffect(() => {
     const params = new URLSearchParams({ date_from: week, date_to: addDays(week, 6), view: "week" });
-    if (clinicId) params.set("clinic_id", clinicId);
+    if (clinic) params.set("clinic_id", clinic);
+    if (dentist) params.set("dentist_id", dentist);
     const controller = new AbortController();
     setLoading(true);
-    setError("");
+    setReadError("");
     Promise.all([
-      request<{ shifts: Shift[] }>("/schedule/board?" + params.toString(), { signal: controller.signal }),
-      directory
-        ? request<{ items: Dentist[] }>("/schedule/dentists" + (clinicId ? "?clinic_id=" + encodeURIComponent(clinicId) : ""), { signal: controller.signal })
-        : Promise.resolve({ items: [] }),
-    ]).then(([board, people]) => {
-      setShifts(board.shifts);
+      request<WeeklySchedule>("/schedule/board?" + params.toString(), { signal: controller.signal }),
+      request<{ items: BoardDentist[] }>("/schedule/dentists", { signal: controller.signal }),
+    ]).then(([schedule, people]) => {
+      if (controller.signal.aborted) return;
+      setBoard(schedule);
       setDentists(people.items);
-    }).catch(error => {
-      if (!controller.signal.aborted) setError(error.message || "无法读取周排班。");
+      setSelected(current => current ? schedule.shifts.find(row => row.shift_id === current.shift_id) ?? current : undefined);
+    }).catch(failure => {
+      if (!controller.signal.aborted) {
+        setBoard({ shifts: [] });
+        setReadError(failure.message || "无法读取周排班。");
+      }
     }).finally(() => {
       if (!controller.signal.aborted) setLoading(false);
     });
     return () => controller.abort();
-  }, [week, clinicId, directory, request]);
+  }, [week, clinic, dentist, refresh, request]);
+
+  useEffect(() => {
+    if (draft) closeNew.current?.focus();
+  }, [draft]);
+
+  function clearSelection() {
+    setSelected(undefined);
+    setDraft(undefined);
+    setMode(undefined);
+    setChosen([]);
+    setFeedback({ message: "", error: "" });
+  }
 
   function go(date: string) {
+    clearSelection();
     const query = new URLSearchParams(router.read().search);
     query.set("week", date);
     if (!initialWeek) router.write(router.read().path + "?" + query.toString());
-    setSelected(undefined);
     setWeek(date);
   }
 
-  function open(shift: Shift, button: HTMLButtonElement) {
+  function open(shift: BoardShift, button: HTMLButtonElement) {
     origin.current = button;
+    setDraft(undefined);
     setSelected(shift);
+  }
+
+  function create(next: DraftContext, button: HTMLButtonElement) {
+    origin.current = button;
+    setSelected(undefined);
+    setDraft(next);
   }
 
   function close() {
     setSelected(undefined);
+    setDraft(undefined);
     origin.current?.focus();
   }
 
-  function updated(shift: Shift) {
+  function updated(shift: BoardShift) {
     const date = localDate(shift.start_at);
-    if (!days.includes(date)) {
-      const weekday = new Date(date + "T00:00:00Z").getUTCDay();
-      go(addDays(date, -((weekday + 6) % 7)));
-    }
-    setShifts(old => [...old.filter(item => item.shift_id !== shift.shift_id), shift]);
+    if (!days.includes(date)) go(monday(date));
+    if (clinic && shift.clinic_id !== clinic) setClinic(shift.clinic_id);
+    if (dentist && shift.dentist_id !== dentist) setDentist(shift.dentist_id);
+    setDraft(undefined);
     setSelected(shift);
-    setCreating(false);
+    setRefresh(value => value + 1);
   }
 
-  const activeDentists = [...new Set(dentists.map(doctor => doctor.dentist_id).concat(shifts.map(shift => shift.dentist_id)))];
-  const name = (id: string) => dentists.find(item => item.dentist_id === id)?.name || (identity.employee_id === id ? "本人" : "牙医 " + id);
-  const clinicName = (id: string) => identity.clinics.find(item => item.clinic_id === id)?.name || "门店 " + id;
-  const button = (shift: Shift) => <button type="button" className="shift-slot" key={shift.shift_id}
-    onClick={evt => open(shift, evt.currentTarget)}>
-    <span>{localTime(shift.start_at)}–{localTime(shift.end_at)}</span>
-    <strong>{clinicName(shift.clinic_id)}</strong>
-    <small className="status-tag" data-state={shift.status}>{shiftLabels[shift.status] || shift.status}</small>
-  </button>;
+  const shownDentists = clinic ? dentistsAt(dentists, clinic) : dentists;
+  const activeDentists = [...new Set(shownDentists.map(row => row.dentist_id).concat(shifts.map(row => row.dentist_id)))]
+    .filter(id => !dentist || id === dentist);
+  const name = (id: string) => dentists.find(row => row.dentist_id === id)?.name
+    ?? shifts.find(row => row.dentist_id === id)?.dentist_name
+    ?? (identity.employee_id === id ? identity.full_name || "本人" : "牙医 " + id);
+  const clinicName = (id: string) => clinics.find(row => row.clinic_id === id)?.name
+    ?? activeClinics.find(row => row.clinic_id === id)?.name
+    ?? shifts.find(row => row.clinic_id === id)?.clinic_name ?? "门店 " + id;
+  const writableAt = (id: string) => writableClinics.some(row => row.clinic_id === id);
+  const eligible = (mode === "submit" || mode === "publish") ? shifts.filter(shift =>
+    shift.status === (mode === "submit" ? "DRAFT" : "ACCEPTED") && writableAt(shift.clinic_id)) : [];
+  const selectedBatch = eligible.filter(shift => chosen.includes(shift.shift_id));
+  const exceptions = shifts.filter(row => ["PENDING", "REJECTED", "CANCELLED"].includes(row.status));
 
-  return <section className="schedule-panel">
+  const run: RunBatch = async (action, onSuccess) => {
+    if (pendingBatch.current) return;
+    setFeedback({ message: "", error: "" });
+    if ("shifts" in action && action.shifts.length > 200) {
+      setFeedback({ message: "", error: "每次最多办理 200 个班次，请缩小选择范围。" });
+      return;
+    }
+    const signature = JSON.stringify(action);
+    const actionKey = retry.current?.signature === signature ? retry.current.actionKey : crypto.randomUUID();
+    retry.current = { signature, actionKey };
+    pendingBatch.current = true;
+    setBatchPending(true);
+    try {
+      const result = await request<BatchResult>("/shifts/batch", { method: "POST", actionKey, body: action });
+      retry.current = undefined;
+      if (action.action === "copy" && result.items.length && !days.includes(action.target_date)) go(monday(action.target_date));
+      const operation = action.action === "submit" ? "已提交确认" : action.action === "publish" ? "已发布" : "已保存草案";
+      setFeedback({ message: `${operation} ${result.items.length} 个班次${result.skipped_count ? `，跳过 ${result.skipped_count} 个相同班次` : ""}。`, error: "" });
+      setChosen([]);
+      setRefresh(value => value + 1);
+      onSuccess?.(result);
+    } catch (failure) {
+      if (!(failure instanceof ApiError) || failure.error.code !== "RESULT_UNKNOWN") retry.current = undefined;
+      const details = failure instanceof ApiError ? failure.error.details : undefined;
+      const row = shifts.find(shift => shift.shift_id === details?.shift_id);
+      const affected = row ? `${name(row.dentist_id)} · ${clinicName(row.clinic_id)} · ${localDate(row.start_at)} ${localTime(row.start_at)}。 `
+        : details?.row ? `第 ${String(details.row)} 项。 ` : "";
+      setFeedback({ message: "", error: affected + (failure instanceof Error ? failure.message : "无法办理批量排班。") });
+    } finally {
+      pendingBatch.current = false;
+      setBatchPending(false);
+    }
+  };
+
+  function setBatchMode(next: BatchMode) {
+    setMode(current => current === next ? undefined : next);
+    setChosen([]);
+    setFeedback({ message: "", error: "" });
+  }
+
+  function slot(shift: BoardShift, day?: string) {
+    const canSelect = eligible.some(row => row.shift_id === shift.shift_id);
+    const warning = conflicts.some(item => item.shift_ids.includes(shift.shift_id));
+    const first = localDate(shift.start_at);
+    const last = localDate(shift.end_at);
+    const time = day && day !== first
+      ? (day === last ? "续班 · 至 " + localTime(shift.end_at) : "全天续班")
+      : localTime(shift.start_at) + "–" + localTime(shift.end_at)
+        + (last === first ? "" : last === addDays(first, 1) ? " 次日" : " " + last.slice(5));
+    return <div className="shift-board-slot" key={shift.shift_id}>
+      {canSelect && <input type="checkbox" checked={chosen.includes(shift.shift_id)} disabled={batchPending}
+        aria-label={`选择 ${name(shift.dentist_id)} ${localDate(shift.start_at)} ${localTime(shift.start_at)} ${clinicName(shift.clinic_id)} 班次`}
+        onChange={() => setChosen(ids => ids.includes(shift.shift_id) ? ids.filter(id => id !== shift.shift_id) : [...ids, shift.shift_id])} />}
+      <button type="button" className="shift-slot" data-warning={warning || undefined} onClick={event => open(shift, event.currentTarget)}>
+        <span>{time}</span>
+        <strong>{clinicName(shift.clinic_id)}</strong>
+        <small className="status-tag" data-state={shift.status}>{shiftLabels[shift.status] || shift.status}</small>
+        {warning && <small className="shift-warning">冲突</small>}
+      </button>
+    </div>;
+  }
+
+  function addFor(id: string, day: string, hasShift: boolean) {
+    const doctor = dentists.find(row => row.dentist_id === id);
+    const branch = doctor && writableClinics.find(row =>
+      (!clinic || row.clinic_id === clinic) && dentistsAt([doctor], row.clinic_id).length);
+    return branch ? <button className="shift-add-cell" data-empty={!hasShift || undefined} type="button"
+      aria-label={`为${name(id)}添加 ${day} 班次`} disabled={batchPending}
+      onClick={event => create({ day, clinicId: branch.clinic_id, dentistId: id }, event.currentTarget)}>＋</button> : null;
+  }
+
+  function fillDemand(item: Shortage, button: HTMLButtonElement) {
+    create({ day: localDate(item.start_at), clinicId: item.clinic_id, demand: item }, button);
+  }
+
+  const canCreate = scheduler && shownDentists.length > 0 && !loading && !readError;
+  return <section className="schedule-panel shift-board">
     <div className="schedule-heading">
       <h2>跨店排班</h2>
       <div className="schedule-toolbar">
-        <button className="button" onClick={() => go(addDays(week, -7))}>上一周</button>
-        <label>周起始日期 <input aria-label="周起始日期" type="date" value={week} onChange={event => event.target.value && go(event.target.value)} /></label>
-        <button className="button" onClick={() => go(addDays(week, 7))}>下一周</button>
-        <button className="button" onClick={() => setListView(value => !value)}>{listView ? "周视图" : "列表"}</button>
-        {scheduler && <button className="button primary" disabled={loading || !dentists.length}
-          aria-expanded={creating} onClick={() => setCreating(value => !value)}>{creating ? "收起草案表单" : "拟排班次"}</button>}
+        <button className="button" onClick={() => go(addDays(week, -7))} disabled={batchPending}>上一周</button>
+        <label>周起始日期 <input aria-label="周起始日期" type="date" value={week} max="9999-12-24" disabled={batchPending}
+          onChange={event => event.target.value && go(event.target.value)} /></label>
+        <button className="button" onClick={() => go(addDays(week, 7))} disabled={batchPending}>下一周</button>
+        <button className="button" onClick={() => go(monday(workday))} disabled={batchPending}>本周</button>
       </div>
     </div>
-    {!scheduler && <p className="muted">拟排、提交和发布由总部排班负责。牙医可在本人待确认班次内答复。</p>}
-    {scheduler && !loading && !error && !dentists.length && <p role="status">当前范围没有可排牙医，请检查人员的门店授权。</p>}
-    {creating && <ShiftEditor identity={identity} clinicId={clinicId} dentists={dentists} draftDay={week} onSave={updated} />}
-    {error && <p role="alert" className="error-text">{error}</p>}
-    {loading ? <p className="muted">正在读取周排班…</p> : listView ? (
+    <div className="schedule-toolbar shift-filter-bar">
+      <label>筛选门店<select value={clinic} disabled={batchPending} onChange={event => {
+        clearSelection();
+        setDentist("");
+        setClinic(event.target.value);
+      }}>
+        <option value="">全部授权门店</option>
+        {clinics.map(item => <option key={item.clinic_id} value={item.clinic_id}>{item.name}</option>)}
+      </select></label>
+      <label>筛选牙医<select value={dentist} disabled={batchPending} onChange={event => {
+        clearSelection();
+        setDentist(event.target.value);
+      }}>
+        <option value="">全部牙医</option>
+        {[...new Set(shownDentists.map(row => row.dentist_id).concat(shifts.map(row => row.dentist_id)))]
+          .map(id => <option key={id} value={id}>{name(id)}</option>)}
+      </select></label>
+      <button className="button" onClick={() => setListView(value => !value)}>{listView ? "周视图" : "列表"}</button>
+    </div>
+    {scheduler && <div className="schedule-toolbar shift-action-bar" aria-label="排班操作">
+      <button className="button primary" disabled={!canCreate || batchPending}
+        onClick={event => create({ day: week, clinicId: clinic, dentistId: dentist }, event.currentTarget)}>拟排班次</button>
+      <button className="button" disabled={!canCreate || batchPending} aria-expanded={mode === "draft"} onClick={() => setBatchMode("draft")}>批量拟排</button>
+      <button className="button" disabled={loading || batchPending || !!readError} aria-expanded={mode === "reuse_week"} onClick={() => setBatchMode("reuse_week")}>复用上一周</button>
+      <button className="button" disabled={loading || batchPending || !!readError} aria-expanded={mode === "submit"} onClick={() => setBatchMode("submit")}>批量提交</button>
+      <button className="button" disabled={loading || batchPending || !!readError} aria-expanded={mode === "publish"} onClick={() => setBatchMode("publish")}>批量发布</button>
+    </div>}
+    {mode && <ShiftBatchPanel mode={mode} week={week} days={days} clinic={clinic} dentist={dentist}
+      clinics={clinic ? writableClinics.filter(row => row.clinic_id === clinic) : writableClinics}
+      dentists={shownDentists} selected={selectedBatch} eligible={eligible} pending={batchPending}
+      name={name} clinicName={clinicName} onSelectAll={() => setChosen(selectedBatch.length === eligible.length
+        ? [] : eligible.map(row => row.shift_id))} onClose={() => { setMode(undefined); setChosen([]); }} run={run} />}
+    {feedback.message && <p className="shift-feedback" role="status">{feedback.message}</p>}
+    {feedback.error && <p className="error-text" role="alert">{feedback.error}</p>}
+    {readError && <p role="alert" className="error-text">{readError}</p>}
+    {loading ? <p className="muted" role="status">正在读取周排班…</p> : listView ? (
       <ul className="compact-list">{shifts.map(shift => <li key={shift.shift_id}>
-        <strong>{name(shift.dentist_id)}</strong><span>{localDate(shift.start_at)}</span>{button(shift)}
+        <strong>{name(shift.dentist_id)}</strong><span>{localDate(shift.start_at)}</span>{slot(shift)}
       </li>)}</ul>
     ) : <div className="schedule-scroll">
       <table className="shift-grid">
-        <thead><tr><th scope="col">牙医</th>{days.map(day => <th scope="col" key={day}>{day.slice(5)}</th>)}</tr></thead>
+        <thead><tr><th scope="col">牙医</th>{days.map(day => {
+          const missing = shortages.filter(row => overlapsDay(row, day)).length;
+          return <th scope="col" key={day}>
+            <span>{day.slice(5)} · {weekday.format(new Date(day + "T00:00:00Z"))}</span>
+            {missing > 0 && <small className="shift-warning">{missing} 项缺口</small>}
+          </th>;
+        })}</tr></thead>
         <tbody>
           {activeDentists.map(id => <tr key={id}>
             <th scope="row">{name(id)}</th>
-            {days.map(day => <td key={day}>{shifts.filter(shift =>
-              shift.dentist_id === id && localDate(shift.start_at) === day).map(button)}</td>)}
+            {days.map(day => {
+              const rows = shifts.filter(shift => shift.dentist_id === id && overlapsDay(shift, day));
+              return <td key={day}>{rows.map(row => slot(row, day))}{scheduler && addFor(id, day, rows.length > 0)}</td>;
+            })}
           </tr>)}
         </tbody>
       </table>
     </div>}
-    {!loading && !error && !shifts.length && <p className="muted">本周没有可见班次。</p>}
-    {selected && <ShiftDetails key={selected.shift_id} shift={selected} dentists={dentists} clinicId={clinicId}
-      identity={identity} onClose={close} onUpdate={updated} onAppointment={onAppointment} />}
+    {!loading && !readError && !shifts.length && <p className="muted">本周没有可见班次。</p>}
+    {!loading && !readError && <section className="shift-anomalies" aria-labelledby="shift-anomalies-title">
+      <h3 id="shift-anomalies-title">待处理排班</h3>
+      {shortages.length > 0 && <div>
+        <h4>排班缺口</h4>
+        <ul className="compact-list">{shortages.map(item => <li key={item.demand_id}>
+          <strong>{clinicName(item.clinic_id)} · 缺 {item.missing_count} 位牙医</strong>
+          <span>{localDate(item.start_at)} {localTime(item.start_at)}–{localTime(item.end_at)} · 需求 {item.required_count} 人</span>
+          {writableAt(item.clinic_id) && <button className="button" type="button" onClick={event => fillDemand(item, event.currentTarget)}>补排</button>}
+        </li>)}</ul>
+      </div>}
+      {conflicts.length > 0 && <div>
+        <h4>班次冲突</h4>
+        <ul className="compact-list">{conflicts.map(item => <li key={item.shift_ids.join("-")}>
+          <strong>{conflictLabels[item.code]} · {name(item.dentist_id)}</strong>
+          <span>{[...new Set(item.clinic_ids)].map(clinicName).join("、")}</span>
+          <div className="schedule-toolbar">{shifts.filter(row => item.shift_ids.includes(row.shift_id)).map(row =>
+            <button className="button" key={row.shift_id} type="button" onClick={event => open(row, event.currentTarget)}>
+              {localDate(row.start_at)} {localTime(row.start_at)} · {clinicName(row.clinic_id)}
+            </button>
+          )}
+          {clinic && item.shift_ids.some(id => !shifts.some(row => row.shift_id === id)) && <button
+            className="button" type="button" onClick={() => {
+              clearSelection();
+              setClinic("");
+              setDentist(item.dentist_id);
+            }}>查看该牙医的跨店班次</button>}
+          </div>
+        </li>)}</ul>
+      </div>}
+      {exceptions.length > 0 && <div>
+        <h4>待确认、拒绝及撤销</h4>
+        <ul className="compact-list">{exceptions.map(row => <li key={row.shift_id}>
+          <strong>{name(row.dentist_id)} · {clinicName(row.clinic_id)}</strong>
+          <span>{localDate(row.start_at)} {localTime(row.start_at)} · {shiftLabels[row.status]}{row.rejection_reason ? " · " + row.rejection_reason : ""}</span>
+          <button type="button" className="button" onClick={event => open(row, event.currentTarget)}>查看班次</button>
+        </li>)}</ul>
+      </div>}
+      {!shortages.length && !conflicts.length && !exceptions.length && <p className="muted">当前范围没有待处理的班次。</p>}
+    </section>}
+    {draft && <aside className="schedule-drawer" aria-labelledby="shift-new-title" onKeyDown={event => {
+      if (event.key === "Escape") close();
+    }}>
+      <div className="schedule-heading"><h2 id="shift-new-title">新增班次</h2>
+        <button className="button" ref={closeNew} onClick={close}>关闭</button>
+      </div>
+      <ShiftEditor key={[draft.clinicId, draft.dentistId, draft.day, draft.demand?.demand_id].join(":")}
+        clinics={writableClinics} dentists={dentists} draft={draft} onSave={updated} />
+    </aside>}
+    {selected && <ShiftDetails key={selected.shift_id} shift={selected} dentists={dentists} clinics={writableClinics}
+      identity={identity} onClose={close} onSave={updated} onAppointment={onAppointment}
+      canCopy={writableAt(selected.clinic_id)} batchPending={batchPending} runBatch={run} />}
   </section>;
 }

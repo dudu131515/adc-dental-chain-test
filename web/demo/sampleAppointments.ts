@@ -4,7 +4,7 @@ import { localDate, localTime } from "../src/features/schedule/types";
 import type { Visit } from "../src/features/clinical/clinicalTypes";
 import type { StaffIdentity } from "../src/shared/navigation";
 import { ApiError } from "../src/shared/api";
-import { clinics, type Appointment } from "./fixtures";
+import type { Appointment } from "./fixtures";
 
 export const coordinatorRoles = ["FRONT_DESK", "CLINIC_MANAGER", "HQ_SCHEDULER"];
 export const appointmentStates = {
@@ -90,9 +90,10 @@ export function createSampleAppointments(seed: Seed) {
     return {
       appointment_id: row.id, appointment_no: row.id, claim_id: claim(row), status: state,
       is_attended: row.status === "done" || row.status === "treating",
-      clinic: {clinic_id:row.clinic, name:clinics[row.clinic], address:branches.find(branch => branch.clinic_id === row.clinic)?.address ?? ""},
+      clinic: {clinic_id:row.clinic, name:branches.find(branch => branch.clinic_id === row.clinic)?.name ?? row.clinic,
+        address:branches.find(branch => branch.clinic_id === row.clinic)?.address ?? ""},
       dentist: {dentist_id:doctorId(row), name:row.doctor},
-      treatment: {treatment_type_id:treatment(row)?.treatment_type_id ?? "1", name:row.service},
+      treatment: {treatment_type_id:treatment(row)?.treatment_type_id ?? row.treatmentId ?? "1", name:treatment(row)?.treatment_name ?? row.service},
       start_at:start, end_at:appointmentEnd(row), allowed_actions:actions,
       ...(canIdentify ? {patient_display:{patient_id:row.patientId, name:row.patient}, chair:chair(row.id), visit_id:visitId(row.id) ?? null} : {}),
       ...(canFront ? {deposit:deposit(row), refund:refunds.get(row.id) ?? treatmentRefund(row.id)} : {}),
@@ -209,7 +210,7 @@ export function createSampleAppointments(seed: Seed) {
       if (!slot) problem(409,"目标时段已不可用，请重新选择。");
       rememberChange(row,reason);
       const previousPatient = patient(row.clinic,row.patientId);
-      row.clinic = slot.clinic_id as Appointment["clinic"]; row.doctor = slot.dentist_name; row.date = date;
+      row.clinic = slot.clinic_id; row.doctor = slot.dentist_name; row.dentistId = slot.dentist_id; row.date = date;
       row.time = localTime(slot.start_at); row.minutes = (Date.parse(slot.end_at)-Date.parse(slot.start_at))/60_000;
       claims.set(row.id,id());
       if (previousPatient && !patient(row.clinic,row.patientId)) patientDirectory.set(row.clinic+":"+row.patientId,{...previousPatient,clinic:row.clinic});

@@ -82,10 +82,23 @@ class Material(models.Model):
     material_code = models.CharField(max_length=40, unique=True)
     material_name = models.CharField(max_length=140)
     standard_unit = models.CharField(max_length=50)
+    status = models.CharField(max_length=20, default="ACTIVE")
 
     class Meta:
         managed = False
         db_table = "material"
+
+
+class MaterialCost(models.Model):
+    id = models.BigAutoField(primary_key=True)
+    material = models.ForeignKey(Material, on_delete=models.PROTECT)
+    unit_cost = models.DecimalField(max_digits=12, decimal_places=2)
+    effective_from = models.DateField()
+    effective_to = models.DateField(null=True)
+
+    class Meta:
+        managed = False
+        db_table = "material_cost"
 
 
 class MaterialUsage(models.Model):
@@ -94,6 +107,8 @@ class MaterialUsage(models.Model):
     material = models.ForeignKey(Material, on_delete=models.PROTECT)
     quantity = models.DecimalField(max_digits=12, decimal_places=3)
     unit_cost_snapshot = models.DecimalField(max_digits=12, decimal_places=2)
+    material_name_snapshot = models.CharField(max_length=140, null=True)
+    unit_name_snapshot = models.CharField(max_length=50, null=True)
 
     class Meta:
         managed = False

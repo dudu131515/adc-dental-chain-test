@@ -33,7 +33,7 @@ DOMAIN_MODELS = {
     "clinical": {
         "PatientAllergy": "patient_allergy", "Visit": "visit", "ChairUsage": "chair_usage",
         "DentistWorkSession": "dentist_work_session", "TreatmentItem": "treatment_item",
-        "Material": "material", "MaterialUsage": "material_usage",
+        "Material": "material", "MaterialCost": "material_cost", "MaterialUsage": "material_usage",
     },
     "billing": {
         "Invoice": "invoice", "InvoiceLine": "invoice_line", "InvoicePayment": "invoice_payment",

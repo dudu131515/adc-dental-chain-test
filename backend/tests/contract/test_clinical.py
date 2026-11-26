@@ -9,6 +9,7 @@ from django.utils import timezone
 from adc.booking.models import Appointment, DepositPayment, DepositRefund, SlotClaim
 from adc.catalog.models import TreatmentPrice, TreatmentType
 from adc.clinical.models import Material, PatientAllergy, TreatmentItem, Visit
+from adc.identity.models import AppRole, EmployeeRole, UserAccount
 from adc.scheduling.models import DentalChair, Shift
 from tests.fixtures.scenarios import load_synthetic_base
 
@@ -230,3 +231,39 @@ class ClinicalContractTests(TestCase):
         current = self.dentist.get(route).json()["data"]["materials"][0]
         self.assertEqual((current["quantity"], current["unit_cost"]), ("1.250", "8.00"))
         self.assertNotIn("materials", self.front.get(route).json()["data"])
+
+    def test_managed_material_cost_and_unit_are_preserved_after_change(self):
+        actor = UserAccount.objects.get(login_identity="demo.front-a")
+        role, _ = AppRole.objects.get_or_create(role_code="HQ_ACCESS_ADMIN", defaults={"role_name": "权限管理"})
+        EmployeeRole.objects.create(employee_id=actor.employee_id, role=role)
+        admin_route = "/api/v1/admin/materials"
+        material = self.front.post(admin_route, {
+            "material_code": "MANAGED-MATERIAL", "material_name": "旧耗材名称", "standard_unit": "份",
+        }, content_type="application/json")
+        self.assertEqual(material.status_code, 201, material.content)
+        material_id = material.json()["data"]["material_id"]
+        cost = self.front.post(f"{admin_route}/{material_id}/costs", {
+            "unit_cost": "7.00", "effective_from": timezone.localdate().isoformat(),
+        }, content_type="application/json")
+        self.assertEqual(cost.status_code, 201, cost.content)
+        items = self.dentist.get("/api/v1/clinical/materials").json()["data"]["items"]
+        reference = next(row for row in items if row["material_id"] == material_id)["cost_references"][0]
+        visit_id = self.check_in_and_start()
+        TreatmentPrice.objects.create(
+            treatment_type=self.claim.requested_treatment_type, unit_price="24.00", effective_from=timezone.localdate(),
+        )
+        url = "/api/v1/visits/" + visit_id
+        saved = self.dentist.post(url + "/treatment-items", {
+            "treatment_type_id": str(self.claim.requested_treatment_type_id), "units": "1",
+            "materials": [{"material_id": material_id, "quantity": "1.250", "cost_evidence_ref": reference}],
+        }, content_type="application/json", HTTP_IDEMPOTENCY_KEY="managed-material")
+        self.assertEqual(saved.status_code, 201, saved.content)
+        edited = self.front.patch(f"{admin_route}/{material_id}", {
+            "material_name": "新耗材名称", "standard_unit": "件", "status": "INACTIVE",
+        }, content_type="application/json")
+        self.assertEqual(edited.status_code, 200, edited.content)
+        self.assertNotIn(material_id, {
+            row["material_id"] for row in self.dentist.get("/api/v1/clinical/materials").json()["data"]["items"]
+        })
+        history = self.dentist.get(url).json()["data"]["materials"][0]
+        self.assertEqual((history["name"], history["unit"], history["unit_cost"]), ("旧耗材名称", "份", "7.00"))

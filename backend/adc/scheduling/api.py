@@ -1,4 +1,4 @@
-from datetime import datetime, time, timedelta
+from datetime import date, datetime, time, timedelta
 
 from django.db import connection, transaction
 from django.db.models import Q
@@ -9,10 +9,13 @@ from rest_framework import serializers
 from rest_framework.decorators import api_view
 
 from adc.common.http import ApiProblem, success
+from adc.common.idempotency import OperationKey, canonical_digest
 from adc.common.serializers import ID, values
 from adc.identity.audit import record_event
-from adc.identity.models import Clinic, Employee, EmployeeRole
+from adc.identity.models import AuditLog, Clinic, Employee, EmployeeRole
 from adc.scheduling.models import EmployeeQualification, Qualification, Shift, ShiftDemand
+from adc.scheduling.shift_batch import BATCH_LIMIT, load_sources, run_shift_batch
+from adc.scheduling.shift_insights import rejection_reasons, shift_conflicts, staffing_shortages
 from adc.scheduling.shift_service import (
     BUSINESS_ZONE, draft_shift, edit_shift, publish_shift, respond_to_shift, submit_shift,
 )
@@ -65,6 +68,51 @@ class ShiftPublish(serializers.Serializer):
     evidence_ref = serializers.CharField(required=False)
 
 
+class BatchAction(serializers.Serializer):
+    action = serializers.ChoiceField(choices=("draft", "copy", "reuse_week", "submit", "publish"))
+
+
+class BatchDraft(serializers.Serializer):
+    shifts = ShiftFields(many=True, allow_empty=False, max_length=BATCH_LIMIT)
+
+
+class BatchCopy(serializers.Serializer):
+    source_shift_id = ID()
+    target_date = serializers.DateField()
+
+
+class BatchReuse(serializers.Serializer):
+    target_week = serializers.DateField()
+    clinic_id = ID(required=False)
+    dentist_id = ID(required=False)
+
+    def validate_target_week(self, week):
+        if not 7 < week.toordinal() <= date.max.toordinal() - 7:
+            raise serializers.ValidationError("目标周超出可办理范围。")
+        return week
+
+
+class BatchSubmitItem(serializers.Serializer):
+    shift_id = ID()
+
+
+class BatchPublishItem(ShiftPublish):
+    shift_id = ID()
+
+
+class BatchSubmit(serializers.Serializer):
+    shifts = BatchSubmitItem(many=True, allow_empty=False, max_length=BATCH_LIMIT)
+
+    def validate_shifts(self, items):
+        if len({row["shift_id"] for row in items}) != len(items):
+            raise serializers.ValidationError("每个班次只能选择一次。")
+        return items
+
+
+class BatchPublish(BatchSubmit):
+    shifts = BatchPublishItem(many=True, allow_empty=False, max_length=BATCH_LIMIT)
+
+
 class BoardFilter(serializers.Serializer):
     clinic_id = ID(required=False)
     dentist_id = ID(required=False)
@@ -78,6 +126,8 @@ class BoardFilter(serializers.Serializer):
         last = filters.get("date_to", first)
         if last < first:
             raise serializers.ValidationError({"date_to": "结束日期须不早于开始日期。"})
+        if last == date.max:
+            raise serializers.ValidationError({"date_to": "结束日期超出可查询范围。"})
         return {**filters, "date_from": first, "date_to": last}
 
 
@@ -187,7 +237,10 @@ def dentists(request):
         candidates = candidates.filter(condition)
     if clinic_id is not None:
         candidates = candidates.filter(scope_clinic_id=clinic_id)
-    people = Employee.objects.filter(pk__in=candidates.values("employee_id")).order_by("employee_no")
+    clinics_by_employee = {}
+    for employee_id, scope_clinic_id in candidates.values_list("employee_id", "scope_clinic_id").order_by("scope_clinic_id"):
+        clinics_by_employee.setdefault(employee_id, []).append(str(scope_clinic_id))
+    people = Employee.objects.filter(pk__in=clinics_by_employee).order_by("employee_no")
     qualified_people = candidates if licensed_scope is None else candidates.filter(scope_clinic_id__in=licensed_scope)
     licenses = EmployeeQualification.objects.filter(
         employee_id__in=qualified_people.values("employee_id"),
@@ -201,7 +254,7 @@ def dentists(request):
             "valid_until": record.valid_until.isoformat() if record.valid_until else None,
         })
     return success({
-        "items": [{"dentist_id": str(employee.pk), "name": employee.full_name, "qualifications": by_employee.get(employee.pk, [])}
+        "items": [{"dentist_id": str(employee.pk), "name": employee.full_name, "qualifications": by_employee.get(employee.pk, []), "clinic_ids": clinics_by_employee[employee.pk]}
                   for employee in people],
         "next_cursor": None,
     })
@@ -275,6 +328,50 @@ def publish(request, pk):
     return success(shift_data(publish_shift(request.user, first, data.get("route_feasible"), data.get("evidence_ref"))))
 
 
+@api_view(["POST"])
+def batch_shifts(request):
+    principal = request.user
+    principal.require(SCHEDULER)
+    action = values(BatchAction, request.data)["action"]
+    serializer = {"draft": BatchDraft, "copy": BatchCopy, "reuse_week": BatchReuse, "submit": BatchSubmit, "publish": BatchPublish}
+    data = values(serializer[action], request.data)
+    operation = None
+    if request.headers.get("Idempotency-Key"):
+        operation = OperationKey.from_request(request, command="shift_batch", target={})
+    with transaction.atomic():
+        if operation:
+            with connection.cursor() as cursor:
+                cursor.execute("SELECT pg_advisory_xact_lock(hashtextextended(%s, 0))", [operation.scope_digest])
+            digest = canonical_digest({"action": action, **data})
+            prior = AuditLog.objects.filter(
+                account_id=principal.account_id, action="IDEMPOTENCY_RESULT", target_type=operation.command,
+                after_value__scope_digest=operation.scope_digest,
+            ).first()
+            if prior:
+                receipt = prior.after_value
+                if receipt["payload_digest"] != digest:
+                    raise ApiProblem(409, "IDEMPOTENCY_CONFLICT", "办理标识已经用于不同的内容。")
+                result = receipt["result"]
+                load_sources(principal, [int(item["shift_id"]) for item in result["items"]])
+                for clinic_id in receipt["clinic_ids"]:
+                    principal.require(SCHEDULER, clinic_id)
+                return success(result)
+
+        items, skipped, clinic_ids = run_shift_batch(principal, action, data)
+        result = {"items": [shift_data(row) for row in items], "skipped_count": skipped}
+        if operation:
+            if data.get("clinic_id"):
+                clinic_ids.add(data["clinic_id"])
+            AuditLog.objects.create(
+                account_id=principal.account_id, action="IDEMPOTENCY_RESULT", target_type=operation.command,
+                after_value={
+                    "version": 1, "scope_digest": operation.scope_digest, "payload_digest": digest,
+                    "result": result, "clinic_ids": sorted(clinic_ids),
+                },
+            )
+    return success(result)
+
+
 def appointment_board(principal, start, end, filters):
     scope = principal.clinic_scope(*BOARD)
     dentist_scope = principal.clinic_scope("DENTIST")
@@ -317,20 +414,38 @@ def appointment_board(principal, start, end, filters):
 @api_view(["GET"])
 def board(request):
     require_any(request.user, *BOARD, "DENTIST")
-    selected_clinic(request, (*BOARD, "DENTIST"))
+    clinic_id = selected_clinic(request, (*BOARD, "DENTIST"))
     filters = values(BoardFilter, request.query_params)
     start = datetime.combine(filters["date_from"], time.min, BUSINESS_ZONE)
     end = datetime.combine(filters["date_to"] + timedelta(days=1), time.min, BUSINESS_ZONE)
-    query = visible_shifts(request.user, (MANAGER, SCHEDULER), published_for_front_desk=True).filter(
-        end_at__gt=start, start_at__lt=end,
-    )
+    visible = visible_shifts(request.user, (MANAGER, SCHEDULER), published_for_front_desk=True)
+    query = visible.filter(end_at__gt=start, start_at__lt=end)
     if filters.get("clinic_id"):
         query = query.filter(clinic_id=filters["clinic_id"])
     if filters.get("dentist_id"):
         query = query.filter(dentist_id=filters["dentist_id"])
+    rows = query.order_by("start_at", "pk")
+    extras = {}
+    if filters.get("view") == "week":
+        rows = list(rows.select_related("clinic", "dentist"))
+        reasons = rejection_reasons(rows)
+        items = [
+            {
+                **shift_data(row), "clinic_name": row.clinic.clinic_name, "dentist_name": row.dentist.full_name,
+                **({"rejection_reason": reasons[row.pk]} if reasons.get(row.pk) else {}),
+            }
+            for row in rows
+        ]
+        extras["shortages"] = staffing_shortages(request.user, start, end, clinic_id)
+        extras["conflicts"] = shift_conflicts(visible, rows, start, end)
+    else:
+        items = [shift_data(row) for row in rows]
+    if filters.get("view") == "day" and clinic_id is not None:
+        from adc.scheduling.day_capacity import unavailable_chair_periods
+
+        extras["unavailable"] = unavailable_chair_periods(clinic_id, start, end)
     return success({
-        "shifts": [shift_data(item) for item in query.order_by("start_at", "pk")],
-        "appointments": appointment_board(request.user, start, end, filters),
+        "shifts": items, "appointments": appointment_board(request.user, start, end, filters), **extras,
     })
 
 
@@ -341,6 +456,7 @@ urlpatterns = [
     path("qualifications", qualifications),
     path("shift-demands", demands),
     path("shifts", shifts),
+    path("shifts/batch", batch_shifts),
     path("shifts/<int:pk>", patch_shift),
     path("shifts/<int:pk>/submit", submit),
     path("shifts/<int:pk>/respond", respond),

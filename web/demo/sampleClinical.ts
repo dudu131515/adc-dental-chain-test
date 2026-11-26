@@ -2,6 +2,7 @@ import type { AllergyEntry, AllergyReview, AllergyReviewState, ClinicalContext, 
 import type { Appointment, Chair, FundsStatus } from "../src/features/schedule/appointmentTypes";
 import { ApiError } from "../src/shared/api";
 import { invoices, type Appointment as Fixture } from "./fixtures";
+import { sampleMaterials, type SampleMaterial } from "./sampleMasterData";
 
 type Body = Record<string, unknown>;
 type Resource = Chair & {
@@ -20,6 +21,7 @@ type Options = {
   appointments: Fixture[]; chairs: Resource[]; treatments: Treatment[];
   appointment: (row: Fixture, actor?: SampleClinicalActor) => Appointment;
   specialRequirement?: (id: string) => string | undefined;
+  materialsFor?: (day: string) => SampleMaterial[];
   id: () => string; clockDate: string;
 };
 type VisitRecord = {
@@ -33,11 +35,7 @@ type ReviewRecord = {clinic: string; summary: AllergyReview};
 const frontDesk = ["FRONT_DESK"];
 const dentistRole = ["DENTIST"];
 const clinicalRoles = ["DENTIST", "FRONT_DESK"];
-const materialOptions = [
-  {material_id:"1",material_name:"一次性口腔检查包",standard_unit:"套",reference:"ADC-DEMO-COST-001",cost:"8.00"},
-  {material_id:"2",material_name:"洁牙工作尖",standard_unit:"支",reference:"ADC-DEMO-COST-002",cost:"15.00"},
-  {material_id:"3",material_name:"复合树脂",standard_unit:"份",reference:"ADC-DEMO-COST-003",cost:"22.00"},
-];
+const usableChair = (row: Resource) => row.status === "AVAILABLE" || row.status === "ACTIVE";
 
 function fail(status: number, code: string, message: string): never {
   throw new ApiError(status, {code, message});
@@ -63,10 +61,12 @@ function quantity(value: unknown, minimum: number) {
   return Number(raw).toFixed(3);
 }
 
-export function createSampleClinical({appointments, chairs, appointment, specialRequirement, id, clockDate, treatments}: Options) {
+export function createSampleClinical({appointments, chairs, appointment, specialRequirement, id, clockDate,
+  treatments, materialsFor=()=>sampleMaterials}: Options) {
   const visits = new Map<string, VisitRecord>();
   const visitsByAppointment = new Map<string, VisitRecord>();
   const assignments = new Map<string, string>();
+  const knownChairs = new Set<string>();
   const checkIns = new Map<string, string>();
   const allergies = new Map<string, AllergyEntry[]>();
   const reviews = new Map<string, ReviewRecord[]>();
@@ -98,9 +98,9 @@ export function createSampleClinical({appointments, chairs, appointment, special
       endedAt:completed ? plus(start, 30) : undefined,items,materials:[],decisions:[],seeded:true,
       refund:{refund_id:visitId,amount:"50.00",status:"SUCCEEDED"}});
     if (!completed) {
-      const chair = chairs.find(resource => resource.clinic_id === row.clinic && resource.status === "ACTIVE"
+      const chair = chairs.find(resource => resource.clinic_id === row.clinic && usableChair(resource)
         && !appointments.some(other => other.date === row.date && assignments.get(other.id) === resource.chair_id));
-      if (chair) assignments.set(row.id, chair.chair_id);
+      if (chair) { assignments.set(row.id, chair.chair_id); knownChairs.add(chair.chair_id); }
     }
   }
 
@@ -158,7 +158,7 @@ export function createSampleClinical({appointments, chairs, appointment, special
     const start = Math.max(Date.parse(booking.start_at), Date.parse(iso(clockDate, "08:00")));
     const end = Math.max(Date.parse(booking.end_at), start + 1);
     const kind = treatments.find(treatment => treatment.treatment_type_id === booking.treatment.treatment_type_id)?.required_chair_kind;
-    return chairs.filter(chair => chair.clinic_id === row.clinic && chair.status === "ACTIVE"
+    return chairs.filter(chair => chair.clinic_id === row.clinic && usableChair(chair)
       && (!kind || chair.chair_kind === kind)
       && !chair.unavailability.some(period => overlap(start, end, period))
       && !appointments.some(other => other.id !== row.id && other.date === row.date
@@ -250,7 +250,7 @@ export function createSampleClinical({appointments, chairs, appointment, special
     const materialInput: unknown[] = Array.isArray(body.materials) ? body.materials : [];
     const materialRows = materialInput.map(raw => {
       const use = raw && typeof raw === "object" ? raw as Body : {};
-      const material = materialOptions.find(choice => choice.material_id === String(use.material_id)
+      const material = materialsFor(entry.row.date).find(choice => choice.material_id === String(use.material_id)
         && choice.reference === use.cost_evidence_ref);
       if (!material) fail(400, "EVIDENCE_REQUIRED", "请核对耗材与成本凭据。");
       return {name:material.material_name,unit:material.standard_unit,quantity:quantity(use.quantity, 0),unit_cost:material.cost};
@@ -322,6 +322,7 @@ export function createSampleClinical({appointments, chairs, appointment, special
     const chair = availableChairs(row, booking).find(option => option.chair_id === String(body.chair_id));
     if (!chair) fail(409, "RESOURCE_CONFLICT", "牙椅不能在所需区间分配，签到状态保持。");
     assignments.set(row.id, chair.chair_id);
+    knownChairs.add(chair.chair_id);
     return {appointment_id:booking.appointment_id,status:booking.status,...chair,assigned_at:actionTime(row)};
   }
 
@@ -349,7 +350,7 @@ export function createSampleClinical({appointments, chairs, appointment, special
     if (route === "/clinical/materials") {
       requireMethod(method, "GET");
       actor.authorize(dentistRole);
-      return {items:materialOptions.map(material => ({material_id:material.material_id,material_name:material.material_name,
+      return {items:materialsFor(q.get("date") ?? clockDate).map(material => ({material_id:material.material_id,material_name:material.material_name,
         standard_unit:material.standard_unit,cost_references:[material.reference]})),next_cursor:null};
     }
     if (route === "/clinical/queue") {
@@ -383,5 +384,7 @@ export function createSampleClinical({appointments, chairs, appointment, special
     return undefined;
   }
 
-  return {dispatch,visit,visitForAppointment,visitIdForAppointment,chairForAppointment,refundForAppointment,checkInAt};
+  return {dispatch,visit,visitForAppointment,visitIdForAppointment,chairForAppointment,refundForAppointment,checkInAt,
+    hasChairHistory:(chairId:string)=>knownChairs.has(chairId),
+    chairInUse:(chairId:string)=>appointments.some(row=>needsChair(row) && assignments.get(row.id)===chairId)};
 }

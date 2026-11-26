@@ -1,9 +1,5 @@
-from datetime import date
-from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
-import json
-from pathlib import Path
+from decimal import Decimal, ROUND_HALF_UP
 
-from django.conf import settings
 from django.db import transaction
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
@@ -11,9 +7,13 @@ from django.utils import timezone
 from adc.booking.models import AppointmentRequestedTreatment
 from adc.catalog.models import TreatmentType
 from adc.catalog.services import price_on_local_date
+from adc.clinical.material_costs import (
+    effective_material_costs, legacy_amounts, legacy_cost_versions, managed_reference, missing_cost,
+)
 from adc.clinical.models import Material, MaterialUsage, TreatmentItem, Visit
 from adc.common.http import ApiProblem
 from adc.identity.audit import record_event
+from adc.identity.master_data_write import lock_master_rows
 from adc.identity.models import AuditLog
 from adc.reporting.period_locks import BUSINESS_ZONE
 
@@ -21,35 +21,36 @@ from adc.reporting.period_locks import BUSINESS_ZONE
 CENTS = Decimal("0.01")
 
 
-def material_cost_versions():
-    path = settings.ADC_MATERIAL_COSTS_PATH
-    if not path:
-        return {}
-    try:
-        data = json.loads(Path(path).read_text(encoding="utf-8"))
-        if not isinstance(data, dict):
-            raise TypeError
-        return data
-    except (OSError, ValueError, TypeError):
-        raise ApiProblem(409, "EVIDENCE_REQUIRED", "耗材凭据配置无法读取。") from None
-
-
-def current_cost(versions, material, reference, business_date):
-    matching = []
-    for source in versions.get(material.material_code, []):
-        try:
-            if source.get("reference") == reference and (
-                date.fromisoformat(source["effective_from"]) <= business_date
-                and (not source.get("effective_to") or business_date < date.fromisoformat(source["effective_to"]))
-            ):
-                amount = Decimal(source["unit_cost"])
-                if amount.is_finite() and 0 <= amount <= Decimal("9999999999.99") and amount == amount.quantize(CENTS):
-                    matching.append(amount)
-        except (KeyError, TypeError, ValueError, InvalidOperation):
-            continue
-    if len(matching) != 1:
-        raise ApiProblem(409, "EVIDENCE_REQUIRED", "耗材缺少本次实施日期的唯一有效成本凭据。")
-    return matching[0]
+def applied_materials(fields, business_date):
+    if not fields:
+        return []
+    material_ids = {entry["material_id"] for entry in fields}
+    lock_master_rows(Material, material_ids)
+    materials = {
+        row.pk: row for row in Material.objects.filter(pk__in=material_ids, status="ACTIVE")
+    }
+    if material_ids != materials.keys():
+        raise ApiProblem(404, "NOT_FOUND", "找不到可使用的耗材。")
+    managed = {
+        cost.material_id: cost for cost in effective_material_costs(business_date).filter(material_id__in=material_ids)
+    }
+    legacy = legacy_cost_versions() if material_ids - managed.keys() else {}
+    applied = []
+    for entry in fields:
+        material = materials[entry["material_id"]]
+        reference = entry["cost_evidence_ref"]
+        cost = managed.get(material.pk)
+        if cost:
+            if reference != managed_reference(cost.pk):
+                raise missing_cost()
+            amount = cost.unit_cost
+        else:
+            matching = list(legacy_amounts(legacy, material, business_date, reference))
+            if len(matching) != 1:
+                raise missing_cost()
+            amount = matching[0]
+        applied.append((material, entry["quantity"], amount, reference))
+    return applied
 
 
 def lock_visit(first, principal):
@@ -128,13 +129,7 @@ def save_item(principal, original, fields, operation):
         amount = (units * price.unit_price).quantize(CENTS, rounding=ROUND_HALF_UP)
         if amount > Decimal("999999999999.99"):
             raise ApiProblem(400, "VALIDATION_ERROR", "治疗数量与单价对应的金额超出计费精度。")
-        material_fields = fields.get("materials", [])
-        costs = material_cost_versions() if material_fields else {}
-        applied_materials = []
-        for item in material_fields:
-            material = get_object_or_404(Material, pk=item["material_id"])
-            cost = current_cost(costs, material, item["cost_evidence_ref"], business_date)
-            applied_materials.append((material, item["quantity"], cost, item["cost_evidence_ref"]))
+        usage = applied_materials(fields.get("materials", []), business_date)
         saved = TreatmentItem.objects.create(
             visit=visit, treatment_type=project, performing_dentist_id=principal.employee_id,
             tooth_code=fields.get("tooth_code"), units=units, unit_name_snapshot=project.standard_unit,
@@ -142,9 +137,10 @@ def save_item(principal, original, fields, operation):
             is_additional=is_additional, recorded_at=now,
         )
         references = []
-        for material, quantity, unit_cost, evidence in applied_materials:
+        for material, quantity, unit_cost, evidence in usage:
             row = MaterialUsage.objects.create(
                 treatment_item=saved, material=material, quantity=quantity, unit_cost_snapshot=unit_cost,
+                material_name_snapshot=material.material_name, unit_name_snapshot=material.standard_unit,
             )
             references.append({"usage_id": str(row.pk), "reference": evidence})
         details = {

@@ -100,8 +100,9 @@ def visit_projection(entry, *, clinical):
         ]
         result["materials"] = [
             {
-                "usage_id": str(row.pk), "item_id": str(row.treatment_item_id), "name": row.material.material_name,
-                "unit": row.material.standard_unit, "quantity": format(row.quantity, ".3f"),
+                "usage_id": str(row.pk), "item_id": str(row.treatment_item_id),
+                "name": row.material_name_snapshot or row.material.material_name,
+                "unit": row.unit_name_snapshot or row.material.standard_unit, "quantity": format(row.quantity, ".3f"),
                 "unit_cost": format(row.unit_cost_snapshot, ".2f"),
             }
             for row in MaterialUsage.objects.filter(treatment_item__visit=entry).select_related("material").order_by("pk")

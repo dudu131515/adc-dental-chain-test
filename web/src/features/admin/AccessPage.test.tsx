@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, expect, test, vi } from "vitest";
 
 import type { WorkArea } from "../../shared/AppShell";
@@ -27,15 +27,146 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-test("the clinic directory is read-only and uses the authorized clinic endpoint", async () => {
-  const fetcher = vi.fn(async (_url: string) => Response.json({ data: {
-    items: [{ ...clinic, address: "合成地址", phone: "000", email: null }],
-  } }));
+test("clinic editing keeps the existing record and refreshes the directory", async () => {
+  let record = { ...clinic, address: "合成地址", phone: "000", email: null };
+  const fetcher = vi.fn(async (url: string, options: RequestInit) => {
+    if (url.endsWith("/csrf")) return Response.json({ data: { csrf_token: "fake" } });
+    if (options.method === "PATCH") {
+      record = { ...record, ...JSON.parse(String(options.body)) };
+      return Response.json({ data: record });
+    }
+    return Response.json({ data: { items: [record] } });
+  });
   vi.stubGlobal("fetch", fetcher);
   render(<AccessPage {...admin} path="/admin/clinics" />);
   expect(await screen.findByText("合成地址")).toBeTruthy();
-  expect(screen.queryByText("合成员工")).toBeNull();
-  expect(fetcher.mock.calls).toEqual([["/api/v1/admin/clinics", expect.any(Object)]]);
+  fireEvent.click(screen.getByRole("button", { name: "编辑门店" }));
+  expect(screen.getByRole("dialog", { name: "编辑门店" })).toBeTruthy();
+  fireEvent.change(screen.getByLabelText("地址"), { target: { value: "更新后地址" } });
+  fireEvent.change(screen.getByLabelText("门店状态", { selector: "select" }), { target: { value: "INACTIVE" } });
+  fireEvent.click(screen.getByRole("button", { name: "保存门店" }));
+  expect(await screen.findByText("更新后地址")).toBeTruthy();
+  expect(screen.queryByRole("dialog")).toBeNull();
+  const write = fetcher.mock.calls.find(([, options]) => options.method === "PATCH");
+  expect(write?.[0]).toBe("/api/v1/admin/clinics/20");
+  expect(JSON.parse(String(write?.[1].body))).toEqual({ address: "更新后地址", status: "INACTIVE" });
+});
+
+test("employee creation records placement and allows a separate account to be configured", async () => {
+  const employee = {
+    employee_id: "10", employee_no: "SYN-10", full_name: "新增合成员工", employee_status: "ACTIVE",
+    account_status: null as string | null, job_code: "HEADQUARTERS", home_clinic: null,
+    can_manage_account: false, can_manage_grants: true, can_manage_profile: true, grants: [],
+  };
+  let created = false;
+  const mutations: { path: string; body: unknown; key: string | null }[] = [];
+  vi.stubGlobal("fetch", async (url: string, options: RequestInit) => {
+    if (url.endsWith("/csrf")) return Response.json({ data: { csrf_token: "fake" } });
+    if (url.endsWith("/history")) return Response.json({ data: { items: [] } });
+    if (options.method === "POST") {
+      mutations.push({ path: url, body: JSON.parse(String(options.body)), key: (options.headers as Headers).get("Idempotency-Key") });
+      if (url.endsWith("/account")) {
+        employee.account_status = "ACTIVE";
+        employee.can_manage_account = true;
+      } else {
+        created = true;
+      }
+      return Response.json({ data: { employee_id: employee.employee_id } });
+    }
+    return Response.json({ data: { ...directory, employees: created ? [...directory.employees, employee] : directory.employees } });
+  });
+  render(<AccessPage {...admin} />);
+  await screen.findByRole("button", { name: "合成员工" });
+  fireEvent.click(screen.getByRole("button", { name: "新增员工" }));
+  const create = within(screen.getByRole("dialog", { name: "新增员工" }));
+  fireEvent.change(create.getByLabelText("工号"), { target: { value: "SYN-10" } });
+  fireEvent.change(create.getByLabelText("姓名"), { target: { value: "新增合成员工" } });
+  fireEvent.change(create.getByLabelText("所属岗位"), { target: { value: "HEADQUARTERS" } });
+  fireEvent.click(create.getByRole("button", { name: "保存员工" }));
+  const editor = within(await screen.findByRole("dialog", { name: "新增合成员工 · SYN-10" }));
+  fireEvent.click(editor.getByRole("button", { name: "配置登录账号" }));
+  fireEvent.change(editor.getByLabelText("登录名"), { target: { value: "synthetic.10" } });
+  fireEvent.change(editor.getByLabelText(/初始密码/), { target: { value: "Synthetic-Demo-10" } });
+  fireEvent.click(editor.getByRole("button", { name: "保存登录账号" }));
+  expect(await editor.findByRole("button", { name: "停用账号" })).toBeTruthy();
+  expect(mutations.map(({ key, ...mutation }) => {
+    expect(key).toBeTruthy();
+    return mutation;
+  })).toEqual([
+    {
+      path: "/api/v1/admin/access/employees",
+      body: { employee_no: "SYN-10", full_name: "新增合成员工", job_code: "HEADQUARTERS", home_clinic_id: null },
+    },
+    {
+      path: "/api/v1/admin/access/employees/10/account",
+      body: { login_identity: "synthetic.10", password: "Synthetic-Demo-10" },
+    },
+  ]);
+});
+
+test("global catalog access can restore a disabled chair without editing its other fields", async () => {
+  const catalog = {
+    ...admin,
+    identity: { ...admin.identity, capabilities: ["HQ_CATALOG"], role_clinic_ids: { HQ_CATALOG: null } },
+    path: "/admin/chairs",
+  };
+  const chair = {
+    chair_id: "2", chair_no: "SYN-C2", clinic_id: clinic.clinic_id, clinic_name: clinic.name,
+    chair_kind: "GENERAL", status: "INACTIVE",
+  };
+  const fetcher = vi.fn(async (url: string, options: RequestInit) => {
+    if (url.endsWith("/csrf")) return Response.json({ data: { csrf_token: "fake" } });
+    if (options.method === "PATCH") {
+      Object.assign(chair, JSON.parse(String(options.body)));
+      return Response.json({ data: chair });
+    }
+    return Response.json({ data: { items: [chair], clinics: [clinic] } });
+  });
+  vi.stubGlobal("fetch", fetcher);
+  const view = render(<AccessPage {...catalog} />);
+  expect(await screen.findByText("SYN-C2")).toBeTruthy();
+  fireEvent.change(screen.getByLabelText("状态筛选"), { target: { value: "AVAILABLE" } });
+  expect(screen.queryByText("SYN-C2")).toBeNull();
+  fireEvent.change(screen.getByLabelText("状态筛选"), { target: { value: "INACTIVE" } });
+  fireEvent.click(screen.getByRole("button", { name: "编辑牙椅" }));
+  fireEvent.change(screen.getByLabelText("使用状态"), { target: { value: "AVAILABLE" } });
+  fireEvent.click(screen.getByRole("button", { name: "保存牙椅" }));
+  await screen.findByText("牙椅已保存。");
+  const write = fetcher.mock.calls.find(([, options]) => options.method === "PATCH");
+  expect(write?.[0]).toBe("/api/v1/admin/chairs/2");
+  expect(JSON.parse(String(write?.[1].body))).toEqual({ status: "AVAILABLE" });
+  view.rerender(<AccessPage {...catalog} path="/admin/access" />);
+  expect(screen.getByRole("heading", { name: "当前页面无权访问" })).toBeTruthy();
+  expect(fetcher.mock.calls.every(([url]) => !url.endsWith("/admin/access"))).toBe(true);
+});
+
+test("a material cost replacement posts the exact decimal and original version boundary", async () => {
+  const material = {
+    material_id: "123", material_code: "SYN-M", material_name: "合成耗材",
+    standard_unit: "份", status: "ACTIVE", current_unit_cost: "4.20",
+  };
+  const costs = [{ cost_id: "6", material_id: "123", unit_cost: "4.20", effective_from: "2026-01-01", effective_to: null }];
+  const fetcher = vi.fn(async (url: string, options: RequestInit) => {
+    if (url.endsWith("/csrf")) return Response.json({ data: { csrf_token: "fake" } });
+    if (options.method === "POST") return Response.json({ data: { cost_id: "7" } });
+    return Response.json({ data: { items: url.endsWith("/costs") ? costs : [material] } });
+  });
+  vi.stubGlobal("fetch", fetcher);
+  render(<AccessPage {...admin} path="/admin/materials" />);
+  fireEvent.click(await screen.findByRole("button", { name: "成本版本" }));
+  const dialog = within(screen.getByRole("dialog", { name: "合成耗材" }));
+  await dialog.findByText("¥4.20");
+  fireEvent.change(dialog.getByLabelText("单位成本（元）"), { target: { value: "5.30" } });
+  fireEvent.change(dialog.getByLabelText("生效日期"), { target: { value: "2026-12-01" } });
+  fireEvent.change(dialog.getByLabelText("同时结束原版本"), { target: { value: "6" } });
+  fireEvent.click(dialog.getByRole("button", { name: "保存成本版本" }));
+  await waitFor(() => {
+    const write = fetcher.mock.calls.find(([, options]) => options.method === "POST");
+    expect(write?.[0]).toBe("/api/v1/admin/materials/123/costs");
+    expect(JSON.parse(String(write?.[1].body))).toEqual({
+      unit_cost: "5.30", effective_from: "2026-12-01", effective_to: null, replace_cost_id: "6", replace_effective_to: "2026-12-01",
+    });
+  });
 });
 
 test("grant recovery keeps the operation key and reloads the result after a successful retry", async () => {

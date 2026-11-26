@@ -13,7 +13,7 @@ $adcVerifyDb = 'adc_schema_verify_' + (Get-Date -Format 'yyyyMMddHHmmssfff')
 createdb --maintenance-db=postgres $adcVerifyDb
 if ($LASTEXITCODE -ne 0) { throw '创建 ADC 验证库失败' }
 
-psql -X -v ON_ERROR_STOP=1 --single-transaction -d $adcVerifyDb -f './usecase/ADC_PostgreSQL_设计与统计.sql'
+psql -X -v ON_ERROR_STOP=1 --single-transaction -d $adcVerifyDb -f './usecase/ADC_PostgreSQL_设计与统计.sql' -f './backend/scripts/master_data_access.sql'
 if ($LASTEXITCODE -ne 0) { throw 'ADC 设计 SQL 执行失败' }
 
 psql -X -v ON_ERROR_STOP=1 -d $adcVerifyDb -f './usecase/ADC_PostgreSQL_验证.sql'

@@ -1,12 +1,20 @@
-from django.db import transaction
+from django.conf import settings
+from django.contrib.auth.hashers import make_password
+from django.contrib.auth.password_validation import CommonPasswordValidator, NumericPasswordValidator, validate_password
+from django.core.exceptions import ValidationError
+from django.db import IntegrityError, transaction
 from django.shortcuts import get_object_or_404
 from django.urls import path
+from django.utils.crypto import salted_hmac
 from rest_framework import serializers
 from rest_framework.decorators import api_view
 
-from adc.common.http import ApiProblem, success
+from adc.booking.models import SlotClaim
+from adc.common.http import ApiProblem, success, translate_integrity_error
 from adc.common.idempotency import OperationKey
+from adc.common.serializers import ID, values
 from adc.identity.audit import record_event
+from adc.identity.master_data_write import write_master_row
 from adc.identity.models import AppRole, AuditLog, Clinic, Employee, EmployeeRole, UserAccount
 from adc.identity.permissions import ACCESS_ADMIN_ROLE, HQ_ROLES, LOCAL_ROLES, current_principal
 
@@ -30,18 +38,55 @@ class AccountStatusChange(serializers.Serializer):
     reason = serializers.CharField(max_length=500)
 
 
-class EmployeeProfileChange(serializers.Serializer):
+class EmployeePlacement(serializers.Serializer):
     job_code = serializers.ChoiceField(choices=Employee.Job.values)
-    home_clinic_id = serializers.IntegerField(allow_null=True, min_value=1, max_value=2**63 - 1)
-    expected_job_code = serializers.ChoiceField(choices=Employee.Job.values, allow_null=True)
-    expected_home_clinic_id = serializers.IntegerField(allow_null=True, min_value=1, max_value=2**63 - 1)
-    reason = serializers.CharField(max_length=500)
+    home_clinic_id = ID(allow_null=True)
 
     def validate(self, fields):
         headquarters = fields["job_code"] == Employee.Job.HEADQUARTERS
         if headquarters != (fields["home_clinic_id"] is None):
             raise serializers.ValidationError({"home_clinic_id": "总部岗位归属总部，门店岗位请选择所属门店。"})
         return fields
+
+
+class EmployeeProfileChange(EmployeePlacement):
+    expected_job_code = serializers.ChoiceField(choices=Employee.Job.values, allow_null=True)
+    expected_home_clinic_id = ID(allow_null=True)
+    reason = serializers.CharField(max_length=500)
+
+
+class NewAccount(serializers.Serializer):
+    login_identity = serializers.CharField(max_length=180)
+    password = serializers.CharField(min_length=12, max_length=512, trim_whitespace=False, write_only=True)
+
+    def validate_login_identity(self, identity):
+        if identity.lower().startswith("wx:") or identity in settings.ADC_STAFF_PASSWORD_HASHES:
+            raise serializers.ValidationError("此登录名已保留，请使用其他登录名。")
+        return identity
+
+    def validate_password(self, password):
+        if not password.strip():
+            raise serializers.ValidationError("请使用至少 12 位且不常见的非纯数字密码。")
+        try:
+            validate_password(password, password_validators=[CommonPasswordValidator(), NumericPasswordValidator()])
+        except ValidationError:
+            raise serializers.ValidationError("请使用至少 12 位且不常见的非纯数字密码。") from None
+        return password
+
+
+class NewEmployee(EmployeePlacement):
+    employee_no = serializers.CharField(max_length=40)
+    full_name = serializers.CharField(max_length=100)
+    account = NewAccount(required=False, allow_null=True)
+
+
+class ClinicRecord(serializers.Serializer):
+    clinic_no = serializers.CharField(max_length=40)
+    name = serializers.CharField(source="clinic_name", max_length=150)
+    address = serializers.CharField(source="postal_address")
+    phone = serializers.CharField(max_length=40, required=False, allow_null=True, allow_blank=True)
+    email = serializers.EmailField(max_length=120, required=False, allow_null=True, allow_blank=True)
+    status = serializers.ChoiceField(choices=ACCOUNT_STATUSES, required=False)
 
 
 def employee_profile(employee):
@@ -72,16 +117,50 @@ def clinic_summary(clinic):
     }
 
 
-@api_view(["GET"])
+def clinic_data(clinic):
+    return {
+        **clinic_summary(clinic), "address": clinic["postal_address"],
+        "phone": clinic["phone"], "email": clinic["email"],
+    }
+
+
+def save_clinic(request, data, clinic_id=None):
+    try:
+        with transaction.atomic():
+            if clinic_id is None:
+                clinic = write_master_row(request.user, Clinic, data)
+                before = None
+            else:
+                clinic = get_object_or_404(Clinic.objects.select_for_update(), pk=clinic_id)
+                before = clinic_data(clinic_choices().get(pk=clinic_id))
+                clinic = write_master_row(request.user, Clinic, data, pk=clinic.pk)
+                if before["status"] == "ACTIVE" and clinic.status == "INACTIVE":
+                    SlotClaim.objects.filter(clinic_id=clinic.pk, status="HOLD").update(status="RELEASED")
+            after = clinic_data(clinic_choices().get(pk=clinic.pk))
+            record_event(
+                account_id=request.user.account_id, action="CLINIC_SAVED", target_type="clinic",
+                target_id=clinic.pk, visible_fields=after.keys(), before=before, after=after,
+            )
+            return after
+    except IntegrityError as error:
+        raise translate_integrity_error(error, {"clinic_clinic_no_key": ("RESOURCE_CONFLICT", "门店编号已存在。")})
+
+
+@api_view(["GET", "POST"])
 def clinics(request):
     request.user.require(ACCESS_ADMIN_ROLE)
-    return success({"items": [
-        {
-            **clinic_summary(clinic), "address": clinic["postal_address"],
-            "phone": clinic["phone"], "email": clinic["email"],
-        }
-        for clinic in clinic_choices()
-    ]})
+    if request.method == "POST":
+        return success(save_clinic(request, values(ClinicRecord, request.data)), status_code=201)
+    return success({"items": [clinic_data(clinic) for clinic in clinic_choices()]})
+
+
+@api_view(["PATCH"])
+def update_clinic(request, clinic_id):
+    request.user.require(ACCESS_ADMIN_ROLE)
+    data = values(ClinicRecord, request.data, partial=True)
+    if not data:
+        raise ApiProblem(400, "VALIDATION_ERROR", "请选择需要修改的门店字段。")
+    return success(save_clinic(request, data, clinic_id))
 
 
 @api_view(["GET"])
@@ -148,6 +227,102 @@ def lock_access_target(request, employee_id):
     return accounts.get(employee_id)
 
 
+def require_account_manageable(employee_id):
+    if any(deployment_managed(role, clinic) for role, clinic in EmployeeRole.objects.filter(
+        employee_id=employee_id,
+    ).values_list("role__role_code", "scope_clinic_id")):
+        raise ApiProblem(403, "PERMISSION_DENIED", "该员工的账号由部署配置维护。")
+
+
+def account_operation_data(account):
+    return {
+        "login_identity": account["login_identity"],
+        "password_digest": salted_hmac("adc.employee-provisioning", account["password"], algorithm="sha256").hexdigest(),
+    }
+
+
+def create_staff_account(user, employee_id, data):
+    return write_master_row(user, UserAccount, {
+        "employee_id": employee_id,
+        "login_identity": data["login_identity"],
+        "staff_password_hash": make_password(data["password"], hasher="pbkdf2_sha256"),
+    })
+
+
+CREATE_EMPLOYEE_CONSTRAINTS = {
+    "employee_employee_no_key": ("RESOURCE_CONFLICT", "员工编号已存在。"),
+    "user_account_login_identity_key": ("RESOURCE_CONFLICT", "登录名已存在。"),
+    "user_account_employee_id_key": ("RESOURCE_CONFLICT", "该员工已有登录账号。"),
+}
+
+
+@api_view(["POST"])
+def create_employee(request):
+    request.user.require(ACCESS_ADMIN_ROLE)
+    data = values(NewEmployee, request.data)
+    account_data = data.pop("account", None)
+    operation = OperationKey.from_request(request, command="EMPLOYEE_CREATED", target={})
+    normalized = {**data, "account": account_operation_data(account_data) if account_data else None}
+    try:
+        with transaction.atomic():
+            actor = request.user
+            Employee.objects.select_for_update(no_key=True).get(pk=actor.employee_id)
+            UserAccount.objects.select_for_update(no_key=True).get(pk=actor.account_id)
+            principal = current_principal(actor.account_id, "staff")
+            if principal is None:
+                raise ApiProblem(401, "AUTHENTICATION_REQUIRED", "请登录后继续。")
+            principal.require(ACCESS_ADMIN_ROLE)
+            prior_id = operation.result_id(normalized)
+            if prior_id is not None:
+                return change_result(AuditLog.objects.get(pk=prior_id))
+            clinic_id = data["home_clinic_id"]
+            if clinic_id is not None:
+                get_object_or_404(Clinic.objects.select_for_update(), pk=clinic_id, status="ACTIVE")
+            employee = write_master_row(actor, Employee, data)
+            account = create_staff_account(actor, employee.pk, account_data) if account_data else None
+            after = {
+                "employee_no": employee.employee_no, "job_code": employee.job_code,
+                "home_clinic_id": str(clinic_id) if clinic_id is not None else None,
+                "account_status": account.status if account else None,
+            }
+            event = record_event(
+                account_id=actor.account_id, action="EMPLOYEE_CREATED", target_type="employee",
+                target_id=employee.pk, visible_fields=after.keys(), after=after,
+            )
+            operation.record_result(event.pk, normalized)
+            return change_result(event, status_code=201)
+    except IntegrityError as error:
+        raise translate_integrity_error(error, CREATE_EMPLOYEE_CONSTRAINTS)
+
+
+@api_view(["POST"])
+def create_employee_account(request, employee_id):
+    request.user.require(ACCESS_ADMIN_ROLE)
+    data = values(NewAccount, request.data)
+    operation = OperationKey.from_request(request, command="EMPLOYEE_ACCOUNT_CREATED", target={"employee_id": employee_id})
+    normalized = account_operation_data(data)
+    try:
+        with transaction.atomic():
+            previous = lock_access_target(request, employee_id)
+            require_account_manageable(employee_id)
+            prior_id = operation.result_id(normalized)
+            if prior_id is not None:
+                return change_result(AuditLog.objects.get(pk=prior_id))
+            if previous is not None:
+                raise ApiProblem(409, "RESOURCE_CONFLICT", "该员工已有登录账号。")
+            if not Employee.objects.filter(pk=employee_id, status="ACTIVE").exists():
+                raise ApiProblem(409, "RESOURCE_CONFLICT", "只能为在职员工开通登录账号。")
+            account = create_staff_account(request.user, employee_id, data)
+            event = record_event(
+                account_id=request.user.account_id, action="EMPLOYEE_ACCOUNT_CREATED", target_type="employee",
+                target_id=employee_id, visible_fields=("account_status",), after={"account_status": account.status},
+            )
+            operation.record_result(event.pk, normalized)
+            return change_result(event, status_code=201)
+    except IntegrityError as error:
+        raise translate_integrity_error(error, CREATE_EMPLOYEE_CONSTRAINTS)
+
+
 def require_expected_state(current, expected, desired):
     if current != expected:
         raise ApiProblem(409, "STALE_ACCESS_STATE", "资料已更新，请重新查询后再提交。")
@@ -155,9 +330,9 @@ def require_expected_state(current, expected, desired):
         raise ApiProblem(400, "VALIDATION_ERROR", "请选择需要变更的状态。")
 
 
-def change_result(event):
+def change_result(event, *, status_code=200):
     values = {key: value for key, value in event.after_value.items() if key not in {"version", "reason"}}
-    return success({"employee_id": str(event.target_id), **values})
+    return success({"employee_id": str(event.target_id), **values}, status_code=status_code)
 
 
 @api_view(["POST"])
@@ -177,7 +352,9 @@ def employee_grants(request, employee_id):
         if prior_id is not None:
             return change_result(AuditLog.objects.get(pk=prior_id))
         role = get_object_or_404(AppRole, role_code=role_code)
-        clinic = get_object_or_404(Clinic, pk=clinic_id)
+        clinic = get_object_or_404(Clinic.objects.select_for_update(no_key=True), pk=clinic_id)
+        if data["granted"] and clinic.status != "ACTIVE":
+            raise ApiProblem(409, "RESOURCE_CONFLICT", "停用门店不能新增授权。")
         grants = EmployeeRole.objects.filter(employee_id=employee_id, role=role, scope_clinic=clinic)
         existed = grants.exists()
         require_expected_state(existed, data["expected_granted"], data["granted"])
@@ -210,10 +387,7 @@ def employee_account_status(request, employee_id):
         account = lock_access_target(request, employee_id)
         if account is None:
             raise ApiProblem(404, "NOT_FOUND", "该员工尚未配置登录账号。")
-        if any(deployment_managed(role, clinic) for role, clinic in EmployeeRole.objects.filter(
-            employee_id=employee_id,
-        ).values_list("role__role_code", "scope_clinic_id")):
-            raise ApiProblem(403, "PERMISSION_DENIED", "该员工的账号状态由部署配置维护。")
+        require_account_manageable(employee_id)
         prior_id = operation.result_id(data)
         if prior_id is not None:
             return change_result(AuditLog.objects.get(pk=prior_id))
@@ -250,8 +424,8 @@ def change_employee_profile(request, employee_id):
         expected = (data["expected_job_code"], data["expected_home_clinic_id"])
         desired = (data["job_code"], data["home_clinic_id"])
         require_expected_state(current, expected, desired)
-        if desired[1] is not None:
-            get_object_or_404(Clinic, pk=desired[1])
+        if desired[1] is not None and current[1] != desired[1]:
+            get_object_or_404(Clinic.objects.select_for_update(), pk=desired[1], status="ACTIVE")
         employee.job_code, employee.home_clinic_id = desired
         employee.save(update_fields=["job_code", "home_clinic"])
         before = {"job_code": current[0], "home_clinic_id": str(current[1]) if current[1] is not None else None}
@@ -270,6 +444,8 @@ def employee_history(request, employee_id):
     request.user.require(ACCESS_ADMIN_ROLE)
     get_object_or_404(Employee, pk=employee_id)
     fields = {
+        "EMPLOYEE_CREATED": ("employee_no", "job_code", "home_clinic_id", "account_status"),
+        "EMPLOYEE_ACCOUNT_CREATED": ("account_status",),
         "EMPLOYEE_SCOPE_CHANGED": ("clinic_id", "role_code", "granted"),
         "EMPLOYEE_ACCOUNT_STATUS_CHANGED": ("status",),
         "EMPLOYEE_PROFILE_CHANGED": ("job_code", "home_clinic_id"),
@@ -291,7 +467,10 @@ def employee_history(request, employee_id):
 
 urlpatterns = [
     path("admin/clinics", clinics),
+    path("admin/clinics/<int:clinic_id>", update_clinic),
     path("admin/access", access_directory),
+    path("admin/access/employees", create_employee),
+    path("admin/access/employees/<int:employee_id>/account", create_employee_account),
     path("admin/access/employees/<int:employee_id>/grants", employee_grants),
     path("admin/access/employees/<int:employee_id>/history", employee_history),
     path("admin/access/employees/<int:employee_id>/profile", change_employee_profile),

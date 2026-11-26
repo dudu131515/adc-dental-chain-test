@@ -6,11 +6,14 @@ import type { Demand } from "../src/features/schedule/ShiftDemandForm";
 import type { Company, Version } from "../src/features/operations/VersionComparison";
 import type { Period } from "../src/features/operations/ExpensesPage";
 import { ApiError } from "../src/shared/api";
-import { appointments, catalog, chairs, clinics, dailyFacts, days, invoices, staffShifts, type Appointment, type Clinic } from "./fixtures";
+import { appointments, catalog, chairs, clinics, dailyFacts, days, invoices, staffShifts, type Appointment } from "./fixtures";
+import { createSampleMasterData, type SampleBranch, type SampleEmployee, type SampleQualification, type SampleResource } from "./sampleMasterData";
 import { appointmentEnd, appointmentStart, appointmentStates, coordinatorRoles, createSampleAppointments, type SampleActor } from "./sampleAppointments";
 import { createSampleAssistant } from "./sampleAssistant";
 import { createSampleBilling } from "./sampleBilling";
 import { createSampleClinical } from "./sampleClinical";
+import { runSampleShiftBatch, sampleShiftInsights } from "./sampleShiftBatch";
+import type { BoardShift } from "../src/features/schedule/shiftBoardTypes";
 
 export const sampleDate = days[0];
 export const sampleTime = sampleDate + "T15:30:00+08:00";
@@ -33,7 +36,7 @@ export const sampleRoles = {
   admin: {label:"系统管理员", employee:"12", roles:["HQ_ACCESS_ADMIN"]},
 } as const;
 export type SampleRole = keyof typeof sampleRoles;
-const branches = Object.entries(clinics).map(([clinic_id,name], index) => ({
+const originalBranches: SampleBranch[] = Object.entries(clinics).map(([clinic_id,name], index) => ({
   clinic_id, name, clinic_no:index ? "ADC-B02" : "ADC-A01", status:"ACTIVE",
   address:index ? "示例大道 56 号" : "示例路 18 号", phone:null, email:null,
 }));
@@ -57,9 +60,10 @@ const originalEmployees: [string,string,JobCode,string|null,ReturnType<typeof gr
 const globalStaffRoles = new Map<string, readonly string[]>(
   Object.values(sampleRoles).map(({employee,roles}) => [employee,roles]),
 );
-const qualifications = [
-  {qualification_id:"1",name:"口腔执业医师"}, {qualification_id:"2",name:"牙体牙髓治疗"},
-  {qualification_id:"3",name:"儿童口腔诊疗"},
+const originalQualifications: SampleQualification[] = [
+  {qualification_id:"1",qualification_code:"ADC-Q01",qualification_name:"口腔执业医师"},
+  {qualification_id:"2",qualification_code:"ADC-Q02",qualification_name:"牙体牙髓治疗"},
+  {qualification_id:"3",qualification_code:"ADC-Q03",qualification_name:"儿童口腔诊疗"},
 ];
 const priceSamples = [...catalog,
   {code:"ENDO",name:"根管治疗",price:690,duration:60,date:"2026-08-01"},
@@ -121,29 +125,40 @@ export function createSampleWorkspace() {
     payment:{deposit_id:string;amount:string;status:string}; appointment_id?:string;appointment_no?:string};
   const holds = new Map<string,Hold>();
   const holdActions = new Map<string,Hold>();
-  const employees = originalEmployees.map(([employee_id,full_name,job_code,home_clinic_id,roles])=>({
+  const branches = originalBranches.map(row=>({...row}));
+  const qualifications = originalQualifications.map(row=>({...row}));
+  const employees: SampleEmployee[] = originalEmployees.map(([employee_id,full_name,job_code,home_clinic_id,roles])=>({
     employee_id,full_name,job_code,home_clinic_id,employee_no:"ADC-E"+employee_id.padStart(3,"0"),
     employee_status:employee_id==="16"?"ON_LEAVE":"ACTIVE",account_status:employee_id==="16"?"INACTIVE":"ACTIVE",
     can_manage_grants:employee_id!=="12",can_manage_account:["1","2","3","4","5","13","14","15","16"].includes(employee_id),
     grants:[...roles],
   }));
   const audits=new Map<string,Audit[]>();
-  const people:Dentist[]=employees.filter(e=>e.grants.some(g=>g.role_code==="DENTIST")).map((e,i)=>({
-    dentist_id:e.employee_id,name:e.full_name,
-    qualifications:qualifications.slice(0,i===3?1:2).map(q=>({...q,valid_from:"2025-01-01",valid_until:"2028-12-31"})),
-  }));
+  const originalDentists=employees.filter(e=>e.grants.some(g=>g.role_code==="DENTIST"));
+  const credentials=originalDentists.flatMap((employee,index)=>qualifications.slice(0,index===3?1:2).map(q=>({
+    credential_id:employee.employee_id+"-"+q.qualification_id,employee_id:employee.employee_id,qualification_id:q.qualification_id,
+    certificate_no:"ADC-CERT-"+employee.employee_id+q.qualification_id,valid_from:"2025-01-01",valid_until:"2028-12-31",
+  })));
   const status:Record<string,string>={"已发布":"PUBLISHED","待回应":"PENDING"};
-  const shifts:Shift[]=staffShifts.map((row,index)=>({shift_id:String(index+1),clinic_id:row.clinic,
-    dentist_id:people.find(p=>p.name===row.doctor)!.dentist_id,
+  const shifts:BoardShift[]=staffShifts.map((row,index)=>({shift_id:String(index+1),clinic_id:row.clinic,
+    dentist_id:originalDentists.find(p=>p.full_name===row.doctor)!.employee_id,
     start_at:at(row.date,row.time.split("–")[0]),end_at:at(row.date,row.time.split("–")[1]),status:status[row.status]}));
   for (const [index,day] of ["23","24","27","29"].entries()) {
-    for (const [offset,doctor] of people.entries()) {
-      const clinic=employees.find(e=>e.employee_id===doctor.dentist_id)!.grants[0].clinic_id;
-      shifts.push({shift_id:"8"+index+offset,clinic_id:clinic,dentist_id:doctor.dentist_id,
+    for (const [offset,doctor] of originalDentists.entries()) {
+      const clinic=doctor.grants[0].clinic_id;
+      shifts.push({shift_id:"8"+index+offset,clinic_id:clinic,dentist_id:doctor.employee_id,
         start_at:at("2026-11-"+day,"08:30"),end_at:at("2026-11-"+day,"12:00"),
         status:index===3&&offset===0?"DRAFT":"PUBLISHED"});
     }
   }
+  const previousWeek = shifts.filter(row => row.status==="PUBLISHED" && dateOf(row.start_at)==="2026-11-23");
+  shifts.push(...previousWeek.map(row => ({
+    ...row, shift_id:"7"+row.shift_id,
+    start_at:at(addDays(dateOf(row.start_at),-7),shanghaiTime(new Date(row.start_at))),
+    end_at:at(addDays(dateOf(row.end_at),-7),shanghaiTime(new Date(row.end_at))),
+  })));
+  shifts.push({shift_id:"799",clinic_id:"central",dentist_id:"2",status:"PUBLISHED",
+    start_at:at("2026-11-17","14:00"),end_at:at("2026-11-17","17:00")});
   const demands:Demand[]=[1,2,3,4,5,6].map(i=>({demand_id:String(i),clinic_id:i%2?"central":"river",
     start_at:at("2026-11-"+(23+i),"08:00"),end_at:at("2026-11-"+(23+i),"18:00"),
     required_qualification_id:i%3===0?"2":null,required_count:i%2?2:1}));
@@ -165,8 +180,8 @@ export function createSampleWorkspace() {
     expense_id:p.period_id+"0"+i,period_id:p.period_id,clinic_id:i%2?"river":"central",expense_category,
     scope:"SHARED",amount:(320+i*230).toFixed(2),evidence_ref:"ADC-EXP-"+p.period_id+"-"+i,
   })));
-  const resources=chairs.map((row,index)=>({chair_id:String(index+1),clinic_id:row.clinic,chair_no:row.code,
-    chair_kind:"GENERAL",status:"ACTIVE",unavailability:[] as {unavailability_id:string;start_at:string;end_at:string;reason:string}[]}));
+  const resources: SampleResource[]=chairs.map((row,index)=>({chair_id:String(index+1),clinic_id:row.clinic,chair_no:row.code,
+    chair_kind:"GENERAL",status:"AVAILABLE",unavailability:[]}));
   const standards=priceSamples.map((row,index)=>({treatment_type_id:String(index+1),treatment_code:row.code,treatment_name:row.name,
     standard_unit:"次",required_qualification_id:index===3?"2":null,default_slot_minutes:row.duration as number|null,
     required_chair_kind:"GENERAL",active:true,current_unit_price:row.price.toFixed(2) as string|null}));
@@ -174,20 +189,73 @@ export function createSampleWorkspace() {
     {price_id:"current"+index,unit_price:row.price.toFixed(2),effective_from:row.date,effective_to:null},
     {price_id:"prior"+index,unit_price:(row.price-5).toFixed(2),effective_from:"2026-01-01",effective_to:row.date},
   ]]));
-  const doctorId = (row: Appointment) => people.find(p => p.name === row.doctor)?.dentist_id ?? "";
+  const clinicName = (clinicId:string) => branches.find(row=>row.clinic_id===clinicId)?.name ?? clinicId;
+  const operating = (clinicId:string) => branches.some(row=>row.clinic_id===clinicId && row.status==="ACTIVE");
+  const doctorId = (row: Appointment) => row.dentistId ?? employees.find(p=>p.full_name===row.doctor)?.employee_id ?? "";
+  const treatment = (row: Appointment) => standards.find(p=>row.treatmentId
+    ? p.treatment_type_id===row.treatmentId : p.treatment_name===row.service);
+  for (const row of previewAppointments) row.treatmentId=treatment(row)?.treatment_type_id;
+  const master = createSampleMasterData({branches,employees,resources,qualifications,credentials,id,day:sampleDate,verifyChairChange});
+  function people(): (Dentist & {clinic_ids:string[]})[] {
+    return employees.filter(employee=>employee.employee_status==="ACTIVE").flatMap(employee=>{
+      const clinic_ids=employee.grants.filter(grant=>grant.role_code==="DENTIST" && operating(grant.clinic_id)).map(grant=>grant.clinic_id);
+      return clinic_ids.length ? [{dentist_id:employee.employee_id,name:employee.full_name,clinic_ids,
+        qualifications:master.qualificationsFor(employee.employee_id)}] : [];
+    });
+  }
+  function claims(clinicId:string,kind:string,omit?:string) {
+    const scheduled=previewAppointments.filter(row=>row.id!==omit && row.clinic===clinicId
+      && ["booked","arrived","treating"].includes(row.status) && (treatment(row)?.required_chair_kind ?? "GENERAL")===kind)
+      .map(row=>({start_at:appointmentStart(row),end_at:appointmentEnd(row)}));
+    const occupied=[...holds.values()].filter(row=>row.status==="HOLD" && row.clinic_id===clinicId
+      && Date.parse(row.expires_at)>Date.now() && standards.find(item=>item.treatment_type_id===row.treatment_type_id)?.required_chair_kind===kind);
+    return [...scheduled,...occupied];
+  }
+  function chairFree(row: SampleResource, start: string, end: string) {
+    return row.status==="AVAILABLE" && !row.unavailability.some(block=>overlap(start,end,block.start_at,block.end_at));
+  }
+  function verifyChairChange(previous:SampleResource,next:SampleResource) {
+    if (previous.clinic_id!==next.clinic_id && (clinical.hasChairHistory(previous.chair_id) || previous.unavailability.length))
+      problem(409,"已有牙椅记录的资源不能跨门店移动。");
+    const removed=next.status!=="AVAILABLE" || previous.clinic_id!==next.clinic_id || previous.chair_kind!==next.chair_kind;
+    if (!removed || previous.status!=="AVAILABLE") return;
+    if (clinical.chairInUse(previous.chair_id)) problem(409,"牙椅正在用于接诊，请先处理占用。");
+    const others=resources.filter(row=>row!==previous && row.clinic_id===previous.clinic_id && row.chair_kind===previous.chair_kind);
+    const upcoming=claims(previous.clinic_id,previous.chair_kind).filter(row=>Date.parse(row.end_at)>Date.parse(sampleTime));
+    if(upcoming.some(item=>upcoming.filter(row=>overlap(item.start_at,item.end_at,row.start_at,row.end_at)).length
+      > others.filter(row=>chairFree(row,item.start_at,item.end_at)).length))
+      problem(409,"该变更影响已有占位或预约，请先核对排程。");
+  }
+  function dayOutages(clinicId:string,start:string,end:string) {
+    const available=resources.filter(row=>row.clinic_id===clinicId && row.status==="AVAILABLE");
+    if (!operating(clinicId) || !available.length) return [{start_at:start,end_at:end}];
+    const first=Date.parse(start),last=Date.parse(end);
+    const boundaries=[first,last,...available.flatMap(row=>row.unavailability.flatMap(span=>
+      [Date.parse(span.start_at),Date.parse(span.end_at)].filter(value=>value>first && value<last)))];
+    const times=[...new Set(boundaries)].sort((a,b)=>a-b);
+    const unavailable:{start_at:string;end_at:string}[]=[];
+    for(let i=0;i<times.length-1;i++){
+      const start_at=new Date(times[i]).toISOString(),end_at=new Date(times[i+1]).toISOString();
+      if(available.some(row=>chairFree(row,start_at,end_at))) continue;
+      const previous=unavailable.at(-1);
+      if(previous?.end_at===start_at) previous.end_at=end_at;
+      else unavailable.push({start_at,end_at});
+    }
+    return unavailable;
+  }
   const clinical = createSampleClinical({appointments:previewAppointments, chairs:resources,
     appointment:(row,actor) => registry.projection(row,actor), id, clockDate:sampleDate, treatments:standards,
-    specialRequirement:appointmentId => specialRequirements.get(appointmentId)});
+    materialsFor:master.materialsFor, specialRequirement:appointmentId => specialRequirements.get(appointmentId)});
   const registry: ReturnType<typeof createSampleAppointments> = createSampleAppointments({
     appointments:previewAppointments,branches,doctorId,
-    treatment:row => standards.find(p => p.treatment_name === row.service),
+    treatment,
     visit:clinical.visit,visitId:clinical.visitIdForAppointment,chair:clinical.chairForAppointment,
     treatmentRefund:clinical.refundForAppointment,
     billStatus:bill => bills[bill]?.outstanding === 0 ? "SETTLED" : bills[bill]?.received ? "PART_PAID" : "ISSUED",
     id,clock:sampleTime,
   });
   const billing = createSampleBilling({bills,appointments:previewAppointments,id,clockDate:sampleDate,visit:clinical.visit,
-    doctorId,bookingDeposits:() => deposits});
+    doctorId,bookingDeposits:() => deposits,clinicName});
 
   function homeClinic(clinicId: string | null) {
     const branch = branches.find(c => c.clinic_id === clinicId);
@@ -241,16 +309,20 @@ export function createSampleWorkspace() {
       .map(row=>({appointment_id:row.id,appointment_no:row.id,clinic_id:row.clinic,dentist_id:doctorId(row),
         start_at:appointmentStart(row),end_at:appointmentEnd(row),status:appointmentStates[row.status],patient_display:row.patient}));
 
-    function validateShift(shift:Shift, routeVerified=false, publishing=false) {
-      const assigned=employees.find(person=>person.employee_id===shift.dentist_id)?.grants
-        .some(g=>g.role_code==="DENTIST"&&g.clinic_id===shift.clinic_id);
+    function validateDraft(shift:Shift) {
+      if(!operating(shift.clinic_id)) problem(409,"请选择启用的门店。");
+      const assigned=people().find(person=>person.dentist_id===shift.dentist_id)?.clinic_ids.includes(shift.clinic_id);
       if(!assigned) problem(409,"牙医未获该门店任职授权。");
       const demand=demands.find(x=>x.demand_id===shift.demand_id);
       if (shift.demand_id && (!demand || demand.clinic_id!==shift.clinic_id ||
           Date.parse(shift.start_at)<Date.parse(demand.start_at)||Date.parse(shift.end_at)>Date.parse(demand.end_at))) {
         problem(409,"班次必须位于同一门店的需求时段内。");
       }
-      if (demand?.required_qualification_id && !people.find(p=>p.dentist_id===shift.dentist_id)?.qualifications
+    }
+    function validateShift(shift:Shift, routeVerified=false, publishing=false) {
+      validateDraft(shift);
+      const demand=demands.find(row=>row.demand_id===shift.demand_id);
+      if (demand?.required_qualification_id && !people().find(p=>p.dentist_id===shift.dentist_id)?.qualifications
           .some(q=>q.qualification_id===demand.required_qualification_id && (!q.valid_from||q.valid_from<=dateOf(shift.start_at))
             && (!q.valid_until||q.valid_until>=dateOf(shift.end_at)))) problem(409,"牙医资格未覆盖整个班次。");
       const published=shifts.filter(row=>row.shift_id!==shift.shift_id && row.dentist_id===shift.dentist_id && row.status==="PUBLISHED");
@@ -278,28 +350,28 @@ export function createSampleWorkspace() {
     function bookingOptions(q: URLSearchParams) {
       const clinic = q.get("clinic_id"), doctor = q.get("dentist_id"), date = q.get("date");
       const project = standards.find(row => row.active && row.treatment_type_id === q.get("treatment_type_id"));
-      if (!clinic || !date || !project?.default_slot_minutes) return [];
+      if (!clinic || !date || !project?.default_slot_minutes || !operating(clinic)) return [];
       actor.authorize(q.has("appointment_id") ? coordinatorRoles : ["FRONT_DESK"],clinic);
       const duration = project.default_slot_minutes * 60_000;
       const preferred = q.get("preferred_start_at");
       const candidates = [];
       for (const shift of shifts.filter(row => row.status === "PUBLISHED" && row.clinic_id === clinic
         && wanted(doctor, row.dentist_id) && dateOf(row.start_at) === date)) {
-        const dentist = people.find(p => p.dentist_id === shift.dentist_id);
+        const dentist = people().find(p => p.dentist_id === shift.dentist_id && p.clinic_ids.includes(clinic));
         if (!dentist || (project.required_qualification_id && !dentist.qualifications.some(item =>
-          item.qualification_id === project.required_qualification_id))) continue;
+          item.qualification_id === project.required_qualification_id && (!item.valid_from || item.valid_from<=date)
+          && (!item.valid_until || item.valid_until>=date)))) continue;
         const first = preferred ? Date.parse(preferred) : Date.parse(shift.start_at);
         const last = preferred ? first : Date.parse(shift.end_at) - duration;
         for (let start = first; start <= last; start += duration) {
           const start_at = new Date(start).toISOString(), end_at = new Date(start + duration).toISOString();
           if (start < Math.max(Date.parse(shift.start_at),Date.parse(sampleTime)) || start + duration > Date.parse(shift.end_at)) continue;
-          if (previewAppointments.some(row => row.id !== q.get("appointment_id") && row.doctor === dentist.name && row.date === date
+          if (previewAppointments.some(row => row.id !== q.get("appointment_id") && doctorId(row) === dentist.dentist_id && row.date === date
             && ["booked", "arrived", "treating"].includes(row.status) && overlap(start_at, end_at, appointmentStart(row),appointmentEnd(row)))) continue;
-          const usable = resources.filter(chair => chair.clinic_id === clinic && chair.status === "ACTIVE"
-            && chair.chair_kind === project.required_chair_kind
-            && !chair.unavailability.some(block => overlap(start_at,end_at,block.start_at,block.end_at))).length;
-          const booked = previewAppointments.filter(row => row.id !== q.get("appointment_id") && row.clinic === clinic
-            && ["booked","arrived","treating"].includes(row.status) && overlap(start_at,end_at,appointmentStart(row),appointmentEnd(row))).length;
+          const usable = resources.filter(chair=>chair.clinic_id===clinic && chair.chair_kind===project.required_chair_kind
+            && chairFree(chair,start_at,end_at)).length;
+          const booked = claims(clinic,project.required_chair_kind,q.get("appointment_id")??undefined)
+            .filter(row=>overlap(start_at,end_at,row.start_at,row.end_at)).length;
           if (booked >= usable) continue;
           if ([...holds.values()].some(hold => hold.status === "HOLD" && hold.dentist_id === shift.dentist_id
             && Date.parse(hold.expires_at) > Date.now() && overlap(start_at, end_at, hold.start_at, hold.end_at))) continue;
@@ -328,7 +400,7 @@ export function createSampleWorkspace() {
             : !bill.outstanding ? "SETTLED" : bill.received > bill.refunded ? "PARTIAL_PAYMENT" : "WAITING_PAYMENT";
           if (filter && !(filter === "INVOICED" ? bill : filter === "REFUND_DUE" ? remaining : filter === state)) return [];
           if (!visit || !["COMPLETED","TERMINATED"].includes(visit.status)) return [];
-          return [{visit_id:visit.visit_id, appointment_no:row.id, clinic_id:row.clinic, clinic_name:clinics[row.clinic],
+          return [{visit_id:visit.visit_id, appointment_no:row.id, clinic_id:row.clinic, clinic_name:clinicName(row.clinic),
             ended_at:visit.ended_at ?? appointmentEnd(row), status:visit.status, invoice_id:row.invoice ?? null, invoice_no:row.invoice ?? null,
             patient_display:{name:row.patient, phone_tail:phone.slice(-4)}, billing_state:state,
             outstanding:bill?.outstanding.toFixed(2) ?? null, refund_remaining:remaining.toFixed(2), pending_refund:pending.toFixed(2)}];
@@ -399,6 +471,7 @@ export function createSampleWorkspace() {
         need("FRONT_DESK", hold.clinic_id);
         if (depositRoute[2] && hold.status !== "CONFIRMED") {
           if (hold.status !== "HOLD" || Date.parse(hold.expires_at) <= Date.now()) problem(409, "样例占位已失效。");
+          if(!operating(hold.clinic_id)) problem(409,"门店已停用，请重新选择预约。");
           const name = registry.patient(hold.clinic_id,hold.patient_id)?.full_name;
           if (!name) problem(404, "暂无该样例患者。");
           hold.appointment_id = "ADC-PREVIEW-" + id();
@@ -409,19 +482,48 @@ export function createSampleWorkspace() {
           deposits.push({appointment_id:hold.appointment_id,deposit_id:hold.payment.deposit_id,claim_id:hold.claim_id,
             amount:hold.payment.amount,paid_at:sampleTime,clinic_id:hold.clinic_id});
           previewAppointments.push({id:hold.appointment_id, date:shanghaiDate(new Date(hold.start_at)),
-            time:shanghaiTime(new Date(hold.start_at)), clinic:hold.clinic_id as Clinic,
+            time:shanghaiTime(new Date(hold.start_at)), clinic:hold.clinic_id,
             minutes:(Date.parse(hold.end_at)-Date.parse(hold.start_at))/60_000,
-            doctor:hold.dentist_name, patient:name, patientId:hold.patient_id, status:"booked",
+            doctor:hold.dentist_name,dentistId:hold.dentist_id,treatmentId:hold.treatment_type_id,
+            patient:name, patientId:hold.patient_id, status:"booked",
             service:standards.find(project=>project.treatment_type_id === hold.treatment_type_id)?.treatment_name ?? "口腔检查"});
         }
         return {...hold.payment, claim_status:hold.status, appointment_id:hold.appointment_id, appointment_no:hold.appointment_no};
       }
-      if(route==="/qualifications") return {items:qualifications};
-      if(route==="/schedule/dentists") return {items:people.filter(p=>!selected||employees.some(e=>e.employee_id===p.dentist_id&&e.grants.some(g=>g.clinic_id===selected)))};
+      const dailyRoles = ["HQ_SCHEDULER","CLINIC_MANAGER","FRONT_DESK","DENTIST"];
+      if (route==="/clinics") {
+        const scope=[...dailyRoles,"HQ_OPERATIONS_QUERY"];
+        actor.authorize(scope);
+        return {items:branches.filter(row=>operating(row.clinic_id) && actor.allowed(scope,row.clinic_id))};
+      }
+      if(route==="/qualifications") return {items:qualifications.map(({qualification_id,qualification_code,qualification_name})=>
+        ({qualification_id,code:qualification_code,name:qualification_name}))};
+      if(route==="/schedule/dentists") {
+        actor.authorize(dailyRoles,selected??undefined);
+        return {items:people().flatMap(row=>{
+          const clinic_ids=row.clinic_ids.filter(clinic=>wanted(selected,clinic) &&
+            (actor.allowed(["HQ_SCHEDULER","CLINIC_MANAGER","FRONT_DESK"],clinic)
+              || (row.dentist_id===actor.dentist() && actor.allowed(["DENTIST"],clinic))));
+          return clinic_ids.length ? [{...row,clinic_ids}] : [];
+        })};
+      }
       if(route==="/schedule/board") {
+        actor.authorize(dailyRoles,selected??undefined);
         const dayspan = (start:string,end:string) => end > (q.get("date_from") ?? "") && start <= (q.get("date_to") ?? "9999");
         return {shifts:shifts.filter(row=>scheduleVisible(row,q.get("view")==="day")&&wanted(selected,row.clinic_id)
           && wanted(q.get("dentist_id"),row.dentist_id) && dayspan(dateOf(row.start_at), addDays(dateOf(row.end_at),1))),
+          ...(q.get("view")==="day" && selected ? {unavailable:dayOutages(selected,at(q.get("date_from")??sampleDate,"00:00"),
+            at(addDays(q.get("date_to")??sampleDate,1),"00:00"))} : {}),
+          ...(q.get("view")==="week" ? sampleShiftInsights({
+            shifts, demands, visible: row=>scheduleVisible(row,false),
+            canReadDemand: clinic=>actor.allowed(["HQ_SCHEDULER","CLINIC_MANAGER"],clinic),
+            canQualify: (shift,demand) => !demand.required_qualification_id
+              || (people().find(row=>row.dentist_id===shift.dentist_id)?.qualifications.some(qualification=>
+                qualification.qualification_id===demand.required_qualification_id
+                && (!qualification.valid_from || qualification.valid_from<=dateOf(new Date(Math.max(Date.parse(shift.start_at),Date.parse(demand.start_at))).toISOString()))
+                && (!qualification.valid_until || qualification.valid_until>=dateOf(new Date(Math.min(Date.parse(shift.end_at),Date.parse(demand.end_at))-1).toISOString()))) ?? false),
+            clinicId:selected,dentistId:q.get("dentist_id"),dateFrom:q.get("date_from"),dateTo:q.get("date_to"),
+          }) : {}),
           appointments:registry.rows(q,actor).filter(row=>dayspan(row.date,addDays(row.date,1))).map(row=>{
             const view = registry.projection(row,actor);
             return {appointment_id:row.id,appointment_no:row.id,clinic_id:row.clinic,dentist_id:doctorId(row),
@@ -429,13 +531,24 @@ export function createSampleWorkspace() {
           })};
       }
       if(route==="/shift-demands"){
-        if(read) return {items:demands.filter(row=>wanted(selected,row.clinic_id))};
+        if(read) {
+          actor.authorize(["HQ_SCHEDULER","CLINIC_MANAGER"],selected??undefined);
+          return {items:demands.filter(row=>wanted(selected,row.clinic_id) && actor.allowed(["HQ_SCHEDULER","CLINIC_MANAGER"],row.clinic_id))};
+        }
         const clinic_id=String(b.clinic_id); need("CLINIC_MANAGER",clinic_id);
+        if(!operating(clinic_id)) problem(409,"门店已停用。");
         const start_at=String(b.start_at), end_at=String(b.end_at);
         ensureDates(start_at,end_at);
         if(!Number.isInteger(b.required_count)||Number(b.required_count)<1) problem(400,"所需人数必须是正整数。");
         const item={demand_id:id(),clinic_id,start_at,end_at,required_qualification_id:b.required_qualification_id?String(b.required_qualification_id):null,required_count:Number(b.required_count)};
         demands.push(item);return item;
+      }
+      if (route==="/shifts/batch" && method==="POST") {
+        return runSampleShiftBatch(b, {
+          shifts, need, validateShift, validateDraft, nextId:id, problem,
+          canReuse: row => capability("HQ_SCHEDULER",row.clinic_id) && operating(row.clinic_id)
+            && people().some(person=>person.dentist_id===row.dentist_id && person.clinic_ids.includes(row.clinic_id)),
+        });
       }
       const shiftRoute=route.match(/^\/shifts(?:\/(\d+))?(?:\/([\w-]+))?$/);
       if(shiftRoute){
@@ -448,8 +561,10 @@ export function createSampleWorkspace() {
           if(row&&(!["DRAFT","REJECTED"].includes(row.status)||row.status!==b.expected_status||!String(b.reason??"").trim())) problem(409,"当前班次不能调整，请刷新后核对状态。");
           const start_at=String(b.start_at),end_at=String(b.end_at);
           ensureDates(start_at,end_at);
-          const item:Shift={shift_id:shift_id??id(),clinic_id,dentist_id,start_at,end_at,status:"DRAFT",
+          const item:BoardShift={rejection_reason:undefined,shift_id:shift_id??id(),clinic_id,dentist_id,start_at,end_at,status:"DRAFT",
             demand_id:b.demand_id?String(b.demand_id):undefined};
+          if(row) need("HQ_SCHEDULER",row.clinic_id);
+          validateDraft(item);
           if(row) Object.assign(row,item); else shifts.push(item);
           return item;
         }
@@ -459,7 +574,9 @@ export function createSampleWorkspace() {
           if(row.dentist_id!==sampleRoles[role].employee) problem(403,"牙医只可处理本人班次。");
           if(row.status!=="PENDING"||!["ACCEPTED","REJECTED"].includes(String(b.decision))||
             (b.decision==="REJECTED"&&!String(b.reason??"").trim())) problem(409,"请核对班次状态并填写拒绝原因。");
-          row.status=String(b.decision);return row;
+          row.status=String(b.decision);
+          row.rejection_reason=row.status==="REJECTED"?String(b.reason):undefined;
+          return row;
         }
         if(action==="affected-appointments"){
           if(!capability("CLINIC_MANAGER",row.clinic_id)) need("HQ_SCHEDULER",row.clinic_id);
@@ -493,9 +610,12 @@ export function createSampleWorkspace() {
         chair.unavailability.push({unavailability_id:id(),start_at,end_at,reason});
         return {appointments_to_review:appointmentRows(chair.clinic_id,start_at,end_at)};
       }
-      if(route==="/admin/clinics"||route==="/admin/access"){
+      const masterResult=master.dispatch(route,method,b,{admin:capability("HQ_ACCESS_ADMIN"),
+        catalog:identity(role).role_clinic_ids?.HQ_CATALOG===null});
+      if(masterResult!==undefined) return masterResult;
+      if(route==="/admin/access"){
         need("HQ_ACCESS_ADMIN");
-        return route.endsWith("clinics") ? {items:branches} : {clinics:branches,
+        return {clinics:branches,
           employees:employees.map(({home_clinic_id,...employee}) => ({
             ...employee,home_clinic:homeClinic(home_clinic_id),can_manage_profile:employee.employee_id!==sampleRoles[role].employee,
             permissions:[
@@ -672,7 +792,7 @@ export function createSampleWorkspace() {
           clinical:{actual_starts:fact.attended,normal_completions:completed,actual_treatments:completed},
           financial:{net_received:(sum("received")-sum("refunded")).toFixed(2),accrued:sum("accrued").toFixed(2),
             received:sum("received").toFixed(2),refunded:sum("refunded").toFixed(2),outstanding:sum("outstanding").toFixed(2)},
-          standard_coverage:rate(completed,completed),skills:qualifications.map((q,i)=>({code:q.qualification_id,name:q.name,dentists:i===0?4:2})),
+          standard_coverage:rate(completed,completed),skills:qualifications.map(q=>({code:q.qualification_id,name:q.qualification_name,dentists:people().filter(person=>person.qualifications.some(item=>item.qualification_id===q.qualification_id)).length})),
           performance:periods.flatMap(p=>{
             const row=confirmed(revisions.get(p.period_id)??[]);
             return row ? [{...p,revision_no:row.revision_no,company:row.company}] : [];

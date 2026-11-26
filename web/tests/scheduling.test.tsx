@@ -27,6 +27,6 @@ test("the week view shows dentist, clinic, time and status from the scoped board
     account_id: "4", category: "staff", employee_id: "12", capabilities: ["HQ_SCHEDULER"],
     clinics: [{ clinic_id: "1", name: "合成甲店" }],
   }} />);
-  expect(await screen.findByText("合成牙医")).toBeTruthy();
+  expect(await screen.findByRole("rowheader", { name: "合成牙医" })).toBeTruthy();
   expect(await screen.findByRole("button", { name: /09:00.*合成甲店.*已发布/ })).toBeTruthy();
 });

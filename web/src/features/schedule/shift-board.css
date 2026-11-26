@@ -1,0 +1,133 @@
+.shift-board .shift-filter-bar,
+.shift-board .shift-action-bar {
+  margin: 12px 0;
+}
+
+.shift-filter-bar label,
+.shift-batch-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.shift-board .shift-grid th:first-child {
+  width: 130px;
+}
+
+.shift-board .shift-grid td {
+  min-height: 72px;
+  background: var(--surface);
+}
+
+.shift-board-slot {
+  display: flex;
+  align-items: flex-start;
+  gap: 4px;
+}
+
+.shift-board-slot + .shift-board-slot {
+  margin-top: 6px;
+}
+
+.shift-board-slot > input {
+  margin: 7px 0 0;
+  flex: 0 0 auto;
+}
+
+.shift-board-slot .shift-slot[data-warning] {
+  border-color: #b56816;
+}
+
+.shift-add-cell {
+  width: 100%;
+  margin-top: 6px;
+  min-height: 27px;
+  border: 1px dashed var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--secondary);
+  cursor: pointer;
+}
+
+.shift-add-cell[data-empty] {
+  min-height: 44px;
+  margin-top: 0;
+}
+
+.shift-add-cell:hover,
+.shift-add-cell:focus-visible {
+  color: var(--text);
+  border-color: currentColor;
+  background: var(--page);
+}
+
+.shift-warning {
+  display: block;
+  margin-top: 3px;
+  font-weight: 650;
+  color: #934a08;
+}
+
+.shift-operation-panel,
+.shift-anomalies {
+  margin: 16px 0;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--page);
+}
+
+.shift-operation-panel h3,
+.shift-anomalies h3,
+.shift-anomalies h4,
+.shift-batch-form p {
+  margin: 0;
+}
+
+.shift-batch-form {
+  display: flex;
+  align-items: flex-start;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.shift-checkgroup,
+.shift-batch-times,
+.shift-route-fields {
+  display: flex;
+  gap: 8px 12px;
+  flex-wrap: wrap;
+}
+
+.shift-checkgroup {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px 12px;
+}
+
+.shift-checkgroup label {
+  flex-direction: row;
+  align-items: center;
+}
+
+.shift-route-fields {
+  flex-direction: column;
+  width: min(100%, 620px);
+}
+
+.shift-anomalies h4 {
+  margin-top: 12px;
+}
+
+.shift-feedback {
+  padding: 8px 0;
+}
+
+.shift-board .schedule-drawer > button {
+  margin-top: 10px;
+}
+
+.shift-reason {
+  overflow-wrap: anywhere;
+}

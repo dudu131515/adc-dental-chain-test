@@ -17,6 +17,7 @@ type Options = {
   visit: (id: string) => Visit | undefined;
   doctorId: (appointment: Appointment) => string | undefined;
   bookingDeposits?: () => readonly DepositReceipt[];
+  clinicName?: (clinicId: string) => string;
 };
 
 type LedgerPayment = Payment & { requested_at: string };
@@ -107,7 +108,8 @@ function publicPayment({ requested_at, ...payment }: LedgerPayment): Payment {
   return payment;
 }
 
-export function createSampleBilling({ bills, appointments, id, clockDate, visit, doctorId, bookingDeposits }: Options) {
+export function createSampleBilling({ bills, appointments, id, clockDate, visit, doctorId, bookingDeposits,
+  clinicName = clinicId => clinics[clinicId as Clinic] ?? clinicId }: Options) {
   const ledgers = new Map<string, Ledger>();
   const corrections = new Map<string, CorrectionRecord>();
   const actions = new Map<string, { signature: string; result: string }>();
@@ -470,7 +472,7 @@ export function createSampleBilling({ bills, appointments, id, clockDate, visit,
     }
 
     return {
-      clinic_id: clinic, clinic_name: clinics[clinic as Clinic], date, as_of, historical: date < clockDate,
+      clinic_id: clinic, clinic_name: clinicName(clinic), date, as_of, historical: date < clockDate,
       totals: {
         deposit_received: money(fundsForDay.DEPOSIT_PAYMENT),
         deposit_refunded: money(fundsForDay.DEPOSIT_REFUND),

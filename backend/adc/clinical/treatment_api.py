@@ -4,10 +4,11 @@ from django.urls import path
 from rest_framework import serializers
 from rest_framework.decorators import api_view
 
-from adc.clinical.models import Material
-from adc.clinical.treatment_service import material_cost_versions, save_decision, save_item
+from adc.clinical.material_costs import legacy_cost_versions, legacy_entries, managed_reference
+from adc.clinical.models import Material, MaterialCost
+from adc.clinical.treatment_service import save_decision, save_item
 from adc.clinical.visit_api import own_visit
-from adc.common.http import success
+from adc.common.http import ApiProblem, success
 from adc.common.idempotency import OperationKey
 from adc.common.serializers import ID, values
 
@@ -37,15 +38,26 @@ class Item(serializers.Serializer):
 @api_view(["GET"])
 def materials(request):
     request.user.require("DENTIST")
-    costs = material_cost_versions()
+    catalog = list(Material.objects.filter(status="ACTIVE").order_by("material_code"))
+    managed = {}
+    for cost in MaterialCost.objects.filter(material__status="ACTIVE").order_by("-effective_from", "pk"):
+        managed.setdefault(cost.material_id, []).append(managed_reference(cost.pk))
+    try:
+        legacy = legacy_cost_versions()
+    except ApiProblem:
+        if not managed:
+            raise
+        legacy = {}
     return success({
         "items": [
             {
                 "material_id": str(row.pk), "material_name": row.material_name, "standard_unit": row.standard_unit,
-                "cost_references": [entry["reference"] for entry in costs.get(row.material_code, [])
-                                    if isinstance(entry, dict) and "reference" in entry],
+                "cost_references": [
+                    *managed.get(row.pk, []),
+                    *(entry["reference"] for entry in legacy_entries(legacy, row) if isinstance(entry.get("reference"), str)),
+                ],
             }
-            for row in Material.objects.order_by("material_code")
+            for row in catalog
         ],
         "next_cursor": None,
     })

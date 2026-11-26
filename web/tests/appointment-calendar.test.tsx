@@ -1,6 +1,7 @@
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, expect, test, vi } from "vitest";
 import { AppointmentCalendar } from "../src/features/schedule/AppointmentCalendar";
+import { DaySchedule } from "../src/features/schedule/DaySchedule";
 import type { StaffIdentity } from "../src/shared/AppShell";
 
 const identity: StaffIdentity = {
@@ -13,6 +14,32 @@ afterEach(() => {
   vi.unstubAllGlobals();
   sessionStorage.clear();
   window.history.replaceState({}, "", "/");
+});
+
+test("the common timeline aligns appointments and removes candidates during a clinic-wide outage", () => {
+  const date = "2035-06-04";
+  const time = (hhmm: string) => date + "T" + hhmm + ":00+08:00";
+  const shifts = ["4","5"].map(dentist_id => ({
+    shift_id:dentist_id, dentist_id, clinic_id:"1", status:"PUBLISHED",start_at:time("09:00"),end_at:time("12:00"),
+  }));
+  const appointments = shifts.map((shift,i) => ({
+    ...shift,appointment_id:shift.dentist_id,appointment_no:"ADC-" + shift.dentist_id,status:"CONFIRMED",
+    end_at:time(i === 0 ? "09:30" : "10:00"),
+  }));
+  const picked = vi.fn();
+  render(<DaySchedule date={date} status="" names={new Map([["4","牙医甲"],["5","牙医乙"]])}
+    board={{shifts,appointments,unavailable:[{start_at:time("11:00"),end_at:time("12:00")}]}}
+    asOf={Date.parse(time("08:00"))} onAppointment={vi.fn()} onCandidate={picked} />);
+  const first = within(screen.getByRole("region",{name:"牙医甲"}));
+  const second = within(screen.getByRole("region",{name:"牙医乙"}));
+  expect(first.getByRole("button",{name:/ADC-4/}).style.top).toBe(second.getByRole("button",{name:/ADC-5/}).style.top);
+  const height = parseFloat(first.getByRole("button",{name:/ADC-4/}).style.height);
+  expect(height).toBeGreaterThan(0);
+  expect(parseFloat(second.getByRole("button",{name:/ADC-5/}).style.height)).toBeCloseTo(height * 2);
+  expect(second.getByText(/牙椅不可用/)).toBeTruthy();
+  expect(second.queryByRole("button",{name:/^11:00.*候选空档/})).toBeNull();
+  fireEvent.click(second.getByRole("button",{name:/^10:30.*候选空档/}));
+  expect(picked).toHaveBeenCalledWith({dentistId:"5",time:"10:30"});
 });
 
 test("published shifts without appointments offer a prefilled booking preference and real options check", async () => {

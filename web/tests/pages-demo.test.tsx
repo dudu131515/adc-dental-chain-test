@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, expect, test } from "vitest";
 import { PagesDemo } from "../demo/PagesDemo";
 
@@ -112,6 +112,44 @@ test("sample administrator uses the formal access editor and the same directory 
   expect(screen.getByText(/ADC-E004 · 诊所主管/)).toBeTruthy();
   const nav = screen.getByRole("navigation", {name:"业务导航"});
   expect(within(nav).queryByRole("button", {name:"经营与配置"})).toBeNull();
+});
+
+test("sample resource edits follow the shared data between administrator and headquarters", async () => {
+  open("operations/clinics", "admin");
+  const clinic = within(await screen.findByRole("row", { name: /ADC-A01/ }));
+  fireEvent.click(clinic.getByRole("button", { name: "编辑门店" }));
+  const clinicEditor = within(screen.getByRole("dialog", { name: "编辑门店" }));
+  fireEvent.change(clinicEditor.getByLabelText("门店名称"), { target: { value: "合成中心门诊" } });
+  fireEvent.click(clinicEditor.getByRole("button", { name: "保存门店" }));
+  await screen.findByRole("row", { name: /ADC-A01.*合成中心门诊/ });
+  fireEvent.change(screen.getByLabelText("样例身份"), { target: { value: "scheduler" } });
+  const workClinic = within(await screen.findByLabelText("工作门店"));
+  expect(await workClinic.findByRole("option", { name: "合成中心门诊" })).toBeTruthy();
+
+  const nav = within(screen.getByRole("navigation", { name: "业务导航" }));
+  fireEvent.click(nav.getByRole("button", { name: "经营与配置" }));
+  fireEvent.click(nav.getByRole("link", { name: "牙椅管理" }));
+  const add = screen.getByRole<HTMLButtonElement>("button", { name: "新增牙椅" });
+  await waitFor(() => expect(add.disabled).toBe(false));
+  fireEvent.click(add);
+  const addEditor = within(screen.getByRole("dialog", { name: "新增牙椅" }));
+  fireEvent.change(addEditor.getByLabelText("所属门店"), { target: { value: "central" } });
+  fireEvent.change(addEditor.getByLabelText("牙椅编号"), { target: { value: "SYN-CHAIR" } });
+  fireEvent.click(addEditor.getByRole("button", { name: "保存牙椅" }));
+  const chair = within(await screen.findByRole("row", { name: /SYN-CHAIR.*合成中心门诊.*GENERAL.*可用/ }));
+  fireEvent.click(chair.getByRole("button", { name: "编辑牙椅" }));
+  const edit = within(screen.getByRole("dialog", { name: "编辑牙椅" }));
+  fireEvent.change(edit.getByLabelText("使用状态"), { target: { value: "INACTIVE" } });
+  fireEvent.click(edit.getByRole("button", { name: "保存牙椅" }));
+  await screen.findByRole("row", { name: /SYN-CHAIR.*合成中心门诊.*GENERAL.*停用/ });
+
+  fireEvent.click(nav.getByRole("link", { name: "牙医资质" }));
+  const credential = within(await screen.findByRole("row", { name: /林明远.*口腔执业医师/ }));
+  fireEvent.click(credential.getByRole("button", { name: "编辑牙医资质" }));
+  const credentialEditor = within(screen.getByRole("dialog", { name: "编辑牙医资质" }));
+  fireEvent.change(credentialEditor.getByLabelText("证书编号"), { target: { value: "SYN-CERTIFICATE" } });
+  fireEvent.click(credentialEditor.getByRole("button", { name: "保存牙医资质" }));
+  expect(await screen.findByRole("row", { name: /林明远.*SYN-CERTIFICATE.*2028-12-31/ })).toBeTruthy();
 });
 
 test("the shared quarterly review keeps trial results across sample identities", async () => {

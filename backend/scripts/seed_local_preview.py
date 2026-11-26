@@ -12,7 +12,7 @@ from django.utils import timezone
 from adc.billing.models import CorrectionApproval, Invoice, InvoiceAdjustment, InvoiceLine, InvoicePayment, TreatmentCorrection
 from adc.booking.models import Appointment, AppointmentChange, DepositPayment, DepositRefund, SlotClaim
 from adc.catalog.models import TreatmentPrice, TreatmentType
-from adc.clinical.models import ChairUsage, DentistWorkSession, PatientAllergy, TreatmentItem, Visit
+from adc.clinical.models import ChairUsage, DentistWorkSession, Material, MaterialCost, PatientAllergy, TreatmentItem, Visit
 from adc.identity.audit import record_event
 from adc.identity.models import AppRole, Clinic, Employee, EmployeeRole, Patient, UserAccount
 from adc.common.idempotency import OperationKey
@@ -67,6 +67,13 @@ def seed():
     EmployeeRole.objects.create(employee=doctor, role_id=grant.role_id, scope_clinic_id=1)
     chairs = [DentalChair.objects.create(clinic_id=1, chair_no=f"A-{number:02d}") for number in range(1, 5)]
     branch_chair = DentalChair.objects.create(clinic_id=2, chair_no="B-01")
+    for code, name, unit, cost in (
+        ("ADC-MAT-RESIN", "光固化复合树脂", "克", "48.00"),
+        ("ADC-MAT-SALIVA", "一次性吸唾管", "支", "1.50"),
+        ("ADC-MAT-POLISH", "牙面抛光膏", "克", "6.50"),
+    ):
+        material = Material.objects.create(material_code=code, material_name=name, standard_unit=unit)
+        MaterialCost.objects.create(material=material, unit_cost=cost, effective_from=today - timedelta(days=120))
     for pk, name in enumerate(("陈晓雨", "孟子安"), 1):
         Patient.objects.filter(pk=pk).update(patient_no=f"ADC-P{pk:04d}", full_name=name)
     for number, name in enumerate(("赵青", "许言", "罗珊", "宋晨", "王安琪", "吴天", "程歌", "李嘉"), 3):

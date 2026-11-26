@@ -1,6 +1,7 @@
 """Grant the ADC application role access after its dedicated database is initialized."""
 import argparse
 import os
+from pathlib import Path
 
 import psycopg
 from psycopg import sql
@@ -156,6 +157,10 @@ def configure_access(cursor, layer, application_role):
         )
     )
     protect_deployment_identity(cursor)
+    cursor.execute(Path(__file__).with_name("master_data_access.sql").read_text(encoding="utf-8"))
+    cursor.execute(sql.SQL(
+        "GRANT EXECUTE ON FUNCTION public.adc_write_master_data(BIGINT, TEXT, BIGINT, JSONB) TO {}"
+    ).format(role))
     cursor.execute(sql.SQL("GRANT UPDATE (status) ON user_account TO {}").format(role))
     cursor.execute(sql.SQL("GRANT INSERT (employee_id, role_id, scope_clinic_id), DELETE ON employee_role TO {}").format(role))
     cursor.execute(sql.SQL("GRANT DELETE ON patient_allergy, expense_allocation, dentist_performance, company_performance TO {}").format(role))

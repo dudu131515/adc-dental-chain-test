@@ -16,7 +16,7 @@ export function StaffApp({ sample }: { sample?: SampleSession }) {
     if (area.section === "/patients") return <PatientsPage {...area} />;
     if (area.section === "/schedule") return <SchedulePage {...area} />;
     if (area.section === "/catalog") return <CatalogPage canEdit={area.identity.role_clinic_ids?.HQ_CATALOG === null} />;
-    if (area.section === "/admin") return <AccessPage {...area} path={area.path === "/admin" ? "/admin/clinics" : area.path} />;
+    if (area.section === "/admin") return <AccessPage {...area} />;
     if (area.section === "/operations") return <OperationsPage {...area} showTabs={false} />;
     if (area.section === "/billing") return area.path === "/billing/reconciliation"
       ? <DailyReconciliation {...area} /> : <BillingPage {...area} />;

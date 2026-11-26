@@ -30,7 +30,7 @@ class DatabaseStructureTests(TransactionTestCase):
                 WHERE table_schema = 'public'
                 """
             )
-            self.assertEqual(cursor.fetchone(), (40, 4))
+            self.assertEqual(cursor.fetchone(), (41, 4))
             cursor.execute(
                 """
                 SELECT count(*)
@@ -39,7 +39,7 @@ class DatabaseStructureTests(TransactionTestCase):
                 WHERE t.table_schema = 'public' AND t.table_type = 'BASE TABLE'
                 """
             )
-            self.assertEqual(cursor.fetchone()[0], 270)
+            self.assertEqual(cursor.fetchone()[0], 279)
             cursor.execute(
                 """
                 SELECT count(*)
@@ -47,7 +47,7 @@ class DatabaseStructureTests(TransactionTestCase):
                 WHERE constraint_type = 'FOREIGN KEY' AND table_schema = 'public'
                 """
             )
-            self.assertEqual(cursor.fetchone()[0], 71)
+            self.assertEqual(cursor.fetchone()[0], 72)
             cursor.execute(
                 """
                 SELECT column_name, is_nullable

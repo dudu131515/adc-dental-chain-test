@@ -43,13 +43,14 @@
 | 方法与路径 | 访问 | 请求 → 主要响应 | 追溯 |
 | --- | --- | --- | --- |
 | GET `/clinics` | P、F、D、C、S、R | 返回可预约门店或已授权门店列表。字段含编号、名称和地址 | FR-001、FR-002、FR-201 |
-| GET `/schedule/board` | F、D、C、S | `clinic_id,date_from,date_to,dentist_id,status,view` → 用对应范围的班次、预约摘要和可见状态构建日／周或列表视图 | FR-002、FR-101、FR-102、FR-202、FR-301 |
+| GET `/schedule/board` | F、D、C、S | `clinic_id,date_from,date_to,dentist_id,status,view` → 用对应范围的班次、预约摘要和可见状态构建视图。周视图还返回 `shortages`、`conflicts`，单门店日视图还返回其全部可用牙椅均无法使用的 `unavailable` 区间 | FR-002、FR-101、FR-102、FR-202、FR-301 |
 | GET `/schedule/dentists`；GET `/qualifications` | S、C、K 各按办理所需字段；前台仅本店牙医标识与姓名，牙医仅本人标识与姓名 | 返回可拟排牙医、获权资格，或标准和需求所需的资格目录。预约筛选与复杂项目代办复用该目录 | FR-101、FR-102、FR-201、FR-203、FR-501 |
 | GET `/shift-demands`；POST `/shift-demands` | C、S 读；C 本店写 | 起止、门店、资格、人数 → 需求及当前办理状态 | FR-101 |
 | GET `/shifts`；POST `/shifts` | D、C、S 按权读；S 拟排 | 拟排提交 `clinic_id,dentist_id,demand_id,start_at,end_at` → 草案、关联需求与允许动作 | FR-101、FR-102 |
 | PATCH `/shifts/{id}` | S 按授权门店拟排 | `expected_status,clinic_id,dentist_id,demand_id,start_at,end_at,reason` → 调整同一草案。仅 `DRAFT`、`REJECTED` 可进入 `DRAFT`，原回应和调整原因留痕，提交和发布仍按原校验 | FR-101 至 FR-103 |
 | POST `/shifts/{id}/submit`；POST `/shifts/{id}/respond` | S 提交；D 本人回应 | 提交校验资格、间隔及冲突。牙医传 `decision,reason`，输出回应与当前状态 | FR-102、FR-103 |
 | POST `/shifts/{id}/publish`；POST `/shifts/{id}/withdraw` | S | 相邻班次跨店时发布传 `route_feasible,evidence_ref`；撤销传 `reason`。返回班次、冲突或允许查看的受影响预约 | FR-102 至 FR-104、FR-207 |
+| POST `/shifts/batch` | S 按授权门店办理 | `draft` 批量拟排、`copy` 复制到目标日、`reuse_week` 复用上周、`submit` 提交选中草案、`publish` 发布已接受班次。需 `Idempotency-Key`。每批同一事务，返回 `items,skipped_count`。复用复制班次配置并跳过重复，每条仍走单班次校验 | FR-101 至 FR-104 |
 | GET `/shifts/{id}/affected-appointments` | S、C 按协调范围 | 显示停诊可能影响的已有预约、同店可行候选和允许的协调操作 | FR-104、FR-207 |
 | GET `/clinics/{id}/chairs`；POST `/chairs/{id}/unavailability` | F、C、S 按权读；C 本店写 | 写入 `start_at,end_at,reason` → 停用区间及有权限查看的影响；分椅候选另按预约查询 | FR-104、FR-202、FR-302 |
 | GET `/patients/me`；PATCH `/patients/me` | P | 读取或更新本人允许的资料字段 → 本人档案 | FR-001、FR-002、FR-201 |
@@ -159,7 +160,11 @@
 | 需求 | 方法及相对路径 | 请求与返回 |
 | --- | --- | --- |
 | FR-010 | GET /workbench/alerts | 可按 clinic_id、date 过滤。网站员工使用，返回 schedule、clinical、billing、reconciliation、corrections 五个布尔值。 |
-| FR-011 | GET /admin/clinics | 全局总部权限管理员使用。items 返回门店编号、名称、地址、工作联系方式和状态。 |
+| FR-011、产品任务 04 | GET、POST /admin/clinics；PATCH /admin/clinics/{id} | 全局权限管理员维护 `clinic_no,name,address,phone,email,status`。停用门店停止新增业务，释放未确认占位，原预约及历史仍可由有权员工办理。 |
+| FR-011、产品任务 04 | POST /admin/access/employees；POST /admin/access/employees/{id}/account | 全局权限管理员登记工号、姓名、岗位和所属门店，可同时开通普通账号，也可单独开通。写入需 `Idempotency-Key`，账号配置与功能授权分开，密码只用于生成存储哈希。 |
+| FR-101、FR-201、FR-501、产品任务 04 | GET、POST /admin/qualifications、/admin/dentist-qualifications；PATCH 对应记录 | 全局配置或权限管理员分别维护资质类型、牙医证书与有效期。证书更新保留牙医及资质关联。同一牙医同类证书有效期不得重叠。 |
+| FR-202、FR-302、产品任务 04 | GET、POST /admin/chairs；PATCH /admin/chairs/{id} | 全局配置或权限管理员维护所属门店、编号、类型和可用状态。更新须保留已有预约容量和分配关系。 |
+| FR-305、FR-501、产品任务 04 | GET、POST /admin/materials；PATCH /admin/materials/{id}；GET、POST /admin/materials/{id}/costs | 全局配置或权限管理员维护编码、名称、单位、状态及单位成本版本。生效区间左闭右开，版本不得重叠。历史诊疗用量保留实施时的名称、单位及成本。 |
 | FR-011 | GET /admin/access | 返回可选门店、员工档案、账号状态、全部有效功能权限及其范围，并标注哪些授权由部署维护。 |
 | FR-011 | POST /admin/access/employees/{employee_id}/grants | 传 role_code、clinic_id、expected_granted、granted、reason 和 Idempotency-Key。 |
 | FR-011、产品任务 02 | POST /admin/access/employees/{employee_id}/profile | 管理员提交 job_code、home_clinic_id、expected_job_code、expected_home_clinic_id、reason 与 Idempotency-Key。仅更新独立岗位资料并审计。总部岗位的 home_clinic_id 为空，三个门店岗位须指定所属门店。 |

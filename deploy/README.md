@@ -13,7 +13,7 @@
 分别创建空业务库和技术库。两库在同一实例，由初始化账号拥有，PostgreSQL 仅对服务内网监听。以初始化账号运行同源建表及验证，再初始化技术库。
 
 ```sh
-psql -X -v ON_ERROR_STOP=1 --single-transaction -d adc_business -f usecase/ADC_PostgreSQL_设计与统计.sql
+psql -X -v ON_ERROR_STOP=1 --single-transaction -d adc_business -f usecase/ADC_PostgreSQL_设计与统计.sql -f backend/scripts/master_data_access.sql
 psql -X -v ON_ERROR_STOP=1 -d adc_business -f usecase/ADC_PostgreSQL_验证.sql
 python backend/manage.py migrate --database=runtime
 python backend/manage.py createcachetable adc_report_snapshot --database=runtime
@@ -31,6 +31,17 @@ psql -X -v ON_ERROR_STOP=1 --single-transaction -d adc_business -f backend/scrip
 ```
 
 随后重新运行本节的业务库授权脚本，再部署新的 Django 和 React。旧员工先保留为空，由管理员到「员工与权限」按已核实的资料补录。所属门店与授权门店分别保留，升级不改现有授权、员工账号和业务记录。若需要回退，恢复上一个应用版本即可，新增资料列可留在库中供再次升级时使用。若必须恢复旧库结构，先在独立数据库还原备份并核对发布后的新增业务数据，再安排切换。
+
+### 已有业务库升级基础资料
+
+在发布窗口备份业务库。若尚未安装员工档案升级，先执行上一节。随后以数据库所有者运行以下命令。
+
+```sh
+pg_dump -Fc -d adc_business -f adc_business_before_master_data.dump
+psql -X -v ON_ERROR_STOP=1 --single-transaction -d adc_business -f backend/scripts/upgrade_master_data.sql
+```
+
+重新运行数据库授权脚本后部署 Django 和 React。运行账号通过受限数据库函数完成基础资料写入。迁移保留原业务记录，补齐既有耗材使用的名称与单位快照。原部署账号继续使用既有哈希配置，新开通账号使用数据库中的密码哈希。耗材按实际就诊日读取数据库成本版本，未配置该日期时沿用原成本配置。回退时先切回上一版应用并保留新增列、版本及账号资料。若要还原原库，先把备份恢复到独立数据库，核对发布后的业务记录及新增本地账号，再切换连接。
 
 ## 启动并核对入口
 

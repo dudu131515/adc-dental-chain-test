@@ -38,6 +38,11 @@ export function hasAccessAdministration(identity: StaffIdentity) {
   return identity.capabilities.includes("HQ_ACCESS_ADMIN") && identity.role_clinic_ids?.HQ_ACCESS_ADMIN === null;
 }
 
+export function hasResourceAdministration(identity: StaffIdentity) {
+  return hasAccessAdministration(identity)
+    || (identity.capabilities.includes("HQ_CATALOG") && identity.role_clinic_ids?.HQ_CATALOG === null);
+}
+
 export function hasRole(identity: StaffIdentity, roles: string[], clinic: string) {
   return roles.some(role => clinic ? canWorkAt(identity, role, clinic) : identity.capabilities.includes(role));
 }
@@ -48,13 +53,13 @@ export const navigation: Section[] = [
   {path: "/patients", label: "患者档案", icon: "patients", roles: ["FRONT_DESK"]},
   {path: "/clinical", label: "诊疗", icon: "tooth", roles: ["DENTIST"]},
   {path: "/billing", label: "结算", icon: "receipt", roles: ["FRONT_DESK", "DENTIST", "CLINIC_MANAGER"]},
-  {path: "/admin", label: "基础管理", icon: "layers", roles: ["HQ_ACCESS_ADMIN"]},
+  {path: "/admin", label: "基础管理", icon: "layers", roles: ["HQ_ACCESS_ADMIN", "HQ_CATALOG"]},
   {path: "/catalog", label: "项目与价格", icon: "catalog", roles: ["HQ_CATALOG"]},
   {path: "/operations", label: "经营", icon: "chart", roles: ["CLINIC_MANAGER", ...performanceRoles]},
 ];
 export function allowedSections(identity: StaffIdentity, clinic = "") {
   return navigation.filter(section => section.path === "/admin"
-    ? hasAccessAdministration(identity)
+    ? hasResourceAdministration(identity)
     : (!section.roles || hasRole(identity, section.roles, clinic)));
 }
 
@@ -78,6 +83,25 @@ export function canSeeDailyReconciliation(identity: StaffIdentity, clinic: strin
 }
 
 type WorkspaceTab = {path: string; label: string};
+
+function administrationTabs(identity: StaffIdentity): WorkspaceTab[] {
+  if (!hasResourceAdministration(identity)) return [];
+  return [
+    ...(hasAccessAdministration(identity) ? [
+      { path: "/admin/clinics", label: "门店资料" },
+      { path: "/admin/access", label: "员工与权限" },
+    ] : []),
+    { path: "/admin/dentists", label: "牙医资质" },
+    { path: "/admin/qualifications", label: "资质类型" },
+    { path: "/admin/chairs", label: "牙椅管理" },
+    { path: "/admin/materials", label: "耗材管理" },
+  ];
+}
+
+export function allowsAdministrationPath(identity: StaffIdentity, path: string) {
+  if (path === "/admin") return hasResourceAdministration(identity);
+  return administrationTabs(identity).some(tab => tab.path === path);
+}
 
 export function scheduleViews(identity: StaffIdentity, clinic: string) {
   const canPlan = hasRole(identity, ["HQ_SCHEDULER", "CLINIC_MANAGER"], clinic);
@@ -114,10 +138,7 @@ export function workspaceTabs(group: ReturnType<typeof groupedNavigation>[number
           ...(canQuarter ? [{path: "/operations/quarters", label: "季度核算"}] : []),
         ]),
     ];
-    if (section.path === "/admin") return [
-      {path: "/admin/clinics", label: "门店与资源"},
-      {path: "/admin/access", label: "员工与权限"},
-    ];
+    if (section.path === "/admin") return administrationTabs(identity);
     return [{path: section.path, label: section.label}];
   });
 }

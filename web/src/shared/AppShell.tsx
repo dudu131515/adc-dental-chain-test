@@ -5,7 +5,7 @@ import { useApiRequest } from "./ApiTransport";
 import { useWorkspaceRuntime } from "./WorkspaceRuntime";
 import { useRead } from "./useRead";
 import { Brand, Icon } from "./Icons";
-import { allowedSections, canSeeDailyReconciliation, dailyRoles, groupedNavigation, hasAccessAdministration, hasRole, homeLabel, jobLabel, roleNames, workspaceTabs } from "./navigation";
+import { allowedSections, allowsAdministrationPath, canSeeDailyReconciliation, dailyRoles, groupedNavigation, hasAccessAdministration, hasRole, homeLabel, jobLabel, roleNames, workspaceTabs } from "./navigation";
 import type { StaffIdentity } from "./navigation";
 
 export type { StaffIdentity } from "./navigation";
@@ -109,8 +109,10 @@ export function AppShell({ renderWorkArea, sample }: {
     clearWorkspace();
     session.current = next;
     const initialClinic = rememberedClinic(next);
+    const currentPath = router.read().path;
     if ((previous && previous.account_id !== next.account_id) ||
-        !allowedSections(next, initialClinic).some(area => isUnder(router.read().path, area.path))) {
+        (isUnder(currentPath, "/admin") && !allowsAdministrationPath(next, currentPath)) ||
+        !allowedSections(next, initialClinic).some(area => isUnder(currentPath, area.path))) {
       router.write("/dashboard", true);
       setLocation(router.read().url);
     }
@@ -145,12 +147,14 @@ export function AppShell({ renderWorkArea, sample }: {
     checkIdentity();
     const stopSync = router.subscribe(sync);
     window.addEventListener("focus", recheck);
+    window.addEventListener("adc:clinic-directory-changed", recheck);
     window.addEventListener("adc:permission-denied", recheck);
     window.addEventListener("adc:session-expired", endSession);
     return () => {
       authRead.current?.abort();
       stopSync();
       window.removeEventListener("focus", recheck);
+      window.removeEventListener("adc:clinic-directory-changed", recheck);
       window.removeEventListener("adc:permission-denied", recheck);
       window.removeEventListener("adc:session-expired", endSession);
     };
@@ -194,7 +198,8 @@ export function AppShell({ renderWorkArea, sample }: {
   };
   const path = location.split("?")[0];
   const choices = identity ? allowedSections(identity, clinicId) : [];
-  const canUseRoute = !isUnder(path, "/billing/reconciliation") || (identity && canSeeDailyReconciliation(identity, clinicId));
+  const canUseRoute = (!isUnder(path, "/billing/reconciliation") || (identity && canSeeDailyReconciliation(identity, clinicId)))
+    && (!isUnder(path, "/admin") || (identity && allowsAdministrationPath(identity, path)));
   const chosen = canUseRoute ? choices.find(area => isUnder(path, area.path)) : undefined;
   const groups = groupedNavigation(choices);
   const activeGroup = groups.find(group => chosen && group.sections.includes(chosen));

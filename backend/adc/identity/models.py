@@ -84,6 +84,7 @@ class UserAccount(models.Model):
     employee = models.OneToOneField(Employee, on_delete=models.PROTECT, null=True)
     login_identity = models.CharField(max_length=180, unique=True)
     status = models.CharField(max_length=20, default="ACTIVE")
+    staff_password_hash = models.CharField(max_length=256, null=True, editable=False)
 
     class Meta:
         db_table = "user_account"

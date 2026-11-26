@@ -22,11 +22,11 @@ END $$;
 
 DO $$
 BEGIN
- PERFORM pg_temp.adc_assert((SELECT count(*)=40 FROM pg_tables WHERE schemaname='public'),'40 tables');
- PERFORM pg_temp.adc_assert((SELECT count(*)=270 FROM information_schema.columns col
+ PERFORM pg_temp.adc_assert((SELECT count(*)=41 FROM pg_tables WHERE schemaname='public'),'41 tables');
+ PERFORM pg_temp.adc_assert((SELECT count(*)=279 FROM information_schema.columns col
   JOIN information_schema.tables tbl USING(table_schema,table_name)
-  WHERE col.table_schema='public' AND tbl.table_type='BASE TABLE'),'270 table fields');
- PERFORM pg_temp.adc_assert((SELECT count(*)=71 FROM pg_constraint WHERE contype='f' AND connamespace='public'::regnamespace),'71 physical FKs');
+  WHERE col.table_schema='public' AND tbl.table_type='BASE TABLE'),'279 table fields');
+ PERFORM pg_temp.adc_assert((SELECT count(*)=72 FROM pg_constraint WHERE contype='f' AND connamespace='public'::regnamespace),'72 physical FKs');
  PERFORM pg_temp.adc_assert((SELECT count(*)=4 FROM pg_views WHERE schemaname='public'),'4 reporting views');
 END $$;
 

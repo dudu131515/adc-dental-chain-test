@@ -68,24 +68,35 @@
   .schedule-drawer { top: 0; }
 }
 
-.appointment-day { display: grid; gap: 10px; }
-.appointment-day > p { margin: 0 0 4px; }
-.appointment-day-key { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px; font-size: 13px; }
-.appointment-day-key > span::before { content: ""; display: inline-block; width: 8px; height: 8px; margin-right: 6px; border-radius: 3px; background: #3f699b; }
-.appointment-day-key > span:nth-of-type(2)::before { background: #278872; }
-.appointment-day-key > span:nth-of-type(3)::before { background: #96a6b0; }
-.appointment-lane { display: grid; grid-template-columns: minmax(125px, 150px) minmax(0, 1fr); border: 1px solid #dce7eb; border-radius: 10px; }
-.appointment-lane-dentist { padding: 13px; background: #f5f9fa; border-radius: 10px 0 0 10px; }
-.appointment-lane-dentist h3 { margin: 0 0 6px; font-size: 15px; }
-.appointment-lane-dentist span { display: block; font-size: 13px; color: #455c68; font-variant-numeric: tabular-nums; }
-.appointment-lane-detail { padding: 10px 12px; }
-.appointment-lane-detail p { margin: 4px 0; }
-.appointment-lane-times { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(158px, 100%), 1fr)); gap: 7px; list-style: none; padding: 0; margin: 0; }
-.appointment-lane-times > li > * { width: 100%; height: 100%; }
-.appointment-lane-times .appointment-candidate { background: #eef8f3; border: 1px dashed #7eaf9e; color: #226552; font-size: 13px; }
-.appointment-lane-times button.appointment-candidate:hover { background: #def1e9; }
-.appointment-lane-detail .appointment-unavailable { color: #526973; font-size: 12px; margin-top: 7px; }
-@media (max-width: 540px) {
-  .appointment-lane { grid-template-columns: minmax(0, 1fr); }
-  .appointment-lane-dentist { border-radius: 10px 10px 0 0; }
-}
+.appointment-day { display: grid; gap: 10px; min-width: 0; }
+.appointment-day > p { margin: 0; }
+.appointment-day-key { display: flex; flex-wrap: wrap; gap: 10px 18px; font-size: 13px; }
+.appointment-day-key span::before { content: ""; display: inline-block; width: 9px; height: 9px; margin-right: 6px; border-radius: 3px; background: #3f699b; }
+.appointment-day-key [data-key="candidate"]::before { background: #278872; }
+.appointment-day-key [data-key="off"]::before { background: #cbd5db; }
+.appointment-day-key [data-key="blocked"]::before { background: #8d9da8; }
+.appointment-timeline-scroll { overflow: auto; max-height: min(68vh, 680px); border: 1px solid #dbe5e9; border-radius: 10px; }
+.appointment-timeline { display: grid; width: max-content; min-width: 100%; }
+.appointment-time-axis { position: sticky; left: 0; z-index: 3; background: #f7f9fb; }
+.appointment-track { min-width: 0; border-left: 1px solid #e0e8eb; }
+.appointment-track-head { position: sticky; top: 0; z-index: 2; min-height: 52px; padding: 7px 9px; background: #f5f9fb; box-shadow: 0 1px #dce6eb; }
+.appointment-track-head h3 { margin: 0 0 2px; font-size: 14px; }
+.appointment-track-head span { display: block; font-size: 11px; color: #4e6671; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.appointment-time-axis time { position: absolute; left: 8px; padding-top: 2px; font-size: 12px; color: #526973; font-variant-numeric: tabular-nums; }
+.appointment-track-slots { position: relative; background: repeating-linear-gradient(to bottom,#dee7ed 0 1px,transparent 1px 47px,#edf2f5 47px 48px,transparent 48px 96px); }
+.appointment-time-block { position: absolute; left: 3px; right: 3px; min-width: 0; max-width: 100%; border: 1px solid transparent;
+  padding: 1px 6px; overflow: hidden; font-size: 11px; text-align: left; border-radius: 4px; font-variant-numeric: tabular-nums; }
+.appointment-time-block span,.appointment-time-block strong { display: block; text-overflow: ellipsis; overflow: hidden; white-space: nowrap; }
+.appointment-time-block[data-key="off"] { color: #60727b; background: repeating-linear-gradient(135deg,#f4f6f8,#f4f6f8 7px,#eef2f5 7px,#eef2f5 14px); }
+.appointment-time-block[data-key="past"] { color: #5d6d74; background: #eef2f3; }
+.appointment-time-block[data-key="blocked"] { color: #415367; background: repeating-linear-gradient(135deg,#e6ebf0,#e6ebf0 6px,#d9e1e7 6px,#d9e1e7 12px); }
+.appointment-time-candidate { border: 1px dashed #96c9b7; background: #edf8f3; color: #1d6453; }
+button.appointment-time-candidate:hover { background: #d8eee4; }
+.appointment-time-event { z-index: 1; border-left: 3px solid #376ea3; background: #e4effb; color: #1b4367; }
+.appointment-time-event strong { font-size: 12px; }
+.appointment-time-event[data-state="CHECKED_IN"],.appointment-time-event[data-state="IN_TREATMENT"] { border-left-color: #147963; background: #e0f2eb; color: #195346; }
+.appointment-time-event[data-state="COMPLETED"] { border-left-color: #6965a2; background: #eceaf7; color: #484477; }
+.appointment-time-event[data-state="CANCELLED"],.appointment-time-event[data-state="NO_SHOW"] { border-left-color: #a56f3c; background: #f9eddf; color: #734b2b; }
+.appointment-time-block:focus-visible { z-index: 2; outline: 2px solid #164770; outline-offset: -2px; }
+.appointment-time-now { position: absolute; left: 0; right: 0; z-index: 2; pointer-events: none; border-top: 1px solid #dc6e68; }
+@media (max-width: 600px) { .appointment-timeline-scroll { max-height: 57vh; } }

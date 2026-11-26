@@ -115,10 +115,11 @@ def web_login(request):
     payload.is_valid(raise_exception=True)
     identity = payload.validated_data["login_identity"]
     password = payload.validated_data["password"]
-    password_hash = settings.ADC_STAFF_PASSWORD_HASHES.get(identity)
+    account = UserAccount.objects.filter(login_identity=identity, employee__isnull=False).first()
+    password_hash = account.staff_password_hash if account else None
+    password_hash = password_hash or settings.ADC_STAFF_PASSWORD_HASHES.get(identity)
     if not password_hash:
         make_password(password)
-    account = UserAccount.objects.filter(login_identity=identity, employee__isnull=False).first()
     principal = current_principal(account.pk, "staff") if account else None
     if not password_hash or not check_password(password, password_hash) or principal is None:
         raise ApiProblem(401, "AUTHENTICATION_REQUIRED", "登录信息无效。")
