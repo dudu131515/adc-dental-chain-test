@@ -21,6 +21,8 @@ test("the queue searches on the server and maintains the same search on the next
         outstanding: "86.00", refund_remaining: "0.00", pending_refund: "0.00",
       }] : [],
       next_cursor: query && !next ? "page-2" : null,
+      summary: { total_records: 1, waiting_invoice: 0, actionable_records: 1,
+        outstanding: "86.00", refund_due: "0.00", pending_refund: "0.00" },
     }}));
   });
   const area: WorkArea = {
@@ -33,6 +35,8 @@ test("the queue searches on the server and maintains the same search on the next
   fireEvent.change(screen.getByLabelText("办理状态"), {target:{value:"WAITING_PAYMENT"}});
   fireEvent.click(screen.getByRole("button",{name:"搜索",exact:true}));
   expect(await screen.findByText("ADC-13")).toBeTruthy();
+  expect(screen.getByText("待办 1 笔")).toBeTruthy();
+  expect(screen.getByText("待收 ¥86.00")).toBeTruthy();
   expect(screen.queryByText("00000000088")).toBeNull();
   fireEvent.click(screen.getByRole("button",{name:"下一页"}));
   expect(await screen.findByText("ADC-12")).toBeTruthy();

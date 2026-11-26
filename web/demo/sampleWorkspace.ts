@@ -252,6 +252,12 @@ export function createSampleWorkspace() {
     visit:clinical.visit,visitId:clinical.visitIdForAppointment,chair:clinical.chairForAppointment,
     treatmentRefund:clinical.refundForAppointment,
     billStatus:bill => bills[bill]?.outstanding === 0 ? "SETTLED" : bills[bill]?.received ? "PART_PAID" : "ISSUED",
+    invoiceSummary:bill => {
+      const row=bills[bill];
+      const accrued=row?.due ?? 0,net=(row?.received ?? 0)-(row?.refunded ?? 0);
+      return {accrued:accrued.toFixed(2),net_received:net.toFixed(2),outstanding:(row?.outstanding ?? 0).toFixed(2),
+        refund_due:Math.max(0,net-accrued).toFixed(2)};
+    },
     id,clock:sampleTime,
   });
   const billing = createSampleBilling({bills,appointments:previewAppointments,id,clockDate:sampleDate,visit:clinical.visit,
@@ -406,7 +412,12 @@ export function createSampleWorkspace() {
             outstanding:bill?.outstanding.toFixed(2) ?? null, refund_remaining:remaining.toFixed(2), pending_refund:pending.toFixed(2)}];
         }).sort((left, right) => right.ended_at.localeCompare(left.ended_at) || right.visit_id.localeCompare(left.visit_id));
       const offset = Number(q.get("cursor") ?? "0");
-      return {items:items.slice(offset, offset + 20), next_cursor:offset + 20 < items.length ? String(offset + 20) : null};
+      return {items:items.slice(offset, offset + 20), next_cursor:offset + 20 < items.length ? String(offset + 20) : null,
+        summary:{total_records:items.length,waiting_invoice:items.filter(row=>row.billing_state==="WAITING_INVOICE").length,
+          actionable_records:items.filter(row=>row.billing_state!=="SETTLED").length,
+          outstanding:items.reduce((sum,row)=>sum+Number(row.outstanding??0),0).toFixed(2),
+          refund_due:items.reduce((sum,row)=>sum+Number(row.refund_remaining),0).toFixed(2),
+          pending_refund:items.reduce((sum,row)=>sum+Number(row.pending_refund),0).toFixed(2)}};
     }
 
     function dispatch(path:string, method:string, b:Body, options:{queueSearch?:string;actionKey?:string}):unknown {

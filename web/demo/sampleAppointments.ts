@@ -33,6 +33,7 @@ type Seed = {
   chair(id: string): Chair | null;
   treatmentRefund(id: string): FundsStatus | undefined;
   billStatus(id: string): string;
+  invoiceSummary(id: string): {accrued: string; net_received: string; outstanding: string; refund_due: string};
   id(): string;
   clock: string;
 };
@@ -46,7 +47,7 @@ const allDay = (row: Appointment, q: URLSearchParams) =>
   (!q.get("clinic_id") || row.clinic === q.get("clinic_id")) && (!q.get("date") || row.date === q.get("date"));
 
 export function createSampleAppointments(seed: Seed) {
-  const { appointments, branches, doctorId, treatment, visit, visitId, chair, treatmentRefund, billStatus, id, clock } = seed;
+  const { appointments, branches, doctorId, treatment, visit, visitId, chair, treatmentRefund, billStatus, invoiceSummary, id, clock } = seed;
   const patientDirectory = new Map<string, Patient & { clinic: string }>();
   for (const row of appointments) {
     patientDirectory.set(row.clinic + ":" + row.patientId, {
@@ -127,14 +128,21 @@ export function createSampleAppointments(seed: Seed) {
       if (!person) problem(404, "找不到本门店的患者档案。");
       const history = appointments.filter(row => row.patientId === patientId && row.clinic === clinic)
         .sort((a,b) => appointmentStart(b).localeCompare(appointmentStart(a)));
+      const visits = history.map(row => visit(row.id)).filter(Boolean);
+      const invoiceRows = history.filter(row => row.invoice).map(row => invoiceSummary(row.invoice!));
+      const sum = (key: "net_received" | "outstanding" | "refund_due") => invoiceRows
+        .reduce((total, row) => total + Number(row[key]), 0).toFixed(2);
       const info = page(q, history.length);
       const offset = (info.page - 1) * info.page_size;
-      return {patient:person,...info, appointments:history.slice(offset, offset + info.page_size).map(row => {
+      return {patient:person,...info, summary:{appointment_count:history.length, visit_count:visits.length,
+        invoice_count:invoiceRows.length, net_received:sum("net_received"), outstanding:sum("outstanding"), refund_due:sum("refund_due")},
+      appointments:history.slice(offset, offset + info.page_size).map(row => {
         const outcome = visit(row.id);
         return {appointment_id:row.id, appointment_no:row.id, start_at:appointmentStart(row), treatment:row.service,
-          dentist:row.doctor, status:appointmentStates[row.status],
+          dentist:row.doctor, status:appointmentStates[row.status], treatments:outcome?.treatment_items.map(item=>item.name) ?? [],
           ...(outcome ? {visit:{visit_id:outcome.visit_id,status:outcome.status}} : {}),
-          ...(row.invoice ? {invoice:{invoice_id:row.invoice,invoice_no:row.invoice,status:billStatus(row.invoice)}} : {})};
+          ...(row.invoice ? {invoice:{invoice_id:row.invoice,invoice_no:row.invoice,status:billStatus(row.invoice),
+            ...invoiceSummary(row.invoice)}} : {})};
       })};
     }
     if (read) {

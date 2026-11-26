@@ -106,9 +106,24 @@ class BillingContractTests(TestCase):
         self.assertEqual(entry["visit"], {"visit_id": str(visit.pk), "status": "COMPLETED"})
         self.assertEqual(entry["invoice"], {
             "invoice_id": invoice["invoice_id"], "invoice_no": invoice["invoice_no"], "status": "ISSUED",
+            "accrued": "120.00", "net_received": "0.00", "outstanding": "120.00", "refund_due": "0.00",
+        })
+        self.assertEqual(entry["treatments"], ["合成洁牙"])
+        self.assertEqual(response.json()["data"]["summary"], {
+            "appointment_count": 1, "visit_count": 1, "invoice_count": 1,
+            "net_received": "0.00", "outstanding": "120.00", "refund_due": "0.00",
         })
         self.assertNotIn(visit.clinical_notes, response.content.decode())
         self.assertEqual(self.other_store.get(route).status_code, 403)
+
+    def test_patient_record_keeps_actual_treatment_visible_during_billing_handover(self):
+        visit = self.finished_visit()
+        route = f"/api/v1/clinics/1/patients/{visit.appointment.claim.patient_id}"
+        response = self.front.get(route)
+        self.assertEqual(response.status_code, 200, response.content)
+        entry, = response.json()["data"]["appointments"]
+        self.assertIsNone(entry["invoice"])
+        self.assertEqual(entry["treatments"], ["合成洁牙"])
 
     def test_queue_searches_billing_identifiers_within_front_desk_scope(self):
         visit, invoice = self.issued_invoice()
@@ -123,6 +138,10 @@ class BillingContractTests(TestCase):
                 self.assertEqual(entry["billing_state"], "WAITING_PAYMENT")
                 self.assertEqual(entry["patient_display"], {"name": patient.full_name, "phone_tail": patient.phone[-4:]})
                 self.assertNotIn(patient.phone, response.content.decode())
+                self.assertEqual(response.json()["data"]["summary"], {
+                    "total_records": 1, "waiting_invoice": 0, "actionable_records": 1,
+                    "outstanding": "120.00", "refund_due": "0.00", "pending_refund": "0.00",
+                })
         self.assertEqual(self.front.get(route, HTTP_X_ADC_QUEUE_SEARCH="DOES-NOT-MATCH").json()["data"]["items"], [])
         self.assertEqual(self.front.get(route, {"status": "WAITING_INVOICE"}).json()["data"]["items"], [])
         self.assertEqual(self.other_store.get(route, HTTP_X_ADC_QUEUE_SEARCH=quote(patient.phone)).json()["data"]["items"], [])
@@ -140,10 +159,13 @@ class BillingContractTests(TestCase):
         filters = {"clinic_id": "1", "status": "WAITING_INVOICE"}
         first = self.front.get(route, filters, HTTP_X_ADC_QUEUE_SEARCH="ADC-BILLING").json()["data"]
         self.assertEqual(len(first["items"]), 20)
+        self.assertEqual(first["summary"]["total_records"], 21)
+        self.assertEqual(first["summary"]["waiting_invoice"], 21)
         self.assertTrue(first["next_cursor"])
         second = self.front.get(route, {**filters, "cursor": first["next_cursor"]},
                                HTTP_X_ADC_QUEUE_SEARCH="ADC-BILLING").json()["data"]
         self.assertEqual(len(second["items"]), 1)
+        self.assertEqual(second["summary"], first["summary"])
         self.assertIsNone(second["next_cursor"])
         identities = [row["visit_id"] for row in first["items"] + second["items"]]
         self.assertEqual(len(set(identities)), 21)
@@ -164,7 +186,7 @@ class BillingContractTests(TestCase):
         self.assertEqual(self.queue_entry("SETTLED")["invoice_id"], invoice["invoice_id"])
 
     def test_partial_collection_uses_one_successful_flow_and_excludes_deposit(self):
-        _, invoice = self.issued_invoice()
+        visit, invoice = self.issued_invoice()
         self.assertEqual(invoice["original_total"], "120.00")
         self.assertEqual(invoice["lines"][0]["treatment_name"], "合成洁牙")
         route = "/invoices/" + invoice["invoice_id"]
@@ -174,6 +196,12 @@ class BillingContractTests(TestCase):
             paid = self.post(self.front, route + "/payments", "pay-1", {"amount": "60.00"})
             self.assertIn(paid.status_code, (200, 201, 202), paid.content)
         result = self.front.get("/api/v1" + route).json()["data"]
+        self.assertEqual(result["clinic_name"], visit.appointment.claim.clinic.clinic_name)
+        self.assertEqual(result["ended_at"], visit.ended_at.isoformat())
+        self.assertEqual(result["patient_display"], {
+            "name": visit.appointment.claim.patient.full_name,
+            "phone_tail": visit.appointment.claim.patient.phone[-4:],
+        })
         self.assertEqual(result["net_received"], "60.00")
         self.assertEqual(result["outstanding"], "60.00")
         self.assertEqual(result["status"], "PART_PAID")

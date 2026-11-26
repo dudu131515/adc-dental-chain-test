@@ -8,6 +8,7 @@ from adc.booking.models import DepositRefund
 from adc.clinical.allergy_reviews import ReviewInput, allergy_context, save_review, visit_review_history
 from adc.clinical.checkin_service import check_in_at
 from adc.clinical.models import ChairUsage, MaterialUsage, TreatmentItem, Visit
+from adc.clinical.treatment_evidence import name_snapshots
 from adc.clinical.visit_start import start_visit
 from adc.common.http import ApiProblem, success
 from adc.common.idempotency import OperationKey
@@ -43,14 +44,6 @@ def own_visit(request, pk):
 def chair_projection(appointment):
     usage = ChairUsage.objects.select_related("chair").filter(appointment=appointment, released_at__isnull=True).first()
     return {"chair_id": str(usage.chair_id), "chair_no": usage.chair.chair_no} if usage else None
-
-
-def name_snapshots(items):
-    ids = [item.pk for item in items]
-    audit = AuditLog.objects.filter(
-        action="TREATMENT_ITEM_RECORDED", target_type="treatment_item", target_id__in=ids,
-    ).order_by("id")
-    return {row.target_id: row.after_value.get("treatment_name") for row in audit}
 
 
 def visit_projection(entry, *, clinical):

@@ -1,6 +1,6 @@
 from uuid import uuid4
 
-from django.db import transaction
+from django.db import connection, transaction
 from django.db.models import OuterRef, Q, Subquery
 from django.shortcuts import get_object_or_404
 from django.urls import path
@@ -9,6 +9,9 @@ from rest_framework import serializers
 from rest_framework.decorators import api_view
 
 from adc.booking.models import Appointment
+from adc.billing.models import InvoiceLine
+from adc.clinical.models import TreatmentItem
+from adc.clinical.treatment_evidence import name_snapshots
 from adc.common.http import ApiProblem, success
 from adc.common.idempotency import OperationKey
 from adc.common.serializers import values
@@ -132,12 +135,58 @@ def patient_directory(request, pk):
 def registered_appointment(row):
     visit = getattr(row, "visit", None)
     invoice = getattr(visit, "invoice", None)
+    treatments = []
+    invoice_projection = None
+    if invoice:
+        totals = invoice_totals(invoice.pk)
+        treatments = list(InvoiceLine.objects.filter(invoice=invoice).order_by("pk")
+                          .values_list("treatment_name_snapshot", flat=True))
+        invoice_projection = {
+            "invoice_id": str(invoice.pk), "invoice_no": invoice.invoice_no, "status": invoice.status,
+            **{key: format(totals[key], ".2f") for key in ("accrued", "net_received", "outstanding", "refund_due")},
+        }
+    elif visit:
+        items = list(TreatmentItem.objects.filter(visit=visit).order_by("recorded_at", "pk"))
+        snapshots = name_snapshots(items)
+        treatments = [snapshots[item.pk] for item in items if snapshots.get(item.pk)]
     return {
         "appointment_id": str(row.pk), "appointment_no": row.appointment_no, "status": row.status,
         "start_at": row.claim.start_at.isoformat(), "dentist": row.claim.dentist.full_name,
         "treatment": row.claim.requested_treatment_type.treatment_name,
         "visit": {"visit_id": str(visit.pk), "status": visit.status} if visit else None,
-        "invoice": {"invoice_id": str(invoice.pk), "invoice_no": invoice.invoice_no, "status": invoice.status} if invoice else None,
+        "treatments": treatments,
+        "invoice": invoice_projection,
+    }
+
+
+def invoice_totals(invoice_id):
+    with connection.cursor() as cursor:
+        cursor.execute("""
+            SELECT accrued_amount, received_amount - refunded_amount, outstanding_amount, refund_due
+            FROM invoice_reporting_fact WHERE invoice_id = %s
+        """, [invoice_id])
+        accrued, net_received, outstanding, refund_due = cursor.fetchone()
+    return {"accrued": accrued, "net_received": net_received, "outstanding": outstanding, "refund_due": refund_due}
+
+
+def patient_summary(patient_id, clinic_id):
+    with connection.cursor() as cursor:
+        cursor.execute("""
+            SELECT COUNT(DISTINCT a.appointment_id), COUNT(DISTINCT v.visit_id), COUNT(DISTINCT i.invoice_id),
+                   COALESCE(SUM(f.received_amount - f.refunded_amount), 0),
+                   COALESCE(SUM(f.outstanding_amount), 0), COALESCE(SUM(f.refund_due), 0)
+            FROM appointment a
+            JOIN slot_claim s ON s.claim_id = a.claim_id
+            LEFT JOIN visit v ON v.appointment_id = a.appointment_id
+            LEFT JOIN invoice i ON i.visit_id = v.visit_id
+            LEFT JOIN invoice_reporting_fact f ON f.invoice_id = i.invoice_id
+            WHERE s.patient_id = %s AND s.clinic_id = %s
+        """, [patient_id, clinic_id])
+        appointments, visits, invoices, net_received, outstanding, refund_due = cursor.fetchone()
+    return {
+        "appointment_count": appointments, "visit_count": visits, "invoice_count": invoices,
+        "net_received": format(net_received, ".2f"), "outstanding": format(outstanding, ".2f"),
+        "refund_due": format(refund_due, ".2f"),
     }
 
 
@@ -149,7 +198,10 @@ def patient_record(request, pk, patient_id):
         "claim__requested_treatment_type", "claim__dentist", "visit__invoice",
     ).order_by("-claim__start_at", "-pk")
     result = page_result(history, page, registered_appointment)
-    return success({"patient": front_patient_projection(patient), "appointments": result.pop("items"), **result})
+    return success({
+        "patient": front_patient_projection(patient), "summary": patient_summary(patient.pk, pk),
+        "appointments": result.pop("items"), **result,
+    })
 
 
 urlpatterns = [

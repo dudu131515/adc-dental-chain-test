@@ -23,7 +23,12 @@ export function InvoiceDetail({ id, accountId, open, returnTo = "/billing" }: { 
           <span className="status-tag" data-state={invoice.status}>{invoiceStates[invoice.status]}</span>
           <ReceiptPanel invoice={invoice} />
         </div>
-        <p>预约 {invoice.appointment_no} · 就诊 {invoice.visit_id} · 开立时间 {dateTime(invoice.issued_at)}</p>
+        {invoice.patient_display && <p><strong>{invoice.patient_display.name}</strong>
+          {invoice.patient_display.phone_tail && <> · 手机尾号 {invoice.patient_display.phone_tail}</>}
+          {invoice.clinic_name && <> · {invoice.clinic_name}</>}
+        </p>}
+        <p>预约 {invoice.appointment_no} · 就诊 {invoice.visit_id}
+          {invoice.ended_at && <> · 就诊结束 {dateTime(invoice.ended_at)}</>} · 开立时间 {dateTime(invoice.issued_at)}</p>
         <dl className="inline-facts">
           <div><dt>原单金额</dt><dd>{money(invoice.original_total)}</dd></div>
           <div><dt>当前应计</dt><dd>{money(invoice.accrued)}</dd></div>

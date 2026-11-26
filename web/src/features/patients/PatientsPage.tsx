@@ -1,7 +1,7 @@
 import { useWorkspaceRuntime } from "../../shared/WorkspaceRuntime";
 import { FormEvent, useState } from "react";
 import { canWorkAt, type WorkArea } from "../../shared/AppShell";
-import { dateTime, localDay } from "../../shared/format";
+import { dateTime, localDay, money } from "../../shared/format";
 import { useRead } from "../../shared/useRead";
 import { RegisterPatient, type Patient } from "../schedule/BookingForm";
 import { invoiceStates } from "../billing/billingTypes";
@@ -12,9 +12,13 @@ import "./patients.css";
 type PageInfo = { page: number; page_size: number; total: number };
 type Directory = PageInfo & { items: (Patient & { next_start: string | null })[] };
 type History = { appointment_id: string; appointment_no: string; start_at: string; treatment: string; dentist: string; status: string;
-  visit?: { visit_id: string; status: string }; invoice?: { invoice_id: string; invoice_no: string; status: string };
+  visit?: { visit_id: string; status: string }; treatments: string[];
+  invoice?: { invoice_id: string; invoice_no: string; status: string; accrued: string; net_received: string; outstanding: string; refund_due: string };
 };
-type Profile = PageInfo & { patient: Patient; appointments: History[] };
+type Profile = PageInfo & { patient: Patient; appointments: History[]; summary: {
+  appointment_count: number; visit_count: number; invoice_count: number;
+  net_received: string; outstanding: string; refund_due: string;
+} };
 
 function Pager({ result, choose }: { result: PageInfo; choose: (n: number) => void }) {
   const pages = Math.ceil(result.total / result.page_size);
@@ -47,6 +51,15 @@ function PatientRecord({ clinic, id, open, directory }: {
         <div><h1>{patient.full_name}</h1><p className="patient-id">患者编号 {patient.patient_no}</p></div>
         <button className="button primary" onClick={() => open("/schedule?" + new URLSearchParams({ clinic, action: "book", patient: id }))}>为此患者预约</button>
       </div>
+      <section className="patient-card">
+        <h2>连续服务概览</h2>
+        <div className="workflow-summary">
+          <div><strong>预约 {read.data.summary.appointment_count} 笔</strong><span>本店完整记录</span></div>
+          <div><strong>就诊 {read.data.summary.visit_count} 次</strong><span>已进入接诊流程</span></div>
+          <div><strong>账单 {read.data.summary.invoice_count} 张</strong><span>净实收 {money(read.data.summary.net_received)}</span></div>
+          <div><strong>待收 {money(read.data.summary.outstanding)}</strong><span>应退 {money(read.data.summary.refund_due)}</span></div>
+        </div>
+      </section>
       <div className="patient-profile-grid">
         <section className="patient-card"><h2>身份与联络</h2>
           <dl className="patient-facts"><div><dt>出生日期</dt><dd>{patient.birth_date}</dd></div>
@@ -58,13 +71,15 @@ function PatientRecord({ clinic, id, open, directory }: {
             <time dateTime={row.start_at}>{dateTime(row.start_at)}</time>
             <p><strong>{row.treatment}</strong><span className="status-tag" data-state={row.status}>{appointmentStates[row.status] ?? row.status}</span></p>
             <span>{row.dentist} · {row.appointment_no}</span>
+            {!!row.treatments.length && <span>实际治疗：{row.treatments.join("、")}</span>}
             <div className="patient-visit-links">
               <button className="patient-link" onClick={() => open("/schedule/appointments/" + row.appointment_id + "?" +
                 new URLSearchParams({ clinic, date: localDay(new Date(row.start_at)) }))}>查看预约详情 ›</button>
               {row.visit && <>
                 <span>就诊 {row.visit.visit_id} · {visitStates[row.visit.status] ?? row.visit.status}</span>
                 {row.invoice ? <button className="patient-link" onClick={() => open("/billing/invoices/" + row.invoice!.invoice_id)}>
-                  {invoiceStates[row.invoice.status] ?? row.invoice.status} · {row.invoice.invoice_no} ›
+                  {invoiceStates[row.invoice.status] ?? row.invoice.status} · {row.invoice.invoice_no} · 应计 {money(row.invoice.accrued)}
+                  · 实收 {money(row.invoice.net_received)} · 待收 {money(row.invoice.outstanding)} ›
                 </button> : row.visit.status !== "IN_PROGRESS" && <button className="patient-link"
                   onClick={() => open("/billing/visits/" + row.visit!.visit_id)}>查看待开单 ›</button>}
               </>}

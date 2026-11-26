@@ -121,7 +121,9 @@ test("the shared sample transport links the settlement queue, invoice and patien
   });
   expect(await front("/clinics/central/patient-directory/3")).toMatchObject({
     appointments: [expect.objectContaining({
-      appointment_id: entry.appointment_no, invoice: { invoice_id: invoice.invoice_id, invoice_no: invoice.invoice_no, status: "ISSUED" },
+      appointment_id: entry.appointment_no, invoice: expect.objectContaining({
+        invoice_id: invoice.invoice_id, invoice_no: invoice.invoice_no, status: "ISSUED",
+      }),
     })],
   });
 });

@@ -70,6 +70,16 @@ test("formal billing search opens the selected sample invoice", async () => {
   expect(screen.queryByText("ADC-DEMO-001",{exact:true})).toBeNull();
 });
 
+test("sample patient record presents continuous care and billing at a glance", async () => {
+  open("patients");
+  fireEvent.click(await screen.findByRole("button", {name:/陈晓雨/}));
+  expect(await screen.findByRole("heading", {name:"连续服务概览"})).toBeTruthy();
+  expect(screen.getByText("预约 2 笔")).toBeTruthy();
+  expect(screen.getByText("就诊 1 次")).toBeTruthy();
+  expect(screen.getByText("账单 1 张")).toBeTruthy();
+  expect(screen.getByText("待收 ¥100.00")).toBeTruthy();
+});
+
 test("sample staff use the shared schedule to draft, accept and publish a shift", async () => {
   open("desk/staff","scheduler");
   const role=await screen.findByLabelText("样例身份");

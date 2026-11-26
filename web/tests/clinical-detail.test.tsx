@@ -81,3 +81,24 @@ test("refreshing deposit status keeps the treatment operation available under it
   expect(keys[0]).toBeTruthy();
   expect(keys[1]).toBe(keys[0]);
 });
+
+test("the dentist sees one visit summary before editing treatment details", async () => {
+  vi.stubGlobal("fetch", async (path: string) => {
+    const reply = (data: unknown) => new Response(JSON.stringify({ data }));
+    if (path.endsWith("/clinical-context")) return reply(null);
+    if (path.endsWith("/catalog/treatments")) return reply({items:[]});
+    if (path.endsWith("/clinical/materials")) return reply({items:[]});
+    return reply({
+      visit_id:"21", main_dentist_id:"9", appointment_id:"15", appointment_no:"ADC-21", status:"IN_PROGRESS",
+      patient_display:{name:"合成患者"}, clinic_name:"合成门店", dentist_name:"合成牙医",
+      started_at:"2030-10-17T10:00:00+08:00", chair:{chair_no:"A-01"}, estimated_amount:"120.00",
+      treatment_items:[{item_id:"1", name:"合成洁牙", units:"1.000", unit:"次", unit_price:"120.00", amount:"120.00"}],
+      materials:[{usage_id:"1", name:"抛光杯", quantity:"1.000", unit:"个", unit_cost:"6.00"}],
+    });
+  });
+  render(<VisitDetail id="21" open={() => {}} />);
+  expect(await screen.findByRole("heading", {name:"本次接诊概览"})).toBeTruthy();
+  expect(screen.getByText("实际治疗 1 项")).toBeTruthy();
+  expect(screen.getByText("耗材 1 种")).toBeTruthy();
+  expect(screen.getByText("费用暂计 ¥120.00")).toBeTruthy();
+});

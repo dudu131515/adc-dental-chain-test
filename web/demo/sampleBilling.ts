@@ -190,6 +190,7 @@ export function createSampleBilling({ bills, appointments, id, clockDate, visit,
     const result: Invoice = {
       invoice_id: row.invoiceId, invoice_no: row.invoiceId, visit_id: visitId(row),
       appointment_no: row.appointment.id, clinic_id: row.appointment.clinic, issued_at: row.issuedAt,
+      clinic_name: clinicName(row.appointment.clinic), ended_at: visitOf(row)?.ended_at,
       status: !balance.outstanding ? "SETTLED" : balance.net > 0 ? "PART_PAID" : "ISSUED",
       original_total: money(row.original), accrued: money(balance.accrued),
       lines: row.lines, adjustments: row.adjustments, allowed_actions,
@@ -199,6 +200,7 @@ export function createSampleBilling({ bills, appointments, id, clockDate, visit,
       const refund = visitOf(row)?.refund;
       const seededRefund = funds.find(entry => entry.type === "deposit" && entry.kind === "refund" && entry.id === row.appointment.id);
       Object.assign(result, {
+        patient_display: {name:row.appointment.patient, phone_tail:("0000000" + row.appointment.patientId.padStart(4,"0")).slice(-4)},
         net_received: money(balance.net), outstanding: money(balance.outstanding), refund_due: money(balance.refundDue),
         pending_collection: money(balance.pendingCollection), pending_refund: money(balance.pendingRefund),
         payments: row.payments.map(publicPayment),

@@ -64,6 +64,16 @@ export function VisitDetail({ id, open, returnTo = "/clinical" }: { id: string; 
       </section>
       {context.fault && <p className="error-text" role="alert">{context.fault}</p>}
       {context.data && <PatientContext context={context.data} onReload={() => setSequence(value => value + 1)} />}
+      <section className="schedule-panel">
+        <h2>本次接诊概览</h2>
+        <div className="workflow-summary">
+          <div><strong>实际治疗 {current.treatment_items.length} 项</strong><span>以实际记录计费</span></div>
+          <div><strong>耗材 {current.materials?.length ?? 0} 种</strong><span>本次实际使用</span></div>
+          <div><strong>费用暂计 {money(current.estimated_amount)}</strong><span>结束后交接前台开单</span></div>
+          <div><strong>{ongoing ? "诊疗进行中" : current.invoice_id ? "已生成结算主单" : "等待前台开单"}</strong>
+            <span>预约 {current.appointment_no}</span></div>
+        </div>
+      </section>
       {!ongoing && current.allergy_reviews && <section className="schedule-panel"><h2>本次过敏核对</h2>
         <AllergyHistory events={current.allergy_reviews} />
       </section>}

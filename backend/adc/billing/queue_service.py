@@ -53,12 +53,8 @@ def queue_data(request):
             OR STRPOS(UPPER(i.invoice_no), UPPER(%s)) > 0
         )""")
         arguments.extend([term] * 4)
-    if filters.get("cursor"):
-        ended_at, visit_id = cursor_position(filters["cursor"], binding)
-        criteria.append("(v.ended_at, v.visit_id) < (%s, %s)")
-        arguments.extend([datetime.fromisoformat(ended_at), int(visit_id)])
-
-    scoped = f"""
+    def scoped_query(where):
+        return f"""
         SELECT v.visit_id, a.appointment_no, s.clinic_id, c.clinic_name, v.ended_at,
                v.status, i.invoice_id, i.invoice_no, p.full_name, p.phone,
                facts.outstanding_amount, facts.refund_due,
@@ -82,25 +78,45 @@ def queue_data(request):
             FROM invoice_payment
             WHERE invoice_id = i.invoice_id AND payment_kind = 'REFUND' AND status = 'PENDING'
         ) pending ON TRUE
-        WHERE {" AND ".join(criteria)}
+        WHERE {" AND ".join(where)}
     """
     state_filter = ""
+    state_arguments = []
     if status == "INVOICED":
         state_filter = "WHERE invoice_id IS NOT NULL"
     elif status == "REFUND_DUE":
         state_filter = "WHERE refund_due > pending_refund"
     elif status:
         state_filter = "WHERE billing_state = %s"
-        arguments.append(status)
-    arguments.append(PAGE_SIZE + 1)
+        state_arguments.append(status)
+
+    summary_scoped = scoped_query(criteria)
+    page_criteria = list(criteria)
+    page_arguments = list(arguments)
+    if filters.get("cursor"):
+        ended_at, visit_id = cursor_position(filters["cursor"], binding)
+        page_criteria.append("(v.ended_at, v.visit_id) < (%s, %s)")
+        page_arguments.extend([datetime.fromisoformat(ended_at), int(visit_id)])
+    page_scoped = scoped_query(page_criteria)
 
     with connection.cursor() as cursor:
         cursor.execute(f"""
-            SELECT * FROM ({scoped}) queue
+            SELECT COUNT(*),
+                   COUNT(*) FILTER (WHERE billing_state = 'WAITING_INVOICE'),
+                   COUNT(*) FILTER (WHERE billing_state <> 'SETTLED'),
+                   COALESCE(SUM(outstanding_amount), 0),
+                   COALESCE(SUM(GREATEST(refund_due - pending_refund, 0)), 0),
+                   COALESCE(SUM(pending_refund), 0)
+            FROM ({summary_scoped}) queue
+            {state_filter}
+        """, [*arguments, *state_arguments])
+        total_records, waiting_invoice, actionable, summary_outstanding, summary_refund_due, summary_pending_refund = cursor.fetchone()
+        cursor.execute(f"""
+            SELECT * FROM ({page_scoped}) queue
             {state_filter}
             ORDER BY ended_at DESC, visit_id DESC
             LIMIT %s
-        """, arguments)
+        """, [*page_arguments, *state_arguments, PAGE_SIZE + 1])
         rows = cursor.fetchall()
 
     items = []
@@ -121,4 +137,12 @@ def queue_data(request):
     if len(rows) > PAGE_SIZE:
         last = items[-1]
         next_cursor = scoped_cursor(binding, [last["ended_at"], last["visit_id"]])
-    return {"items": items, "next_cursor": next_cursor}
+    return {
+        "items": items, "next_cursor": next_cursor,
+        "summary": {
+            "total_records": total_records, "waiting_invoice": waiting_invoice,
+            "actionable_records": actionable, "outstanding": format(summary_outstanding, ".2f"),
+            "refund_due": format(summary_refund_due, ".2f"),
+            "pending_refund": format(summary_pending_refund, ".2f"),
+        },
+    }

@@ -1,4 +1,5 @@
 from decimal import Decimal
+import re
 from uuid import uuid4
 
 from django.db import connection, transaction
@@ -8,7 +9,7 @@ from django.utils import timezone
 from adc.billing.models import Invoice, InvoiceAdjustment, InvoiceLine, InvoicePayment
 from adc.booking.models import DepositRefund
 from adc.clinical.models import TreatmentItem, Visit
-from adc.clinical.visit_api import name_snapshots
+from adc.clinical.treatment_evidence import name_snapshots
 from adc.common.http import ApiProblem
 from adc.identity.audit import record_event
 from adc.identity.models import AuditLog
@@ -174,7 +175,8 @@ def invoice_data(invoice, actor):
     result = {
         "invoice_id": str(invoice.pk), "invoice_no": invoice.invoice_no,
         "visit_id": str(visit.pk), "appointment_no": booking.appointment_no, "status": invoice.status,
-        "clinic_id": str(booking.claim.clinic_id),
+        "clinic_id": str(booking.claim.clinic_id), "clinic_name": booking.claim.clinic.clinic_name,
+        "ended_at": visit.ended_at.isoformat() if visit.ended_at else None,
         "original_total": amount_data(invoice.original_total), "issued_at": invoice.issued_at.isoformat(),
         "lines": [
             {
@@ -194,6 +196,12 @@ def invoice_data(invoice, actor):
         refund = DepositRefund.objects.filter(deposit_id=booking.deposit_id).first()
         result.update({
             **{name: amount_data(amount) for name, amount in totals.items()},
+            "patient_display": {
+                "name": booking.claim.patient.full_name,
+                "phone_tail": (
+                    lambda digits: digits[-4:] if len(digits) > 4 else None
+                )(re.sub(r"[^0-9]", "", booking.claim.patient.phone or "")),
+            },
             "deposit": {"amount": amount_data(booking.deposit.amount), "status": booking.deposit.status},
             "deposit_refund": {"amount": amount_data(refund.refund_amount), "status": refund.status} if refund else None,
             "payments": [

@@ -8,7 +8,7 @@ import { useRead } from "../../shared/useRead";
 import { Visit, visitStates } from "../clinical/clinicalTypes";
 import { CorrectionReview } from "./CorrectionReview";
 import { InvoiceDetail } from "./InvoiceDetail";
-import { BillingEntry, Invoice } from "./billingTypes";
+import { BillingEntry, BillingSummary, Invoice } from "./billingTypes";
 
 function IssueInvoice({ id, open }: { id: string; open: (path: string) => void }) {
   const action = useAction();
@@ -49,7 +49,7 @@ export function BillingQueue({ clinicId, open, filters, update, invoicesOnly }: 
   if (filters.status || invoicesOnly) query.set("status", filters.status || "INVOICED");
   const cursor = filters.cursors.at(-1);
   if (cursor) query.set("cursor", cursor);
-  const read = useRead<{ items: BillingEntry[]; next_cursor: string | null }>(
+  const read = useRead<{ items: BillingEntry[]; next_cursor: string | null; summary: BillingSummary }>(
     "/billing/queue" + (query.size ? "?" + query : ""), revision, { queueSearch: filters.text },
   );
   const rows = read.data?.items ?? [];
@@ -77,6 +77,12 @@ export function BillingQueue({ clinicId, open, filters, update, invoicesOnly }: 
       <p className="error-text">{read.fault}</p>
       <button className="button" onClick={() => { update({ ...filters, cursors: [null] }); setRevision(value => value + 1); }}>重新查询</button>
     </div>}
+    {read.data && <section className="workflow-summary" aria-label="当前筛选结算概览">
+      <div><strong>待办 {read.data.summary.actionable_records} 笔</strong><span>共 {read.data.summary.total_records} 条记录</span></div>
+      <div><strong>待开单 {read.data.summary.waiting_invoice} 笔</strong><span>就诊结束待交接</span></div>
+      <div><strong>待收 {money(read.data.summary.outstanding)}</strong><span>按当前筛选汇总</span></div>
+      <div><strong>待退 {money(read.data.summary.refund_due)}</strong><span>处理中 {money(read.data.summary.pending_refund)}</span></div>
+    </section>}
     {read.data && !rows.length && <p>当前门店与筛选条件下没有结算记录。</p>}
     {!!rows.length && <div className="schedule-scroll"><table className="report-table">
       <thead><tr>{["患者", "预约及门店", "就诊结束", "办理状态", "待办金额", "主单"].map(label =>

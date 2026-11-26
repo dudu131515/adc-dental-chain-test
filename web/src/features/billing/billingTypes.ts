@@ -4,7 +4,8 @@ export type Payment = {
 };
 export type Invoice = {
   invoice_id: string; invoice_no: string; visit_id: string; appointment_no: string; status: string;
-  original_total: string; accrued: string; issued_at: string; clinic_id: string;
+  original_total: string; accrued: string; issued_at: string; clinic_id: string; clinic_name?: string; ended_at?: string;
+  patient_display?: { name: string; phone_tail: string | null };
   net_received?: string; outstanding?: string; refund_due?: string; pending_collection?: string; pending_refund?: string;
   deposit?: { status: string; amount: string }; deposit_refund?: { status: string; amount: string };
   lines: { line_id: string; treatment_name: string; unit: string; units: string; unit_price: string; subtotal: string }[];
@@ -22,6 +23,10 @@ export type BillingEntry = {
   outstanding: string | null; refund_remaining: string; pending_refund: string;
   visit_id: string; appointment_no: string; clinic_id: string; ended_at: string; status: string;
   invoice_id: string | null; invoice_no: string | null;
+};
+export type BillingSummary = {
+  total_records: number; waiting_invoice: number; actionable_records: number;
+  outstanding: string; refund_due: string; pending_refund: string;
 };
 
 export const invoiceStates: Record<string, string> = { ISSUED: "已开单", PART_PAID: "部分收款", SETTLED: "已结清" };
