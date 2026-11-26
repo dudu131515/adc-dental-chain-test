@@ -66,4 +66,8 @@ test("published shifts without appointments offer a prefilled booking preference
     clinic_id: "1", date: "2035-06-04", treatment_type_id: "21", dentist_id: "5",
     preferred_start_at: "2035-06-04T09:00:00+08:00",
   });
+  fireEvent.click(within(booking).getByRole("button", { name: "改查当天其他时段" }));
+  await within(booking).findByText("没有符合条件的时段。");
+  expect(options?.get("dentist_id")).toBe("5");
+  expect(options?.has("preferred_start_at")).toBe(false);
 });

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { ClinicalWorkspace } from "../src/features/clinical/ClinicalQueue";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, expect, test, vi } from "vitest";
 import { VisitDetail } from "../src/features/clinical/VisitDetail";
 
@@ -48,4 +48,36 @@ test("an authorized historical visit returns to the records list with the same s
   fireEvent.click(screen.getByRole("button", {name:"返回诊疗记录"}));
   expect((screen.getByRole("searchbox", {name:"姓名或预约号"}) as HTMLInputElement).value).toBe("ADC-VISIT-MATCH");
   expect(await screen.findByRole("button",{name:"合成归档患者"})).toBeTruthy();
+});
+
+test("refreshing deposit status keeps the treatment operation available under its original key", async () => {
+  const keys: string[] = [];
+  vi.stubGlobal("fetch", async (path: string, init: RequestInit) => {
+    const reply = (data: unknown) => new Response(JSON.stringify({ data }));
+    if (path.endsWith("/csrf")) return reply({ csrf_token: "synthetic" });
+    if (path.endsWith("/clinical-context")) return reply(null);
+    if (path.endsWith("/catalog/treatments")) return reply({items:[
+      {treatment_type_id:"1", treatment_name:"合成检查", standard_unit:"次", active:true},
+    ]});
+    if (path.endsWith("/clinical/materials")) return reply({items:[]});
+    if (path.endsWith("/treatment-items")) {
+      keys.push(new Headers(init.headers).get("Idempotency-Key") ?? "");
+      if (keys.length === 1) throw Error("Synthetic response lost");
+      return reply({item_id:"2"});
+    }
+    return reply({visit_id:"21", main_dentist_id:"9", appointment_id:"15", appointment_no:"ADC-21", status:"IN_PROGRESS",
+      started_at:"2030-10-17T10:00:00+08:00", treatment_items:[], estimated_amount:"0.00", planned_treatment_type_id:"1",
+      refund:{status:"PENDING", amount:"50.00", refund_id:"8"}});
+  });
+  render(<VisitDetail id="21" open={() => {}} />);
+  const save = await screen.findByRole("button",{name:"保存实际项目"});
+  await waitFor(() => expect((save as HTMLButtonElement).disabled).toBe(false));
+  fireEvent.click(save);
+  await screen.findByRole("button",{name:"核对原办理结果"});
+  fireEvent.click(screen.getByRole("button",{name:"核对预约金结果"}));
+  await screen.findByRole("heading",{name:"记录实际治疗"});
+  fireEvent.click(await screen.findByRole("button",{name:"核对原办理结果"}));
+  await waitFor(() => expect(keys).toHaveLength(2));
+  expect(keys[0]).toBeTruthy();
+  expect(keys[1]).toBe(keys[0]);
 });

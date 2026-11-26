@@ -23,6 +23,7 @@ export function VisitDetail({ id, open, returnTo = "/clinical" }: { id: string; 
   const [ending, setEnding] = useState<"finish" | "terminate">("finish");
   const [reason, setReason] = useState("");
   const action = useAction();
+  const treatmentAction = useAction();
 
   function close(event: FormEvent) {
     event.preventDefault();
@@ -80,7 +81,7 @@ export function VisitDetail({ id, open, returnTo = "/clinical" }: { id: string; 
         </li>)}</ul> : <p>暂无实际耗材记录。</p>}
       </section>
       {ongoing && <>
-        <TreatmentForm visit={current} initialProject={nextProject} onChange={project => {
+        <TreatmentForm visit={current} action={treatmentAction} initialProject={nextProject} onChange={project => {
           setNextProject(project); setSequence(value => value + 1);
         }} />
         <section className="schedule-panel">
@@ -95,7 +96,8 @@ export function VisitDetail({ id, open, returnTo = "/clinical" }: { id: string; 
               {ending === "terminate" && <label>中止原因<textarea required value={reason} onChange={event => setReason(event.target.value)} /></label>}
             </fieldset>
             {ending === "finish" && !current.treatment_items.length && <p>登记至少一项实际治疗后可正常结束。</p>}
-            <button className="button primary" disabled={action.busy || action.unknown || (ending === "finish" && !current.treatment_items.length)}>
+            <button className="button primary" disabled={action.busy || action.unknown || treatmentAction.busy || treatmentAction.unknown
+              || (ending === "finish" && !current.treatment_items.length)}>
               {ending === "finish" ? "确认正常结束" : "确认中止并交接结算"}
             </button>
           </form>

@@ -128,6 +128,10 @@ class BillingContractTests(TestCase):
         self.assertEqual(self.other_store.get(route, HTTP_X_ADC_QUEUE_SEARCH=quote(patient.phone)).json()["data"]["items"], [])
         self.assertEqual(self.other_store.get(route, {"clinic_id": "1"}).status_code, 403)
         self.assertEqual(self.dentist.get(route, HTTP_X_ADC_QUEUE_SEARCH=quote(patient.phone)).status_code, 403)
+        patient.phone = "1234"
+        patient.save(update_fields=("phone",))
+        short, = self.front.get(route, HTTP_X_ADC_QUEUE_SEARCH="1234").json()["data"]["items"]
+        self.assertIsNone(short["patient_display"]["phone_tail"])
 
     def test_queue_uses_a_filter_bound_cursor_and_keeps_every_record_once(self):
         for index in range(21):

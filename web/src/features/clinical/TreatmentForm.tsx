@@ -1,7 +1,7 @@
 import { FormEvent, useState } from "react";
 import { ActionFeedback } from "../../shared/ActionFeedback";
 import { money } from "../../shared/format";
-import { useAction } from "../../shared/useAction";
+import type { useAction } from "../../shared/useAction";
 import { useRead } from "../../shared/useRead";
 import { Visit } from "./clinicalTypes";
 
@@ -9,7 +9,9 @@ type Project = { treatment_type_id: string; treatment_name: string; standard_uni
 type MaterialOption = { material_id: string; material_name: string; standard_unit: string; cost_references: string[] };
 type MaterialUse = { material_id: string; quantity: string; cost_evidence_ref: string };
 
-export function TreatmentForm({ visit, onChange, initialProject }: { visit: Visit; onChange: (project?: string) => void; initialProject?: string }) {
+export function TreatmentForm({ visit, action, onChange, initialProject }: {
+  visit: Visit; action: ReturnType<typeof useAction>; onChange: (project?: string) => void; initialProject?: string;
+}) {
   const projects = useRead<{ items: Project[] }>("/catalog/treatments");
   const materials = useRead<{ items: MaterialOption[] }>("/clinical/materials");
   const selected = projects.data?.items.filter(row => row.active) ?? [];
@@ -21,7 +23,6 @@ export function TreatmentForm({ visit, onChange, initialProject }: { visit: Visi
   const [tooth, setTooth] = useState("");
   const [additional, setAdditional] = useState(false);
   const [usage, setUsage] = useState<MaterialUse[]>([]);
-  const action = useAction();
   const locked = action.unknown || action.busy;
   const project = selected.find(row => row.treatment_type_id === item);
   const requiresConsent = additional || item !== visit.planned_treatment_type_id;

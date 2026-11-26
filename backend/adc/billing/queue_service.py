@@ -111,7 +111,7 @@ def queue_data(request):
             "visit_id": str(visit_id), "appointment_no": appointment_no,
             "clinic_id": str(clinic_id), "clinic_name": name, "ended_at": ended.isoformat(),
             "status": visit_status, "invoice_id": str(invoice_id) if invoice_id else None, "invoice_no": invoice_no,
-            "patient_display": {"name": patient, "phone_tail": digits[-4:] if len(digits) >= 4 else None},
+            "patient_display": {"name": patient, "phone_tail": digits[-4:] if len(digits) > 4 else None},
             "billing_state": billing_state,
             "outstanding": format(outstanding, ".2f") if outstanding is not None else None,
             "refund_remaining": format(max(refund_due - pending_refund, 0), ".2f") if refund_due else "0.00",

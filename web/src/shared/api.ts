@@ -28,6 +28,15 @@ export function advanceSession() {
   sessionGeneration += 1;
 }
 
+export function captureScope() {
+  const generation = sessionGeneration;
+  return () => generation === sessionGeneration;
+}
+
+function expiredScope() {
+  return new ApiError(409, { code: "SESSION_CHANGED", message: "工作范围已变更，请核对原操作结果。" });
+}
+
 async function send<T>(path: string, details: RequestDetails, generation: number, csrf?: string): Promise<T> {
   const { method = "GET", body, actionKey, signal } = details;
   const headers = new Headers({ Accept: "application/json" });
@@ -49,8 +58,10 @@ async function send<T>(path: string, details: RequestDetails, generation: number
       message: read ? "连接中断，请重试查询。" : "办理结果待核对，请先查询原操作。",
     }, actionKey);
   }
+  if (generation !== sessionGeneration && !path.startsWith("/auth/")) throw expiredScope();
   if (response.status === 204) return undefined as T;
   const payload = await response.json().catch(() => null);
+  if (generation !== sessionGeneration && !path.startsWith("/auth/")) throw expiredScope();
   const hasData = payload && typeof payload === "object" && "data" in payload;
   if (!response.ok || !hasData) {
     if (!signal?.aborted && generation === sessionGeneration && !path.startsWith("/auth/")) {
@@ -76,9 +87,7 @@ export async function request<T>(path: string, details: RequestDetails = {}): Pr
   const generation = sessionGeneration;
   if (!details.method || details.method === "GET") return send<T>(path, details, generation);
   const { csrf_token } = await send<{ csrf_token: string }>("/auth/web/csrf", { signal: details.signal }, generation);
-  if (generation !== sessionGeneration) {
-    throw new ApiError(401, { code: "SESSION_CHANGED", message: "登录状态已变更，请重新核对后办理。" });
-  }
+  if (generation !== sessionGeneration && !path.startsWith("/auth/")) throw expiredScope();
   return send<T>(path, details, generation, csrf_token);
 }
 

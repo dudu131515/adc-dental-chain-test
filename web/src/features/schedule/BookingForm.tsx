@@ -1,6 +1,7 @@
 import { FormEvent, useEffect, useRef, useState } from "react";
 import { ActionFeedback } from "../../shared/ActionFeedback";
-import { ApiError, request } from "../../shared/api";
+import { ApiError } from "../../shared/api";
+import { useApiRequest } from "../../shared/ApiTransport";
 import { StaffIdentity } from "../../shared/AppShell";
 import { dateTime, errorMessage, money } from "../../shared/format";
 import { useAction } from "../../shared/useAction";
@@ -40,7 +41,7 @@ async function fingerprint(key: string, payload: object) {
   return Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, "0")).join("");
 }
 
-async function lookupHold(attempt: HoldAttempt) {
+async function lookupHold(request: ReturnType<typeof useApiRequest>, attempt: HoldAttempt) {
   const { clinic_id, patient_id } = attempt.payload;
   try {
     return await request<Hold>("/holds/by-action?" + new URLSearchParams({ clinic_id, patient_id }), { actionKey: attempt.key });
@@ -84,6 +85,7 @@ function depositFromHold(hold: Hold): Payment {
 function DepositStep({ hold, resumed, onOpen, onReset }: {
   hold: Hold; resumed: boolean; onOpen: (id: string) => void; onReset: (keep: boolean) => void;
 }) {
+  const request = useApiRequest();
   const [payment, setPayment] = useState<Payment>(() => depositFromHold(hold));
   const [clockOffset] = useState(() => Date.parse(hold.server_time) - Date.now());
   const [clock, setClock] = useState(Date.now);
@@ -111,7 +113,7 @@ function DepositStep({ hold, resumed, onOpen, onReset }: {
       if (!controller.signal.aborted) { setVerified(false); setFault(errorMessage(error)); }
     }).finally(() => { if (!controller.signal.aborted) setReading(false); });
     return () => controller.abort();
-  }, [base, read]);
+  }, [base, read, request]);
 
   function release() {
     action.execute<Hold>(claim + "/release", {}, result => {
@@ -172,6 +174,7 @@ export function BookingForm(props: BookingProps) {
 }
 
 function BookingWorkflow({ identity, clinic, date, onAppointment, initialPatient, preference, storageKey }: BookingProps & { storageKey: string }) {
+  const request = useApiRequest();
   const [text, setText] = useState("");
   const [criteria, setCriteria] = useState<string>();
   const [patient, setPatient] = useState<Patient | undefined>(initialPatient);
@@ -208,12 +211,11 @@ function BookingWorkflow({ identity, clinic, date, onAppointment, initialPatient
   const requiresEstimate = selected?.default_slot_minutes === null;
   const clinicName = identity.clinics.find(row => row.clinic_id === clinic)?.name;
 
-  function findOptions(event: FormEvent) {
-    event.preventDefault();
+  function findOptions(time: string) {
     const params = new URLSearchParams({ clinic_id: clinic, date, treatment_type_id: project });
     if (dentist) params.set("dentist_id", dentist);
     if (requiresEstimate) { params.set("estimated_minutes", minutes); params.set("estimate_evidence", evidence); }
-    if (preferred) params.set("preferred_start_at", date + "T" + preferred + ":00+08:00");
+    if (time) params.set("preferred_start_at", date + "T" + time + ":00+08:00");
     setCandidate(undefined); setQuery("/booking/options?" + params); setChange(value => value + 1);
   }
 
@@ -239,7 +241,7 @@ function BookingWorkflow({ identity, clinic, date, onAppointment, initialPatient
   function submitHold(record: HoldAttempt, payload: object, recovering: boolean) {
     let attemptedWrite = !recovering;
     action.execute<Hold>("/holds", payload, result => complete(record, result, !attemptedWrite), async () => {
-      const result = await lookupHold(record);
+      const result = await lookupHold(request, record);
       attemptedWrite = !result;
       return result;
     }, {
@@ -260,7 +262,7 @@ function BookingWorkflow({ identity, clinic, date, onAppointment, initialPatient
     setChecking(true); setRecoveryFault(""); setCanRetry(false);
     setOriginal(attempt);
     try {
-      const result = await lookupHold(attempt);
+      const result = await lookupHold(request, attempt);
       if (result) complete(attempt, result, true);
       else if (attempt.confirmedHold) setRecoveryFault("当前无法查询原占位，请核对门店权限后重试。");
       else setCanRetry(true);
@@ -356,7 +358,7 @@ function BookingWorkflow({ identity, clinic, date, onAppointment, initialPatient
       {patients.data?.items.length === 0 && <p>没有找到本店患者。</p>}
       {!locked && <RegisterPatient clinic={clinic} onSaved={setPatient} />}
       {patient && <p>已选 {patient.full_name} · {patient.patient_no}</p>}
-      <form className="schedule-form" onSubmit={findOptions}>
+      <form className="schedule-form" onSubmit={event => { event.preventDefault(); findOptions(preferred); }}>
         <fieldset className="record-fields" disabled={locked}>
           <label>主诊项目<select required value={project} onChange={event => { setProject(event.target.value); setQuery(undefined); setCandidate(undefined); }}>
             <option value="">选择项目</option>
@@ -377,7 +379,12 @@ function BookingWorkflow({ identity, clinic, date, onAppointment, initialPatient
       </form>
       {(catalog.fault || dentists.fault || options.fault) && <p className="error-text" role="alert">{catalog.fault || dentists.fault || options.fault}</p>}
       {options.loading && <p role="status">正在核对资格、班次和牙椅…</p>}
-      {options.data && !options.data.items.length && <p>没有符合条件的时段。</p>}
+      {options.data && !options.data.items.length && <div className="schedule-toolbar">
+        <p>没有符合条件的时段。</p>
+        {preferred && <button className="button" disabled={locked} onClick={() => { setPreferred(""); findOptions(""); }}>
+          改查当天其他时段
+        </button>}
+      </div>}
       <ul className="compact-list">{options.data?.items.map(row => <li key={row.shift_id + row.start_at}>
         <button className="button" aria-pressed={candidate === row} disabled={locked} onClick={() => setCandidate(row)}>
           {localTime(row.start_at)}–{localTime(row.end_at)} · {row.dentist_name}

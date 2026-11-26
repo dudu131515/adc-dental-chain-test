@@ -166,3 +166,23 @@ test("a pure access administrator has special authorization without an inferred 
   expect(screen.queryByText("总部管理人员", {exact:true})).toBeNull();
   expect(screen.queryByRole("button", {name:/门诊运营|收费与日结/})).toBeNull();
 });
+
+test("a delayed action from a previous clinic does not return the user to its details", async () => {
+  const session = {
+    account_id: "2", employee_id: "2", category: "staff", capabilities: ["FRONT_DESK"],
+    clinics: [{ clinic_id: "1", name: "中心门诊" }, { clinic_id: "2", name: "滨江门诊" }],
+    role_clinic_ids: { FRONT_DESK: ["1", "2"] },
+  };
+  vi.stubGlobal("fetch", async (url: string) => new Response(JSON.stringify({ data: url.endsWith("/auth/me") ? session : {} })));
+  let complete: () => void = () => {};
+  render(<AppShell renderWorkArea={area => <button onClick={() => { complete = () => area.open("/billing/invoices/7"); }}>
+    继续办理 {area.clinicId}
+  </button>} />);
+  const selector = await screen.findByRole("combobox", { name: "工作门店" });
+  fireEvent.change(selector, { target: { value: "1" } });
+  fireEvent.click(screen.getByRole("button",{name:"继续办理 1"}));
+  fireEvent.change(selector, { target: { value: "2" } });
+  await act(async () => complete());
+  expect(window.location.pathname).toBe("/dashboard");
+  expect(screen.getByRole("button",{name:"继续办理 2"})).toBeTruthy();
+});

@@ -11,7 +11,7 @@ type DraftStatus = AllergyReview["status"] | "";
 type DraftRow = { id: number; allergen: string; notes: string };
 
 export function AllergyHistory({ events }: { events: AllergyReview[] }) {
-  if (!events.length) return <p>暂无过敏核对记录。</p>;
+  if (!events.length) return <p>本店暂无过敏核对记录。</p>;
   return <details className="allergy-history">
     <summary>查看过敏核对记录（{events.length}）</summary>
     <ol>{events.map(event => <li key={event.review_id}>
@@ -119,8 +119,8 @@ export function AllergySection({ context, onReload }: { context: ClinicalContext
     {state.status === "KNOWN" && <ul className="allergen-list">{context.allergies.map(row => <li key={row.allergen}>
       <strong>{row.allergen}</strong>{row.notes && <span>{row.notes}</span>}
     </li>)}</ul>}
-    {latest && <p>最近核对 · {dateTime(latest.reviewed_at)} · {latest.dentist_name}</p>}
-    {state.status === "KNOWN" && !latest && <p>既有登记，尚无核对时间。</p>}
+    {latest && <p>本店最近核对 · {dateTime(latest.reviewed_at)} · {latest.dentist_name}</p>}
+    {state.status === "KNOWN" && !latest && <p>过敏已登记，本店暂无核对时间。</p>}
     <AllergyHistory events={state.history} />
     {saved && !editing && <p role="status">已保存本次过敏核对。</p>}
     {canEdit && (editing ? <AllergyEditor context={context} onSaved={() => {

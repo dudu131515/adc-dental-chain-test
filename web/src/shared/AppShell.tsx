@@ -52,6 +52,7 @@ export function AppShell({ renderWorkArea }: { renderWorkArea?: (area: WorkArea)
   const filterHistory = useRef<Record<string, string>>({});
   const authRead = useRef<AbortController>(null);
   const session = useRef<StaffIdentity>(undefined);
+  const workspaceGeneration = useRef(0);
   const menuToggle = useRef<HTMLButtonElement>(null);
   function open(path: string, replace = false) {
     filterHistory.current[filterKey(window.location.pathname)] = window.location.search;
@@ -62,6 +63,11 @@ export function AppShell({ renderWorkArea }: { renderWorkArea?: (area: WorkArea)
     setLocation(currentUrl());
     setMenu(false);
   }
+  function invalidateWorkspace() {
+    workspaceGeneration.current += 1;
+    advanceSession();
+  }
+
   function clearWorkspace() {
     setMenu(false);
     setDisclosures({});
@@ -70,7 +76,7 @@ export function AppShell({ renderWorkArea }: { renderWorkArea?: (area: WorkArea)
 
   function endSession() {
     authRead.current?.abort();
-    advanceSession();
+    invalidateWorkspace();
     session.current = undefined;
     setIdentity(null);
     setClinicId("");
@@ -83,7 +89,7 @@ export function AppShell({ renderWorkArea }: { renderWorkArea?: (area: WorkArea)
     const previous = session.current;
     const changed = !previous || staffScope(previous) !== staffScope(next);
     if (!changed) return;
-    advanceSession();
+    invalidateWorkspace();
     clearWorkspace();
     session.current = next;
     const initialClinic = rememberedClinic(next);
@@ -108,7 +114,7 @@ export function AppShell({ renderWorkArea }: { renderWorkArea?: (area: WorkArea)
         if (controller.signal.aborted) return;
         if (error instanceof ApiError && (error.status === 401 || error.status === 403)) endSession();
         else {
-          advanceSession();
+          invalidateWorkspace();
           session.current = undefined;
           clearWorkspace();
           setIdentity(undefined);
@@ -159,6 +165,7 @@ export function AppShell({ renderWorkArea }: { renderWorkArea?: (area: WorkArea)
     if (event.button || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
     event.preventDefault(); open(path);
   }
+  const scopeGeneration = workspaceGeneration.current;
   const scope = identity ? staffScope(identity) + ":" + clinicId : "";
   const alertQuery = new URLSearchParams({date:localDay()});
   if (clinicId) alertQuery.set("clinic_id", clinicId);
@@ -194,6 +201,8 @@ export function AppShell({ renderWorkArea }: { renderWorkArea?: (area: WorkArea)
     {fault && <button className="button primary" onClick={() => setAttempt(attempt + 1)}>重试</button>}</main>;
 
   function changeClinic(next: string) {
+    if (next === clinicId) return;
+    invalidateWorkspace();
     setClinicId(next);
     try {
       sessionStorage.setItem("adc:work-clinic:" + identity!.account_id, next);
@@ -267,7 +276,7 @@ export function AppShell({ renderWorkArea }: { renderWorkArea?: (area: WorkArea)
         <span className="breadcrumb-origin">管理中心</span><span className="breadcrumb-divider">/</span><strong>{activeTab?.label || chosen?.label || "员工工作空间"}</strong></div>
       <div className="topbar-controls">
         {identity.clinics.length > 0 && <div className="scope-control"><Icon name="clinic" size={16}/>
-          {identity.clinics.length > 1 ? <select aria-label="工作门店" value={clinicId} onChange={e => changeClinic(e.target.value)}>
+          {identity.clinics.length > 1 ? <select aria-label="工作门店" disabled={loggingOut} value={clinicId} onChange={e => changeClinic(e.target.value)}>
             <option value="">全部授权门店</option>
             {identity.clinics.map(clinic => <option key={clinic.clinic_id} value={clinic.clinic_id}>{clinic.name}</option>)}
           </select> : <span>{identity.clinics[0].name}</span>}</div>}
@@ -281,7 +290,9 @@ export function AppShell({ renderWorkArea }: { renderWorkArea?: (area: WorkArea)
           {tabs.map(tab => <a key={tab.path} href={tab.path} aria-current={tab === activeTab ? "page" : undefined}
             onClick={event => navigate(event, tab.path)}>{tab.label}</a>)}
         </nav>}
-        {renderWorkArea ? renderWorkArea({section: chosen.path, path, identity, clinicId, open}) : <h1>{chosen.label}</h1>}
+        {renderWorkArea ? renderWorkArea({section: chosen.path, path, identity, clinicId, open: target => {
+          if (scopeGeneration === workspaceGeneration.current) open(target);
+        }}) : <h1>{chosen.label}</h1>}
       </div> : <section className="schedule-panel"><h1>当前页面无权访问</h1><button className="button" onClick={() => open("/dashboard")}>返回首页</button></section>}
     </main>
   </div>;

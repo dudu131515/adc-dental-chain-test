@@ -1,3 +1,5 @@
+import { advanceSession } from "../src/shared/api";
+import { useAction } from "../src/shared/useAction";
 import { act, cleanup, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, expect, test, vi } from "vitest";
 import { useRead } from "../src/shared/useRead";
@@ -44,4 +46,21 @@ test("a late response cannot restore data after navigating away and back to the 
   await waitFor(() => expect(result.current.data?.name).toBe("当前获授权患者"));
   await act(async () => finish(success("过期患者资料")));
   expect(result.current.data?.name).toBe("当前获授权患者");
+});
+
+test("recovering after losing scope cannot turn an old lookup into a fresh write", async () => {
+  const fetcher = vi.fn(async (path: string) => {
+    if (path.includes("/csrf")) return new Response(JSON.stringify({ data: { csrf_token: "synthetic" } }));
+    throw Error("Synthetic connection interrupted");
+  });
+  vi.stubGlobal("fetch", fetcher);
+  const { result } = renderHook(() => useAction());
+  let resolveLookup: (value: unknown) => void = () => {};
+  const lookup = () => new Promise(resolve => { resolveLookup = resolve; });
+  act(() => result.current.execute("/visits/31/invoice", {}, () => {}, lookup));
+  await waitFor(() => expect(result.current.unknown).toBe(true));
+  act(() => { void result.current.retry(); });
+  advanceSession();
+  await act(async () => resolveLookup(undefined));
+  expect(fetcher.mock.calls.filter(([path]) => path.endsWith("/visits/31/invoice"))).toHaveLength(1);
 });

@@ -1,7 +1,7 @@
 from django.db import transaction
 from rest_framework import serializers
 
-from adc.booking.models import Appointment
+from adc.booking.models import Appointment, AppointmentChange
 from adc.clinical.models import PatientAllergy, Visit
 from adc.common.http import ApiProblem
 from adc.common.serializers import ID
@@ -61,30 +61,50 @@ def current_status(rows, last_event):
     return "UNVERIFIED"
 
 
+def scoped_reviews(events, clinic_id):
+    # Older reviews predate the provenance fields. The next recorded claim change
+    # identifies the appointment's claim when an older event was recorded.
+    legacy_ids = {event.after_value["appointment_id"] for event in events if "clinic_id" not in event.after_value}
+    current = {str(pk): clinic for pk, clinic in Appointment.objects.filter(pk__in=legacy_ids)
+               .values_list("pk", "claim__clinic_id")}
+    changes = {}
+    for pk, changed_at, old_clinic in AppointmentChange.objects.filter(
+        appointment_id__in=legacy_ids, new_claim_id__isnull=False,
+    ).order_by("changed_at", "pk").values_list("appointment_id", "changed_at", "old_claim__clinic_id"):
+        changes.setdefault(str(pk), []).append((changed_at, old_clinic))
+
+    local = []
+    for event in events:
+        fields = event.after_value
+        origin = fields.get("clinic_id")
+        if "clinic_id" not in fields:
+            appointment_id = fields["appointment_id"]
+            origin = next((old for changed_at, old in changes.get(appointment_id, ())
+                           if changed_at >= event.occurred_at), current.get(appointment_id))
+        if origin is not None and str(origin) == str(clinic_id):
+            local.append(review_summary(event))
+    return local
+
+
 @transaction.atomic
 def allergy_context(patient_id, clinic_id):
     lock_patient(patient_id)
     rows = list(PatientAllergy.objects.filter(patient_id=patient_id).order_by("allergen_name"))
     history = list(reviews(patient_id))
     latest = history[0] if history else None
-    appointment_ids = {event.after_value["appointment_id"] for event in history}
-    local_ids = {str(pk) for pk in Appointment.objects.filter(
-        pk__in=appointment_ids, claim__clinic_id=clinic_id,
-    ).values_list("pk", flat=True)}
     return {
         "allergies": [{"allergen": row.allergen_name, "notes": row.notes} for row in rows],
         "allergy_review": {
             "status": current_status(rows, latest), "version": str(latest.pk if latest else 0),
-            "history": [review_summary(event) for event in history if event.after_value["appointment_id"] in local_ids],
+            "history": scoped_reviews(history, clinic_id),
         },
     }
 
 
 def visit_review_history(visit):
-    return [
-        review_summary(event) for event in reviews(visit.appointment.claim.patient_id)
-        .filter(after_value__appointment_id=str(visit.appointment_id))
-    ]
+    claim = visit.appointment.claim
+    events = list(reviews(claim.patient_id).filter(after_value__appointment_id=str(visit.appointment_id)))
+    return scoped_reviews(events, claim.clinic_id)
 
 
 def replace_allergies(patient_id, rows, entries):
@@ -134,7 +154,10 @@ def save_review(principal, original, fields, operation):
     rows = list(PatientAllergy.objects.filter(patient_id=claim.patient_id))
     before = {"status": current_status(rows, latest)}
     changes = replace_allergies(claim.patient_id, rows, fields["allergies"])
-    after = {"status": fields["status"], "appointment_id": str(booking.pk), **changes}
+    after = {
+        "status": fields["status"], "appointment_id": str(booking.pk),
+        "clinic_id": str(claim.clinic_id), "claim_id": str(claim.pk), **changes,
+    }
     # Keep clinical text in A.11; the audit records the actor, state and affected row IDs.
     event = record_event(
         account_id=principal.account_id, action=REVIEW_ACTION, target_type="patient", target_id=claim.patient_id,

@@ -5,7 +5,7 @@ from django.test import Client, SimpleTestCase, TestCase, override_settings
 from django.urls import resolve
 from django.utils import timezone
 
-from adc.booking.models import Appointment, DepositPayment, SlotClaim
+from adc.booking.models import Appointment, AppointmentChange, DepositPayment, SlotClaim
 from adc.catalog.models import TreatmentType
 from adc.clinical.models import PatientAllergy, Visit
 from adc.identity.models import AuditLog, EmployeeRole
@@ -119,6 +119,37 @@ class AllergyReviewTests(TestCase):
         evidence = str((log.before_value, log.after_value))
         for sensitive in ("合成甲", "合成乙", "旧说明", "新说明"):
             self.assertNotIn(sensitive, evidence)
+
+
+    def test_review_provenance_survives_a_cross_store_claim_transfer(self):
+        event = self.review("0", "KNOWN", [{"allergen": "合成过敏原"}], "before-transfer")["data"]
+        old = self.booking.claim
+        grant = EmployeeRole.objects.get(employee_id=1, role__role_code="DENTIST", scope_clinic_id=1)
+        EmployeeRole.objects.get_or_create(employee_id=1, role_id=grant.role_id, scope_clinic_id=2)
+        start = old.start_at + timedelta(hours=2)
+        end = start + timedelta(minutes=30)
+        shift = Shift.objects.create(clinic_id=2, dentist_id=1, start_at=start, end_at=end, status="PUBLISHED")
+        new = SlotClaim.objects.create(
+            clinic_id=2, dentist_id=1, patient_id=1, shift=shift, requested_treatment_type=self.treatment,
+            start_at=start, end_at=end, status="CONFIRMED",
+        )
+        old.status = "RELEASED"
+        old.save(update_fields=("status",))
+        self.booking.claim, self.booking.status = new, "CONFIRMED"
+        self.booking.save(update_fields=("claim", "status"))
+        AppointmentChange.objects.create(appointment=self.booking, change_type="RESCHEDULE", old_claim=old, new_claim=new)
+        follow_up = self.make_booking(3)
+        audit = AuditLog.objects.get(pk=event["review_id"])
+        for old_format in (False, True):
+            if old_format:
+                audit.after_value.pop("clinic_id", None)
+                audit.after_value.pop("claim_id", None)
+                audit.save(update_fields=("after_value",))
+            context = self.context(self.booking)
+            self.assertEqual(context["allergy_review"]["history"], [])
+            self.assertEqual(context["allergy_review"]["version"], event["review_id"])
+            self.assertEqual(context["allergies"][0]["allergen"], "合成过敏原")
+            self.assertEqual(self.context(follow_up)["allergy_review"]["history"], [event])
 
     def test_invalid_payloads_leave_records_and_history_untouched(self):
         invalid = [

@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { ApiError } from "./api";
+import { ApiError, captureScope } from "./api";
 import { useApiRequest } from "./ApiTransport";
 import { errorMessage } from "./format";
 
@@ -42,11 +42,14 @@ export function useAction() {
   ) {
     if (current.current) return;
     const actionKey = options?.actionKey ?? crypto.randomUUID();
+    const activeScope = captureScope();
     rejected.current = options?.onRejection;
     current.current = async recovery => {
+      if (!activeScope()) return;
       const existing = recovery && lookup ? await lookup(actionKey) : undefined;
+      if (!activeScope()) return;
       const result = existing ?? await request<T>(path, { method: "POST", body, actionKey });
-      complete(result);
+      if (activeScope()) complete(result);
     };
     options?.onStart?.();
     void submit(Boolean(options?.recover));
