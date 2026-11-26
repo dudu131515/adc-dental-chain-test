@@ -7,7 +7,9 @@ import { dateTime, errorMessage, money } from "../../shared/format";
 const path = "/reports/operations/assistant";
 const labels = {
   attendance_rate: "实际就诊率", unprocessed: "到期未处置",
-  net_received: "诊疗净实收", deposit_refund: "预约金退还规则", report_rules: "预约统计口径",
+  net_received: "诊疗净实收", revenue: "营业收入", material_cost: "诊疗成本", operating_cost: "经营费用",
+  net_profit: "净利润", visits: "就诊数量", workload: "牙医工作量", chair_utilization: "诊椅利用率",
+  business_change: "收入与成本变化", deposit_refund: "预约金退还规则", report_rules: "预约统计口径",
 } as const;
 const moneyLabels = { received: "实收", refunded: "退款", net_received: "净实收" } as const;
 const moneyKeys = ["received", "refunded", "net_received"] as const;
@@ -23,10 +25,12 @@ type AssistantOptions = { clinics: Clinic[]; suggestions: Suggestion[] };
 type Rate = { numerator: number; denominator: number; value: string | null; availability: string };
 type MoneyKey = keyof typeof moneyLabels;
 type MoneyValues = Record<MoneyKey, string>;
-type Row = { clinic_id: string | null; attendance_rate?: Rate; unprocessed?: Rate } & Partial<MoneyValues>;
+type Row = { clinic_id: string | null; attendance_rate?: Rate; unprocessed?: Rate; display?: string;
+  display_label?: string; value?: string | number | null; dentist_id?: string; dentist_name?: string } & Partial<MoneyValues>;
 type Period = { date_from: string; date_to: string; as_of: string; reference: string; metrics: Row[];
   scope: { clinic_ids: string[]; dentist_ids: string[] } };
-type Change = { clinic_id: string | null; percentage_points?: string | null; availability?: "MISSING" | "NOT_APPLICABLE" } & Partial<MoneyValues>;
+type Change = { clinic_id: string | null; percentage_points?: string | null; display?: string;
+  availability?: "MISSING" | "NOT_APPLICABLE" } & Partial<MoneyValues>;
 type Step = { id: "change_period" | "unprocessed_details" | "money_breakdown" | "report_rules"; label: string; period_index?: number };
 type PendingAnalysis = { key: string; body?: Record<string, unknown>; prompt?: string };
 type Result = {
@@ -284,8 +288,13 @@ export function AssistantPanel({ accountId, context, openOriginal, workspace = f
         </div>
         <p className="muted">{period.scope.clinic_ids.map(clinicName).join("、")}
           {period.scope.dentist_ids.length > 0 && " · 牙医 " + period.scope.dentist_ids.join("、")}</p>
-        <div className="report-metrics">{period.metrics.map(row => {
+        <div className="report-metrics">{period.metrics.map((row, index) => {
           const rate = row.attendance_rate ?? row.unprocessed;
+          if (row.display) return <div className="report-metric" key={(row.clinic_id ?? "total") + ":" + (row.dentist_id ?? "") + ":" + index}>
+            <span>{clinicName(row.clinic_id)}{row.dentist_name ? " · " + row.dentist_name : ""}</span>
+            <strong className="assistant-display">{row.display}</strong>
+            {row.display_label && <small>{row.display_label}</small>}
+          </div>;
           return <div className="report-metric" key={row.clinic_id ?? "total"}>
             <span>{clinicName(row.clinic_id)}</span>
             {rate ? <>
@@ -297,11 +306,12 @@ export function AssistantPanel({ accountId, context, openOriginal, workspace = f
       </section>)}
       {result.comparison && <section aria-label="两期差异">
         <h4>两期差异</h4>
-        <ul className="compact-list">{result.comparison.changes.map(change => <li key={change.clinic_id ?? "total"}>
-          <strong>{clinicName(change.clinic_id)}</strong>
-          {"percentage_points" in change ? <span>{change.percentage_points == null
-            ? (change.availability === "MISSING" ? "缺少数据" : "不适用") : signedNumber(change.percentage_points) + " 个百分点"}</span>
-            : moneyKeys.map(key => <span key={key}>{moneyLabels[key]} {signedNumber(change[key] ?? "0.00")} 元</span>)}
+        <ul className="compact-list">{result.comparison.changes.map((change, index) => <li key={(change.clinic_id ?? "total") + ":" + index}>
+          <strong>{clinicName(change.clinic_id)}{change.display && "display" in change && !change.percentage_points ? " · " + (change.display ?? "") : ""}</strong>
+          {change.display && "percentage_points" in change && <span>{change.display}</span>}
+          {!change.display && "percentage_points" in change && <span>{change.percentage_points == null
+            ? (change.availability === "MISSING" ? "缺少数据" : "不适用") : signedNumber(change.percentage_points) + " 个百分点"}</span>}
+          {!change.display && !("percentage_points" in change) && moneyKeys.map(key => <span key={key}>{moneyLabels[key]} {signedNumber(change[key] ?? "0.00")} 元</span>)}
         </li>)}</ul>
       </section>}
       <ul className="compact-list">{result.observations.map(observation => <li key={observation.id}>

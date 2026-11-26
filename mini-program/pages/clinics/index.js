@@ -6,4 +6,8 @@ Page({
   profile: patient.profile,
   book(event) { wx.navigateTo({url: "/pages/booking/index?clinic_id=" + encodeURIComponent(event.currentTarget.dataset.id)}); },
   copy(event) { wx.setClipboardData({data: event.currentTarget.dataset.address}); },
+  call(event) {
+    const phone = event.currentTarget.dataset.phone;
+    if (phone) wx.makePhoneCall({ phoneNumber: String(phone) });
+  },
 });

@@ -5,6 +5,12 @@
   <block wx:if="{{appointment}}">
     <appointment-summary appointment="{{appointment}}" />
     <view class="section">
+      <view class="field-label">门店联系</view>
+      <view class="info-line" wx:if="{{appointment.address}}"><image src="/assets/pin.png" /><text selectable="true">{{appointment.address}}</text></view>
+      <view class="clinic-phone" wx:if="{{appointment.clinicPhone}}"><text selectable="true">电话 {{appointment.clinicPhone}}</text><button bindtap="call">拨打电话</button></view>
+      <view class="form-hint" wx:if="{{!appointment.address && !appointment.clinicPhone}}">请联系预约门店前台核对本次安排。</view>
+    </view>
+    <view class="section">
       <view class="field-label">预约金</view>
       <view wx:if="{{deposit}}">¥{{deposit.amount}} · {{depositLabel}}</view>
       <view wx:if="{{refund}}">退金 ¥{{refund.amount}} · {{refundLabel}}</view>

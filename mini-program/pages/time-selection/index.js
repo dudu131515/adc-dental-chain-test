@@ -1,12 +1,21 @@
 const { request } = require("../../services/api");
-const { localTime, query } = require("../../services/booking");
+const { dateParts, localDate, localTime, query } = require("../../services/booking");
+
+function weekDays(start) {
+  const base = Date.parse(start + "T00:00:00+08:00");
+  return Array.from({ length: 7 }, (_, offset) => {
+    const stamp = base + offset * 86400000;
+    const parts = dateParts(stamp);
+    return { date: localDate(stamp), day: parts.day, weekday: parts.weekday };
+  });
+}
 
 Page({
   data: { slots: [], selected: -1, loading: true },
 
   async onLoad(params) {
     this.params = params;
-    this.setData({ date: params.date });
+    this.setData({ date: params.date, days: weekDays(params.date) });
     try {
       const [clinics, treatments] = await Promise.all([request("/clinics"), request("/catalog/treatments")]);
       this.setData({
@@ -39,6 +48,12 @@ Page({
   },
 
   chooseDate(event) { this.setData({ date: event.detail.value }); this.refresh(); },
+  chooseDay(event) {
+    const date = event.currentTarget.dataset.date;
+    if (date === this.data.date) return;
+    this.setData({ date });
+    this.refresh();
+  },
   pick(event) { this.setData({ selected: event.currentTarget.dataset.index }); },
   confirm() {
     const chosen = this.data.slots[this.data.selected];

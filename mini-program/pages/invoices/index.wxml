@@ -9,8 +9,10 @@
     <view class="state-title">请先完善就诊资料</view><button class="mini-button" bindtap="profile">填写本人资料</button>
   </view>
   <block wx:else>
+    <view class="segmented"><button class="{{section === 'all' ? 'active' : ''}}" bindtap="chooseSection" data-section="all">全部 {{counts.all}}</button><button class="{{section === 'unpaid' ? 'active' : ''}}" bindtap="chooseSection" data-section="unpaid">待缴 {{counts.unpaid}}</button><button class="{{section === 'settled' ? 'active' : ''}}" bindtap="chooseSection" data-section="settled">已结清 {{counts.settled}}</button></view>
     <view wx:if="{{!entries.length}}" class="state">
-      <view class="state-title">暂无诊疗费用单</view><text>门店开立后可在这里查询。</text>
+      <view class="state-title">{{section === 'unpaid' ? '暂无待缴费用' : section === 'settled' ? '暂无已结清账单' : '暂无诊疗费用单'}}</view>
+      <text>{{section === 'all' ? '门店开立后可在这里查询。' : '可切换其他状态查看。'}}</text>
     </view>
     <button wx:for="{{entries}}" wx:key="invoice_id" class="receipt-card" data-id="{{item.invoice_id}}" bindtap="open">
       <view class="between"><view class="field-label">{{item.invoice_no}}</view><text class="badge">{{item.statusLabel}}</text></view>

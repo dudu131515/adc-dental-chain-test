@@ -9,10 +9,20 @@ METRICS = {
     "attendance_rate": "实际就诊率",
     "unprocessed": "到期未处置",
     "net_received": "诊疗净实收",
+    "revenue": "营业收入",
+    "material_cost": "诊疗成本",
+    "operating_cost": "经营费用",
+    "net_profit": "净利润",
+    "visits": "就诊数量",
+    "workload": "牙医工作量",
+    "chair_utilization": "诊椅利用率",
+    "business_change": "收入与成本变化",
     "deposit_refund": "预约金退还规则",
     "report_rules": "预约统计口径",
 }
 POLICY_TOPICS = {"deposit_refund", "report_rules"}
+MONEY_METRICS = {"revenue", "material_cost", "operating_cost", "net_profit"}
+BUSINESS_METRICS = {*MONEY_METRICS, "visits", "workload", "chair_utilization", "business_change"}
 POLICY_VERSION = "ADC 系统规约 · 2026-11-25"
 POLICIES = {
     "FR-602": ("正式预约的归期和共享分母", "按最终时段的本地日期归期，已到期的接诊、患者取消、已核实爽约及未处置预约共用分母。诊所取消另列。"),
@@ -28,12 +38,24 @@ SOURCES_BY_METRIC = {
     "attendance_rate": ("FR-602", "FR-603"), "unprocessed": ("FR-602", "FR-603"),
     "net_received": ("FR-405", "FR-604"), "report_rules": ("FR-602", "FR-603"),
     "deposit_refund": ("FR-208", "FR-207", "FR-304", "FR-210"),
+    **{metric: ("FR-604", "FR-405") for metric in MONEY_METRICS},
+    "visits": ("FR-602", "FR-604"), "workload": ("FR-604", "FR-405"),
+    "chair_utilization": ("FR-604",), "business_change": ("FR-604", "FR-405"),
 }
 QUESTION_METRICS = {
     **{label: metric for metric, label in METRICS.items()},
     "就诊率": "attendance_rate", "到期未处置数": "unprocessed", "净实收": "net_received",
     "预约金退款规则": "deposit_refund", "统计口径": "report_rules",
+    "收入": "revenue", "成本": "material_cost", "费用": "operating_cost", "利润": "net_profit",
+    "接诊量": "visits", "工作量": "workload", "资源利用率": "chair_utilization", "利用率": "chair_utilization",
 }
+SPECIAL_QUESTIONS = (
+    (re.compile(r"(哪家|哪个)诊所.*(经营|表现|利润|收入).*(更好|最好|较好)"), "net_profit"),
+    (re.compile(r"(哪些|哪个|哪家)门店.*(资源|诊椅|利用率).*(低|最低|较少)"), "chair_utilization"),
+    (re.compile(r"(哪些|哪个|哪位)牙医.*(工作量|接诊|工时).*(大|多|高)"), "workload"),
+    (re.compile(r"(近期|最近|本月|这周|本周).*(收入|成本|费用|利润).*(变化|情况|如何)"), "business_change"),
+    (re.compile(r"(本月|当月).*(预约|履约|就诊率).*(情况|如何|怎么样)"), "attendance_rate"),
+)
 DATE_TEXT = r"[0-9]{4}-[0-9]{2}-[0-9]{2}"
 DATE_SPAN = re.compile(rf"从?({DATE_TEXT})(?:至|到|~)({DATE_TEXT})")
 MAX_DAYS = 366
@@ -67,6 +89,18 @@ def selection_data(fields):
 
 def compile_question(question, fields, clinics, today):
     text = re.sub(r"\s+", "", unicodedata.normalize("NFKC", question)).rstrip("?。")
+    for pattern, special_metric in SPECIAL_QUESTIONS:
+        if not pattern.search(text):
+            continue
+        compiled = {**fields, "metric": special_metric}
+        if "本月" in text or "当月" in text:
+            compiled["date_from"] = today.replace(day=1)
+        if special_metric == "business_change" and "comparison_date_from" not in compiled:
+            try:
+                compiled.update(previous_window(compiled["date_from"], compiled["date_to"]))
+            except OverflowError:
+                raise ApiProblem(400, "QUESTION_NEEDS_SELECTION", "请通过选项补全统计期间。") from None
+        return compiled
     metrics = re.compile("|".join(map(re.escape, sorted(QUESTION_METRICS, key=len, reverse=True))))
     clinic_names = {}
     for clinic in clinics:

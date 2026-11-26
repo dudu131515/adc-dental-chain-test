@@ -8,6 +8,10 @@
     <view wx:for="{{entries}}" wx:key="clinic_id" class="section">
       <view class="inline"><view class="icon-box"><image src="/assets/clinic.png" /></view><view class="section-title">{{item.name}}</view></view>
       <view class="info-line" wx:if="{{item.address}}"><image src="/assets/pin.png" /><text selectable="true">{{item.address}}</text></view>
+      <view class="clinic-phone" wx:if="{{item.phone}}">
+        <text selectable="true">电话 {{item.phone}}</text>
+        <button data-phone="{{item.phone}}" bindtap="call">拨打电话</button>
+      </view>
       <view class="button-pair"><button wx:if="{{item.address}}" class="secondary-action" data-address="{{item.address}}" bindtap="copy">复制地址</button><button class="primary-action" bindtap="book" data-id="{{item.clinic_id}}">预约此门店</button></view>
     </view>
   </block>

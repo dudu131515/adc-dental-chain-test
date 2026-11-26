@@ -44,6 +44,7 @@
 .assistant-period { margin: 12px 0; }
 .assistant-period .report-metrics { margin-top: 8px; }
 .assistant-period .report-metric { cursor: default; }
+.assistant-display { font-size: 15px; line-height: 1.5; font-weight: 620; letter-spacing: 0; }
 
 /* Headquarters operating overview */
 .ops-filter-panel { background: linear-gradient(180deg,#fbfdfd 0%,#fff 145px); }

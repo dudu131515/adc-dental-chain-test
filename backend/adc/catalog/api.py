@@ -59,21 +59,18 @@ def treatments(request):
         return success(treatment_projection(treatment, booking=False), status_code=201)
     require_catalog_read(request.user, booking=True)
     booking = request.user.channel == "patient"
-    query = TreatmentType.objects.all()
+    today = timezone.localdate()
+    effective_price = TreatmentPrice.objects.filter(
+        treatment_type_id=OuterRef("pk"), effective_from__lte=today,
+    ).filter(Q(effective_to__isnull=True) | Q(effective_to__gt=today))
+    query = TreatmentType.objects.all().annotate(current_unit_price=Subquery(effective_price.values("unit_price")[:1]))
     if booking:
         query = query.filter(active=True)
-    else:
-        today = timezone.localdate()
-        effective_price = TreatmentPrice.objects.filter(
-            treatment_type_id=OuterRef("pk"), effective_from__lte=today,
-        ).filter(Q(effective_to__isnull=True) | Q(effective_to__gt=today))
-        query = query.annotate(current_unit_price=Subquery(effective_price.values("unit_price")[:1]))
     items = []
     for model in query.order_by("treatment_code"):
         projection = treatment_projection(model, booking=booking)
-        if not booking:
-            current_price = model.current_unit_price
-            projection["current_unit_price"] = format(current_price, ".2f") if current_price is not None else None
+        if model.current_unit_price is not None:
+            projection["current_unit_price"] = format(model.current_unit_price, ".2f")
         items.append(projection)
     return success({
         "items": items,

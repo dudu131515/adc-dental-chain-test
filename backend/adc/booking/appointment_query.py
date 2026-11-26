@@ -87,7 +87,8 @@ def appointment_projection(principal, appointment, *, as_of=None):
     response = {
         "appointment_id": str(appointment.pk), "appointment_no": appointment.appointment_no,
         "claim_id": str(claim.pk), "status": appointment.status, "is_attended": appointment.is_attended,
-        "clinic": {"clinic_id": str(claim.clinic_id), "name": claim.clinic.clinic_name, "address": claim.clinic.postal_address},
+        "clinic": {"clinic_id": str(claim.clinic_id), "name": claim.clinic.clinic_name,
+                   "address": claim.clinic.postal_address, "phone": claim.clinic.phone},
         "dentist": {"dentist_id": str(claim.dentist_id), "name": claim.dentist.full_name},
         "treatment": {"treatment_type_id": str(claim.requested_treatment_type_id), "name": claim.requested_treatment_type.treatment_name},
         "start_at": claim.start_at.isoformat(), "end_at": claim.end_at.isoformat(),

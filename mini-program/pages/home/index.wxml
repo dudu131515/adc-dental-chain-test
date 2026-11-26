@@ -2,6 +2,7 @@
   <view class="hero">
     <image class="hero-tooth" mode="aspectFit" src="/assets/tooth.png" />
     <view class="hero-copy">
+      <view class="hero-brand">ADC 安德鲁牙科</view>
       <view class="hero-date">{{today}}</view>
       <view class="hero-title">预约口腔就诊</view>
       <view class="hero-sub">选择门店、医生与就诊时间</view>
@@ -22,6 +23,7 @@
   <view class="quick-grid">
     <button class="quick-item" bindtap="history"><view class="icon-box blue"><image src="/assets/calendar.png" /></view><text>历史预约</text></button>
     <button class="quick-item" bindtap="receipts"><view class="icon-box sand"><image src="/assets/receipt.png" /></view><text>预约金记录</text></button>
+    <button class="quick-item" bindtap="invoices"><view class="icon-box blue"><image src="/assets/receipt.png" /></view><text>诊疗费用</text></button>
     <button class="quick-item" bindtap="clinics"><view class="icon-box "><image src="/assets/clinic.png" /></view><text>门店地址</text></button>
     <button class="quick-item" bindtap="profile"><view class="icon-box slate"><image src="/assets/user.png" /></view><text>本人资料</text></button>
   </view>

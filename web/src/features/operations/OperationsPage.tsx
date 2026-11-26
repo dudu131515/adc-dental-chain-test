@@ -22,7 +22,7 @@ export function OperationsPage({ identity, clinicId, path, open, showTabs = true
   const sections = [
     { id: "report", label: "经营总览", enabled: canReport },
     { id: "compare", label: "门店对比", enabled: canReport },
-    { id: "assistant", label: "经营智能分析", enabled: canReport },
+    { id: "assistant", label: "经营智能助手", enabled: canReport },
     { id: "expenses", label: "费用管理", enabled: canExpense },
     { id: "quarters", label: "绩效管理", enabled: canQuarter },
   ];

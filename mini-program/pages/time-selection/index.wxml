@@ -1,16 +1,25 @@
 <view class="page">
+  <view class="progress"><text class="done">1 门店与项目</text><view class="line"></view><text class="now">2 医生与时段</text><view class="line"></view><text>3 确认与预约金</text></view>
   <view class="page-title">医生与时段</view>
   <view class="section" wx:if="{{clinic}}">
     <view class="field-label">{{clinic.name}}</view>
-    <view class="form-hint">{{treatment.treatment_name}}</view>
+    <view class="form-hint">{{treatment.treatment_name}}<text wx:if="{{treatment.current_unit_price}}"> · 参考价 ¥{{treatment.current_unit_price}}</text></view>
   </view>
-  <view class="section">
-    <picker mode="date" value="{{date}}" bindchange="chooseDate"><view class="picker-value">{{date}}</view></picker>
+  <scroll-view class="date-strip" scroll-x show-scrollbar="{{false}}">
+    <button wx:for="{{days}}" wx:key="date" class="date-chip {{item.date === date ? 'active' : ''}}"
+      data-date="{{item.date}}" bindtap="chooseDay"><text>{{item.weekday}}</text><strong>{{item.day}}</strong></button>
+  </scroll-view>
+  <view class="section compact">
+    <view class="between"><text class="muted">其他日期</text>
+      <picker mode="date" value="{{date}}" bindchange="chooseDate"><view class="text-action">{{date}}</view></picker>
+    </view>
   </view>
   <view wx:if="{{loading}}" class="form-hint">正在核对可约资源…</view>
   <view wx:elif="{{!slots.length && !error}}" class="form-hint">当前日期没有可约时段。请选择其他日期。</view>
-  <button wx:for="{{slots}}" wx:key="slotKey" data-index="{{index}}" bindtap="pick"
-    class="slot-choice {{selected == index ? 'slot-selected' : ''}}">{{item.dentist_name}} · {{item.label}}</button>
+  <view class="slot-list">
+    <button wx:for="{{slots}}" wx:key="slotKey" data-index="{{index}}" bindtap="pick"
+      class="slot-choice {{selected == index ? 'slot-selected' : ''}}"><text class="slot-doctor">{{item.dentist_name}}</text><text>{{item.label}}</text></button>
+  </view>
   <view wx:if="{{error}}" class="error-message">{{error}}</view>
   <view class="bottom-action"><button class="primary-action" bindtap="confirm" disabled="{{selected < 0 || loading}}">确认所选时段</button></view>
 </view>

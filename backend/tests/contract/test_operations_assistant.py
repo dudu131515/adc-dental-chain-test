@@ -70,13 +70,39 @@ class OperationsAssistantTests(TestCase):
         return client.post(ROOT + "analysis", {**FILTERS, **data}, content_type="application/json",
                            HTTP_IDEMPOTENCY_KEY=key or str(uuid4()))
 
+    def test_business_questions_use_profit_workload_and_change_evidence(self):
+        client = self.login()
+        with patch("adc.reporting.assistant_service.now", return_value=CUTOFF):
+            ranked = self.analyze(client, {"question": "哪家诊所经营表现更好"})
+            self.assertEqual(ranked.status_code, 200, ranked.content)
+            ranked_data = ranked.json()["data"]
+            self.assertEqual(ranked_data["metric"], "net_profit")
+            self.assertTrue(ranked_data["periods"][0]["metrics"])
+            self.assertIn("¥", ranked_data["periods"][0]["metrics"][0]["display"])
+            self.assertTrue(any("净利润" in item["text"] for item in ranked_data["observations"]))
+
+            workload = self.analyze(client, {"question": "哪些牙医工作量较大"})
+            self.assertEqual(workload.status_code, 200, workload.content)
+            workload_data = workload.json()["data"]
+            self.assertEqual(workload_data["metric"], "workload")
+            self.assertTrue(any("牙医实际计时" in item["text"] for item in workload_data["observations"]))
+
+            change = self.analyze(client, {"question": "近期收入与成本发生了什么变化"})
+            self.assertEqual(change.status_code, 200, change.content)
+            change_data = change.json()["data"]
+            self.assertEqual(change_data["metric"], "business_change")
+            self.assertIsNotNone(change_data["comparison"])
+            self.assertTrue(any(item["id"] == "change" for item in change_data["observations"]))
+
     def test_suggestions_respect_current_permissions_and_equal_weekday_windows(self):
         client = self.login()
         with patch("adc.reporting.assistant_service.now", return_value=CUTOFF):
             response = client.get(ROOT + "suggestions", {"date_from": "2031-06-01", "date_to": "2031-06-04"})
         self.assertEqual(response.status_code, 200, response.content)
         suggestions = response.json()["data"]["suggestions"]
-        self.assertEqual(len(suggestions), 4)
+        self.assertEqual(len(suggestions), 9)
+        self.assertIn("clinic_performance", [item["id"] for item in suggestions])
+        self.assertIn("top_workload", [item["id"] for item in suggestions])
         weeks = [item for item in suggestions if item["id"] == "weekly_attendance"][0]["selection"]
         self.assertEqual(weeks["date_from"], "2031-06-02")
         self.assertEqual(weeks["date_to"], "2031-06-04")
@@ -87,7 +113,7 @@ class OperationsAssistantTests(TestCase):
         EmployeeRole.objects.filter(employee_id=8, role__role_code="HQ_OPERATIONS_QUERY").update(scope_clinic_id=1)
         response = client.get(ROOT + "suggestions", {"date_from": "2031-06-01", "date_to": "2031-06-04"})
         self.assertEqual(response.status_code, 200, response.content)
-        self.assertEqual(len(response.json()["data"]["suggestions"]), 3)
+        self.assertEqual(len(response.json()["data"]["suggestions"]), 8)
         self.assertEqual(self.analyze(client, {"metric": "attendance_rate"}).status_code, 403)
 
     def test_knowledge_and_bounded_chinese_questions_never_echo_rejected_input(self):

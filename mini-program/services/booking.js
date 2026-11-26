@@ -24,6 +24,7 @@ function actionKey(action) { return action + "-" + Date.now() + "-" + Math.rando
 function appointmentSummary(row) {
   return {
     ...dateParts(row.start_at), id: row.appointment_id, clinicName: row.clinic.name, address: row.clinic.address,
+    clinicPhone: row.clinic.phone || "",
     dentistName: row.dentist.name, treatmentName: row.treatment.name, number: row.appointment_no,
     date: localDate(row.start_at), time: localTime(row.start_at) + "–" + localTime(row.end_at),
     when: slotLabel(row.start_at, row.end_at), status: row.status, statusLabel: states[row.status] || row.status,

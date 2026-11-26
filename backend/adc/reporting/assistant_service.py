@@ -15,8 +15,8 @@ from adc.identity.models import AuditLog, Clinic
 from adc.identity.permissions import current_principal
 from adc.reporting.assistant_actions import accepted_action, claim_analysis, require_action_result, require_action_scope
 from adc.reporting.assistant_intent import (
-    MAX_DAYS, POLICIES, POLICY_TOPICS, POLICY_VERSION, SOURCES_BY_METRIC, compile_question, periods_valid,
-    previous_window, selection_data, week_windows,
+    BUSINESS_METRICS, MAX_DAYS, METRICS, MONEY_METRICS, POLICIES, POLICY_TOPICS, POLICY_VERSION, SOURCES_BY_METRIC,
+    compile_question, periods_valid, previous_window, selection_data, week_windows,
 )
 from adc.reporting.assistant_provider import InvalidModel, Tool, arrange
 from adc.reporting.fact_queries import consistent_read
@@ -51,9 +51,15 @@ def suggestions(principal, filters):
         ("unprocessed", "看哪些门店到期未处置较多", {**current, "metric": "unprocessed"}),
         ("net_received", "本期诊疗净实收为什么变化", {**current, "metric": "net_received"}),
         ("deposit_refund", "查询预约金退还规则", {**current, "metric": "deposit_refund"}),
+        ("clinic_performance", "哪家诊所经营表现更好", {**current, "metric": "net_profit"}),
+        ("month_attendance", "本月预约履约情况如何", {**current, "date_from": end.replace(day=1), "metric": "attendance_rate"}),
+        ("low_utilization", "哪些门店资源利用率较低", {**current, "metric": "chair_utilization"}),
+        ("top_workload", "哪些牙医工作量较大", {**current, "metric": "workload"}),
+        ("revenue_cost_change", "近期收入与成本发生了什么变化", {**current, "metric": "business_change"}),
     ]
     try:
         items[1][2].update(previous_window(current["date_from"], current["date_to"]))
+        items[-1][2].update(previous_window(current["date_from"], current["date_to"]))
     except OverflowError:
         pass
     if len(clinics) >= 2:
@@ -139,11 +145,48 @@ def recover_analysis(principal, operation, accepted=None):
         require_action_result(accepted)
 
 
+def percent_value(rate):
+    if not rate or rate.get("availability") != "AVAILABLE" or rate.get("value") is None:
+        return None
+    return format(Decimal(rate["value"]) * 100, ".2f")
+
+
 def approved_metrics(metric, results, details):
     if metric == "net_received":
         return [{
             "clinic_id": None, **{key: results["financial"][key] for key in ("received", "refunded", "net_received")},
             "receipt_count": len(details["net_received"]),
+        }]
+    if metric in MONEY_METRICS:
+        return [{
+            "clinic_id": row["clinic_id"], "clinic_name": row.get("clinic_name"),
+            "value": row[metric], "display_label": METRICS[metric], "display": "¥" + row[metric],
+        } for row in results.get("clinics", [])]
+    if metric == "visits":
+        return [{
+            "clinic_id": row["clinic_id"], "clinic_name": row.get("clinic_name"),
+            "value": row["visits"], "display_label": "就诊数量", "display": str(row["visits"]) + " 次",
+        } for row in results.get("clinics", [])]
+    if metric == "workload":
+        return [{
+            "clinic_id": row["clinic_id"], "clinic_name": row.get("clinic_name"),
+            "dentist_id": row["dentist_id"], "dentist_name": row["dentist_name"],
+            "value": row["minutes"], "display_label": "牙医工作量",
+            "display": row["hours"] + " 小时 / " + str(row["visits"]) + " 次",
+        } for row in results.get("workload", {}).get("dentists", [])]
+    if metric == "chair_utilization":
+        return [{
+            "clinic_id": row["clinic_id"], "clinic_name": row.get("clinic_name"),
+            "chair_utilization": row["chair_utilization"],
+            "value": percent_value(row["chair_utilization"]), "display_label": "诊椅利用率",
+            "display": (percent_value(row["chair_utilization"]) or "不适用") + "%",
+        } for row in results.get("clinics", [])]
+    if metric == "business_change":
+        operation = results.get("operations", {})
+        return [{
+            "clinic_id": None, "finance": operation, "display_label": "收入与成本",
+            "display": "收入 ¥" + operation.get("revenue", "0.00") + " · 成本 ¥" + operation.get("material_cost", "0.00")
+                       + " · 费用 ¥" + operation.get("operating_cost", "0.00") + " · 利润 ¥" + operation.get("net_profit", "0.00"),
         }]
     rows = []
     for office in results["appointments"]["by_clinic"]:
@@ -160,6 +203,48 @@ def comparisons(metric, periods):
     if len(periods) < 2:
         return None
     current, earlier = (periods[0]["metrics"], periods[1]["metrics"])
+    if metric in MONEY_METRICS:
+        return {"changes": [{
+            "clinic_id": row["clinic_id"],
+            "value": format(Decimal(row["value"]) - Decimal(prior["value"]), ".2f"),
+            "display": ("+" if Decimal(row["value"]) - Decimal(prior["value"]) > 0 else "") +
+                       "¥" + format(Decimal(row["value"]) - Decimal(prior["value"]), ".2f"),
+        } for row, prior in zip(current, earlier, strict=True)]}
+    if metric == "visits":
+        return {"changes": [{
+            "clinic_id": row["clinic_id"], "value": row["value"] - prior["value"],
+            "display": ("+" if row["value"] - prior["value"] > 0 else "") + str(row["value"] - prior["value"]) + " 次",
+        } for row, prior in zip(current, earlier, strict=True)]}
+    if metric == "workload":
+        prior_by_dentist = {(row["clinic_id"], row.get("dentist_id")): row for row in earlier}
+        changes = []
+        for row in current:
+            prior = prior_by_dentist.get((row["clinic_id"], row.get("dentist_id")))
+            if prior is None:
+                continue
+            minutes = Decimal(row["value"]) - Decimal(prior["value"])
+            changes.append({"clinic_id": row["clinic_id"], "dentist_id": row.get("dentist_id"),
+                            "dentist_name": row.get("dentist_name"), "value": format(minutes, ".2f"),
+                            "display": ("+" if minutes > 0 else "") + format(minutes / Decimal("60"), ".2f") + " 小时"})
+        return {"changes": changes}
+    if metric == "chair_utilization":
+        changes = []
+        for row, prior in zip(current, earlier, strict=True):
+            if row["value"] is None or prior["value"] is None:
+                changes.append({"clinic_id": row["clinic_id"], "percentage_points": None, "availability": "NOT_APPLICABLE"})
+            else:
+                difference = Decimal(row["value"]) - Decimal(prior["value"])
+                changes.append({"clinic_id": row["clinic_id"], "value": format(difference, ".2f"),
+                                "display": ("+" if difference > 0 else "") + format(difference, ".2f") + " 个百分点"})
+        return {"changes": changes}
+    if metric == "business_change":
+        now_finance = current[0]["finance"]
+        prior_finance = earlier[0]["finance"]
+        keys = ("revenue", "material_cost", "operating_cost", "net_profit")
+        values = {key: format(Decimal(now_finance.get(key, "0.00")) - Decimal(prior_finance.get(key, "0.00")), ".2f")
+                  for key in keys}
+        return {"changes": [{"clinic_id": None, **values,
+                             "display": " · ".join(f"{METRICS[key]} {'+' if Decimal(values[key]) > 0 else ''}¥{values[key]}" for key in keys)}]}
     changes = []
     for row, prior in zip(current, earlier, strict=True):
         if metric == "net_received":
@@ -184,7 +269,91 @@ def policy_sources(metric):
             for key in SOURCES_BY_METRIC[metric]}
 
 
+def business_interpretations(metric, periods, comparison, sources):
+    observations, questions, next_steps = {}, {}, []
+    source_id = next(iter(sources), "FR-604")
+    rows = periods[0]["metrics"] if periods else []
+    summary = periods[0].get("summary", {}) if periods else {}
+    clinic_ids = {row["clinic_id"] for row in rows if row.get("clinic_id")}
+    clinic_names = dict(Clinic.objects.filter(pk__in=clinic_ids).values_list("pk", "clinic_name"))
+    names_by_id = {str(row["clinic_id"]): row.get("clinic_name") for row in rows if row.get("clinic_name")}
+
+    def office_name(clinic_id):
+        if str(clinic_id) in names_by_id:
+            return names_by_id[str(clinic_id)]
+        try:
+            return clinic_names.get(int(clinic_id), str(clinic_id))
+        except (TypeError, ValueError):
+            return str(clinic_id)
+
+    def observe(key, text):
+        observations[key] = (text, source_id)
+
+    if metric in MONEY_METRICS:
+        numeric = [(row["clinic_id"], Decimal(row["value"])) for row in rows]
+        total = sum((value for _, value in numeric), Decimal("0.00"))
+        ranked = sorted(numeric, key=lambda item: item[1], reverse=True)
+        label = METRICS[metric]
+        if ranked:
+            observe("total", f"本期{label}合计 ¥{format(total, '.2f')}，{office_name(ranked[0][0])}门店最高 ¥{format(ranked[0][1], '.2f')}。")
+            observe("ranking", f"{office_name(ranked[0][0])}门店最高（¥{format(ranked[0][1], '.2f')}），"
+                               f"{office_name(ranked[-1][0])}门店最低（¥{format(ranked[-1][1], '.2f')}）。")
+        if metric in {"material_cost", "operating_cost"} and Decimal(summary.get("revenue", "0")) > 0:
+            observe("ratio", f"{label}占营业收入 "
+                             f"{format(Decimal(summary.get(metric, '0')) / Decimal(summary['revenue']) * 100, '.1f')}%。")
+        if metric == "net_profit" and Decimal(summary.get("revenue", "0")) > 0:
+            observe("margin", f"公司净利润率约 "
+                              f"{format(Decimal(summary['net_profit']) / Decimal(summary['revenue']) * 100, '.1f')}%。")
+    elif metric == "visits":
+        numeric = [(row["clinic_id"], int(row["value"])) for row in rows]
+        total = sum(value for _, value in numeric)
+        observe("total", f"本期完成就诊 {total} 次。")
+        if numeric:
+            top = max(numeric, key=lambda item: item[1])
+            observe("ranking", f"{office_name(top[0])}门诊就诊量最高，共 {top[1]} 次。")
+    elif metric == "workload":
+        numeric = [(row, Decimal(row["value"])) for row in rows]
+        total_minutes = sum((value for _, value in numeric), Decimal("0"))
+        observe("total", f"本期牙医实际计时合计 {format(total_minutes / Decimal('60'), '.1f')} 小时。")
+        if numeric:
+            top = max(numeric, key=lambda item: item[1])
+            observe("ranking", f"{top[0].get('dentist_name')}（{office_name(top[0]['clinic_id'])}）工作量最高，"
+                               f"约 {format(top[1] / Decimal('60'), '.1f')} 小时。")
+    elif metric == "chair_utilization":
+        numeric = [(row["clinic_id"], Decimal(row["value"])) for row in rows if row.get("value") is not None]
+        if numeric:
+            low = min(numeric, key=lambda item: item[1])
+            high = max(numeric, key=lambda item: item[1])
+            observe("total", f"诊椅时段利用率最低为 {office_name(low[0])}（{format(low[1], '.1f')}%），"
+                             f"最高为 {office_name(high[0])}（{format(high[1], '.1f')}%）。")
+            observe("advice", "利用率偏低通常意味着开放时段与预约需求不匹配，可核对班次与牙椅开放时间。")
+        else:
+            observe("missing", "所选期间缺少可用的诊椅开放时段或牙椅资料。")
+    elif metric == "business_change":
+        current = summary
+        if current:
+            observe("current", f"本期营业收入 ¥{current.get('revenue')}，诊疗成本 ¥{current.get('material_cost')}，"
+                               f"经营费用 ¥{current.get('operating_cost')}，净利润 ¥{current.get('net_profit')}。")
+        if comparison:
+            change = comparison["changes"][0]
+            parts = [f"{METRICS[key]} {'+' if Decimal(change[key]) > 0 else ''}¥{change[key]}"
+                     for key in ("revenue", "material_cost", "operating_cost", "net_profit")]
+            observe("change", "与对比期相比：" + "，".join(parts) + "。")
+            observe("quality", "收入增长若伴随成本或费用上升，需要结合耗材与经营费用明细核对利润质量。")
+        else:
+            next_steps.append({"id": "change_period", "label": "选择对比期"})
+
+    if metric in {"business_change", "workload", "chair_utilization", "visits"}:
+        next_steps.append({"id": "report_rules", "label": "查看统计口径"})
+    else:
+        next_steps.append({"id": "report_rules", "label": "查看统计口径"})
+    questions["source"] = "可打开所选期间的原报表，回到主单、耗材、计时或预约记录逐项核对。"
+    return observations, questions, next_steps
+
+
 def interpretations(metric, periods, comparison, sources):
+    if metric in BUSINESS_METRICS:
+        return business_interpretations(metric, periods, comparison, sources)
     observations = {}
     questions = {}
     next_steps = []
@@ -362,7 +531,9 @@ def analyze(principal, fields, operation):
         token = store_snapshot(principal, metadata, details, results=results)
         periods.append({
             **{key: metadata[key] for key in ("date_from", "date_to", "as_of", "scope")},
-            "reference": report_reference(principal, metadata, token), "metrics": approved_metrics(metric, results, details),
+            "reference": report_reference(principal, metadata, token),
+            "metrics": approved_metrics(metric, results, details),
+            "summary": results.get("operations", {}),
         })
     comparison = comparisons(metric, periods)
     sources = policy_sources(metric)

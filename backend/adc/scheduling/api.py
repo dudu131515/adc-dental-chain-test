@@ -204,7 +204,8 @@ def clinics(request):
         if scope is not None:
             query = query.filter(pk__in=scope)
     return success({
-        "items": [{"clinic_id": str(clinic.pk), "name": clinic.clinic_name, "address": clinic.postal_address}
+        "items": [{"clinic_id": str(clinic.pk), "name": clinic.clinic_name, "address": clinic.postal_address,
+                   "phone": clinic.phone}
                   for clinic in query.order_by("clinic_no")],
         "next_cursor": None,
     })

@@ -13,6 +13,7 @@ Page({
     });
   },
   book: patient.book, profile: patient.profile, receipts: patient.receipts, clinics: patient.clinics,
+  invoices: patient.invoices,
   history() { patient.appointments("history"); },
   all() { patient.appointments("upcoming"); },
   open() { if (this.data.next) patient.openAppointment(this.data.next.id); },

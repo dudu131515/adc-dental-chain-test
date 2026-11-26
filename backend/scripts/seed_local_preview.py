@@ -1,5 +1,6 @@
 """Create synthetic ADC preview records in a new, dedicated local preview database."""
 import json
+from hashlib import sha256
 from datetime import datetime, time, timedelta
 from decimal import Decimal
 from pathlib import Path
@@ -56,8 +57,10 @@ def seed():
     for role in AppRole.objects.filter(role_code__in=HQ_ROLES):
         EmployeeRole.objects.get_or_create(employee=headquarters, role=role, scope_clinic=None)
     roles = dict(UserAccount.objects.filter(employee_id__isnull=False).values_list("login_identity", "pk"))
-    Clinic.objects.filter(pk=1).update(clinic_name="中心口腔门诊", postal_address="示例路 18 号 · 2 层")
-    Clinic.objects.filter(pk=2).update(clinic_name="滨江口腔门诊", postal_address="示例大道 56 号 · 1 层")
+    Clinic.objects.filter(pk=1).update(clinic_name="中心口腔门诊", postal_address="示例路 18 号 · 2 层",
+                                      phone="021-0000-0001")
+    Clinic.objects.filter(pk=2).update(clinic_name="滨江口腔门诊", postal_address="示例大道 56 号 · 1 层",
+                                      phone="021-0000-0002")
     Employee.objects.filter(pk=1).update(full_name="林明远")
     doctor = Employee.objects.create(employee_no="ADC-PREVIEW-DOCTOR-2", full_name="周宁",
                                      job_code=Employee.Job.DENTIST, home_clinic_id=1)
@@ -78,6 +81,13 @@ def seed():
         materials.append((material, priced))
     for pk, name in enumerate(("陈晓雨", "孟子安"), 1):
         Patient.objects.filter(pk=pk).update(patient_no=f"ADC-P{pk:04d}", full_name=name)
+    mini_identity = "wx:" + sha256(b"adc-local-preview").hexdigest()
+    patient_account = UserAccount.objects.filter(patient_id=1).first()
+    if patient_account is not None:
+        patient_account.login_identity = mini_identity
+        patient_account.save(update_fields=("login_identity",))
+    else:
+        UserAccount.objects.create(patient_id=1, login_identity=mini_identity)
     for number, name in enumerate(("赵青", "许言", "罗珊", "宋晨", "王安琪", "吴天", "程歌", "李嘉"), 3):
         Patient.objects.create(patient_no=f"ADC-P{number:04d}", full_name=name, birth_date="1998-06-01",
                                billing_address="合成地址", phone=f"0000000{number:04d}", emergency_name="合成联系人",

@@ -1,7 +1,7 @@
 // Experience and release builds set this to the approved HTTPS host.
 const EXPERIENCE_API_BASE = "";
 const LOCAL_API_BASE = "http://127.0.0.1:8000/api/v1";
-const LOCAL_SYNTHETIC_LOGIN_CODE = "";
+const LOCAL_SYNTHETIC_LOGIN_CODE = "adc-local-preview";
 
 function development() {
   return wx.getAccountInfoSync().miniProgram.envVersion === "develop";

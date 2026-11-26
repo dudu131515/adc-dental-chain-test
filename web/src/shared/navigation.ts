@@ -130,7 +130,7 @@ export function workspaceTabs(group: ReturnType<typeof groupedNavigation>[number
       ...(hasRole(identity, ["FRONT_DESK","DENTIST","CLINIC_MANAGER"], clinic) ? [{path: "/billing/corrections", label: "更正与审批"}] : []),
     ];
     if (section.path === "/operations") return [
-      ...(canReport ? [{path: "/operations/report", label: "经营总览"}, {path: "/operations/compare", label: "门店对比"}, {path: "/operations/assistant", label: "经营智能分析"}] : []),
+      ...(canReport ? [{path: "/operations/report", label: "经营总览"}, {path: "/operations/compare", label: "门店对比"}, {path: "/operations/assistant", label: "经营智能助手"}] : []),
       ...(!canReport && canQuarter && !hasRole(identity, ["CLINIC_MANAGER"], clinic)
         ? [{path: "/operations/quarters", label: "绩效管理"}, {path: "/operations/expenses", label: "费用管理"}]
         : [

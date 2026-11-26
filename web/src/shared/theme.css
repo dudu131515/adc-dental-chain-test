@@ -133,18 +133,19 @@ input:focus-visible,select:focus-visible,textarea:focus-visible { border-color: 
 @media(max-width:1000px) and (min-width:761px) { :root { --nav-width: 177px; } .side-rail { padding-inline: 10px; } }
 @media(max-width:760px) {
   .app-layout { display: block; }
-  .topbar { position: relative; z-index: 6; height: 57px; padding: 0 14px; }
-  .topbar-controls { gap: 8px; }
-  .topbar-title { gap: 8px; }
+  .topbar { position: relative; z-index: 6; height: auto; min-height: 57px; padding: 8px 14px; flex-wrap: wrap; row-gap: 6px; }
+  .topbar-controls { gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+  .topbar-title { gap: 8px; flex: 1 1 auto; min-width: 0; }
+  .topbar-controls .demo-controls select { max-width: 104px; }
   .breadcrumb-origin,.breadcrumb-divider { display: none; }
   .menu-toggle { display: grid; place-items: center; background: transparent; border: 0; color: var(--text); padding: 7px; }
   .side-rail { display: none; position: fixed; top: 57px; left: 0; height: calc(100dvh - 57px); width: min(258px,80vw); z-index: 6; }
   .side-rail.rail-open { display: flex; }
   .rail-scrim { display: block; position: fixed; inset: 57px 0 0; z-index: 5; border: 0; background: #0d283c63; }
   .scope-control { max-width: 46vw; gap: 5px; }
-  .scope-control select { font-size: 12px; }
+  .scope-control select { font-size: 12px; max-width: 120px; }
   .logout-button { padding-left: 8px; }.logout-button span { display: none; }
-  .workspace { padding: 21px 14px 32px; }
+  .workspace { padding: 18px 14px 32px; }
   .workspace .schedule-panel,.workspace .catalog-panel,.workspace .desk-panel { padding: 16px; border-radius: 11px; }
   .schedule-form label,.catalog-form label { min-width: 0; max-width: 100%; }
   .sign-in-page { display: flex; flex-direction: column; }

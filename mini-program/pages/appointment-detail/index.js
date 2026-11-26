@@ -45,6 +45,10 @@ Page({
   },
 
   openInvoice() { if (this.data.invoiceId) openInvoice(this.data.invoiceId); },
+  call() {
+    const phone = this.data.appointment?.clinicPhone;
+    if (phone) wx.makePhoneCall({ phoneNumber: String(phone) });
+  },
   all() { wx.switchTab({ url: "/pages/appointments/index" }); },
   reschedule() { wx.navigateTo({ url: "/pages/reschedule/index?id=" + encodeURIComponent(this.id) }); },
   cancel() { wx.navigateTo({ url: "/pages/cancel/index?id=" + encodeURIComponent(this.id) }); },
