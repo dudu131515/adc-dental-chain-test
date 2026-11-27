@@ -78,6 +78,19 @@ test("sample patient record presents continuous care and billing at a glance", a
   expect(screen.getByText("就诊 1 次")).toBeTruthy();
   expect(screen.getByText("账单 1 张")).toBeTruthy();
   expect(screen.getByText("待收 ¥100.00")).toBeTruthy();
+  fireEvent.click(screen.getByRole("button", {name:/查看就诊详情/}));
+  expect(await screen.findByRole("heading", {name:"就诊摘要"})).toBeTruthy();
+  expect(screen.getByText("洁牙护理 · 1.000 次")).toBeTruthy();
+});
+
+test("registration offers the existing chart before saving a same-name patient", async () => {
+  open("patients");
+  fireEvent.click(await screen.findByRole("button", {name:/登记新患者/}));
+  fireEvent.change(screen.getByLabelText("患者姓名"), {target:{value:"陈晓雨"}});
+  const match = await screen.findByRole("button", {name:/使用现有档案.*陈晓雨/});
+  fireEvent.click(match);
+  expect(await screen.findByRole("heading", {name:"连续服务概览"})).toBeTruthy();
+  expect(screen.queryByRole("button", {name:"保存患者档案"})).toBeNull();
 });
 
 test("sample staff use the shared schedule to draft, accept and publish a shift", async () => {

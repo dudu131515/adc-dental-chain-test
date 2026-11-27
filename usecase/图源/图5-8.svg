@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1510" height="490" viewBox="0 0 1510 490">
+<rect x="26" y="30" width="710" height="390" fill="#f1f6fb" stroke="#25374a" stroke-width="3"/>
+<text x="48.0" y="89" font-family="Microsoft YaHei, sans-serif" font-size="37" fill="#182c40">组织与授权（图 5-2／5-7）</text>
+<text x="50.0" y="156" font-family="Microsoft YaHei, sans-serif" font-size="28" fill="#182c40">employee.job_code：四类员工岗位</text>
+<text x="50.0" y="207" font-family="Microsoft YaHei, sans-serif" font-size="28" fill="#182c40">employee.home_clinic_id → clinic.clinic_id</text>
+<text x="50.0" y="258" font-family="Microsoft YaHei, sans-serif" font-size="28" fill="#182c40">员工岗位与所属门店；不产生功能授权</text>
+<text x="50.0" y="309" font-family="Microsoft YaHei, sans-serif" font-size="28" fill="#182c40">employee_role：功能角色与授权门店</text>
+<text x="50.0" y="360" font-family="Microsoft YaHei, sans-serif" font-size="28" fill="#182c40">user_account.staff_password_hash：员工哈希</text>
+<rect x="761" y="30" width="710" height="390" fill="#f1f6fb" stroke="#25374a" stroke-width="3"/>
+<text x="783.0" y="89" font-family="Microsoft YaHei, sans-serif" font-size="37" fill="#182c40">耗材与历史快照（图 5-4）</text>
+<text x="785.0" y="156" font-family="Microsoft YaHei, sans-serif" font-size="28" fill="#182c40">material 1 — 0..* material_cost</text>
+<text x="785.0" y="207" font-family="Microsoft YaHei, sans-serif" font-size="28" fill="#182c40">material_cost.material_id → material.material_id</text>
+<text x="785.0" y="258" font-family="Microsoft YaHei, sans-serif" font-size="28" fill="#182c40">同耗材有效期排他，按实施日期选成本</text>
+<text x="785.0" y="309" font-family="Microsoft YaHei, sans-serif" font-size="28" fill="#182c40">material_usage 保留实际采用的成本、</text>
+<text x="785.0" y="360" font-family="Microsoft YaHei, sans-serif" font-size="28" fill="#182c40">耗材名称和单位快照，停用不清除历史</text>
+</svg>

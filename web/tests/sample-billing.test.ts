@@ -127,3 +127,28 @@ test("the shared sample transport links the settlement queue, invoice and patien
     })],
   });
 });
+
+test("a registered operating expense changes the matching demo report and profit", async () => {
+  const workspace = createSampleWorkspace();
+  const headquarters = workspace.transport("scheduler");
+  const route = "/reports/operations?clinic_ids=central&date_from=2026-11-01&date_to=2026-11-30";
+  type Report = { operations: { operating_cost: string; net_profit: string } };
+  const before = (await headquarters<Report>(route)).operations;
+  await workspace.transport("manager")("/expenses", { method: "POST", actionKey: "expense-final", body: {
+    period_id: "4", clinic_id: "central", expense_category: "验收支出", scope: "SHARED", amount: "9200", evidence_ref: "TEST-2026-Q4",
+  } });
+  const after = (await headquarters<Report>(route)).operations;
+  expect(Number(after.operating_cost) - Number(before.operating_cost)).toBeCloseTo(3000, 2);
+  expect(Number(before.net_profit) - Number(after.net_profit)).toBeCloseTo(3000, 2);
+});
+
+test("a dentist filter retains historical appointments and limits dentist capacity", async () => {
+  const reports = createSampleWorkspace().transport("scheduler");
+  const route = "/reports/operations?clinic_ids=central&date_from=2026-11-24&date_to=2026-11-24";
+  type Report = { appointments: { denominator: number }; resources: { dentist_shift_minutes: string } };
+  const all = await reports<Report>(route);
+  const one = await reports<Report>(route + "&dentist_ids=1");
+  expect(one.appointments.denominator).toBeGreaterThan(0);
+  expect(one.appointments.denominator).toBeLessThan(all.appointments.denominator);
+  expect(one.resources.dentist_shift_minutes).toBe("480");
+});

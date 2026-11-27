@@ -177,7 +177,8 @@ export function createSampleWorkspace() {
   revisions.get("3")!.push({...version("3",2,"CONFIRMED",91680,23000,v3base.company),
     source:{adjustment_id:"ADC-ADJ-347",invoice_id:"INV-258",visit_id:"V-108",approver_id:"5",
       signed_amount:"-320.00",approved_at:at("2026-10-13","10:30")}});
-  const expenses = periods.flatMap(p=>["租赁","设备维护","诊室消毒","水电","行政支持","员工培训"].map((expense_category,i)=>({
+  const expenses: {expense_id:string;period_id:string;clinic_id:string;expense_category:string;scope:string;
+    amount:string;evidence_ref:string;dentist_id?:unknown}[] = periods.flatMap(p=>["租赁","设备维护","诊室消毒","水电","行政支持","员工培训"].map((expense_category,i)=>({
     expense_id:p.period_id+"0"+i,period_id:p.period_id,clinic_id:i%2?"river":"central",expense_category,
     scope:"SHARED",amount:(320+i*230).toFixed(2),evidence_ref:"ADC-EXP-"+p.period_id+"-"+i,
   })));
@@ -421,15 +422,14 @@ export function createSampleWorkspace() {
           pending_refund:items.reduce((sum,row)=>sum+Number(row.pending_refund),0).toFixed(2)}};
     }
 
-    function operatingMetrics(items: ReportItem[], from: string, to: string, selectedClinics: string[]) {
-      const dayExpense: Record<string, number> = {central: 240, river: 180};
+    function operatingMetrics(items: ReportItem[], allItems: ReportItem[], from: string, to: string, selectedClinics: string[], selectedDentists: string[]) {
       const materialRate = 0.26;
       const attendedStates = new Set(["COMPLETED", "IN_TREATMENT"]);      const rateData = (numerator: number, denominator: number) => ({numerator, denominator,
         availability: denominator ? "AVAILABLE" : "NOT_APPLICABLE",
         value: denominator ? (numerator / denominator).toFixed(6) : null});
       const moneyValue = (value: number) => value.toFixed(2);
       const daysByClinic = new Map<string, Set<string>>();
-      for (const item of items) {
+      for (const item of allItems) {
         if (!daysByClinic.has(item.clinic_id)) daysByClinic.set(item.clinic_id, new Set());
         daysByClinic.get(item.clinic_id)!.add(item.service_date);
       }
@@ -456,8 +456,10 @@ export function createSampleWorkspace() {
           count(attended, item.clinic_id);
           count(visits, item.clinic_id);
           add(workMinutes, item.clinic_id, 30);
-          add(occupied, item.clinic_id, 30);
-          add(bookedByDentist, item.clinic_id + "|" + dentist, 30);
+        }
+        if (attendedStates.has(item.status) || ["CONFIRMED", "CHECKED_IN"].includes(item.status)) {
+          add(occupied, item.clinic_id, item.minutes ?? 30);
+          add(bookedByDentist, item.clinic_id + "|" + dentist, item.minutes ?? 30);
         }
         if (item.status === "NO_SHOW") count(noShow, item.clinic_id);
         if (item.status === "CANCELLED") count(cancelled, item.clinic_id);
@@ -470,10 +472,6 @@ export function createSampleWorkspace() {
         row.revenue += accrued;
         row.material += accrued * materialRate;
       }
-      for (const clinic of clinicIds) {
-        const days = daysByClinic.get(clinic)?.size ?? 0;
-        operating.set(clinic, days * (dayExpense[clinic] ?? 200));
-      }
       const chairsByClinic = new Map<string, number>();
       for (const chair of resources) {
         if (chair.status !== "AVAILABLE") continue;
@@ -481,6 +479,7 @@ export function createSampleWorkspace() {
       }
       const dentistsByClinic = new Map<string, number>();
       for (const person of people()) {
+        if (selectedDentists.length && !selectedDentists.includes(person.dentist_id)) continue;
         for (const clinic of person.clinic_ids) dentistsByClinic.set(clinic, (dentistsByClinic.get(clinic) ?? 0) + 1);
       }
       const capacityByClinic = new Map<string, number>();
@@ -489,11 +488,9 @@ export function createSampleWorkspace() {
         const days = daysByClinic.get(clinic)?.size ?? 0;
         const chairs = chairsByClinic.get(clinic) ?? 0;
         capacityByClinic.set(clinic, days * chairs * 480);
-        shiftByClinic.set(clinic, days * (dentistsByClinic.get(clinic) ?? 1) * 480);
+        shiftByClinic.set(clinic, days * (dentistsByClinic.get(clinic) ?? 0) * 480);
       }
       const total = (map: Map<string, number>) => [...map.values()].reduce((sum, value) => sum + value, 0);
-      const revenueTotal = total(revenue), materialTotal = total(material), operatingTotal = total(operating);
-      const netProfit = revenueTotal - materialTotal - operatingTotal;
       const trendDays = (Date.parse(to + "T00:00:00Z") - Date.parse(from + "T00:00:00Z")) / 86400000;
       const granularity = trendDays <= 62 ? "day" : "month";
       const buckets: {key: string; label: string; start: string; end: string}[] = [];
@@ -513,7 +510,6 @@ export function createSampleWorkspace() {
       const bucketOf = (date: string) => granularity === "day" ? date : date.slice(0, 7);
       const points = new Map(buckets.map(bucket => [bucket.key, {period: bucket.key, label: bucket.label,
         revenue: 0, material_cost: 0, operating_cost: 0, net_profit: 0, appointments: 0, attended: 0, visits: 0, work_minutes: 0}]));
-      const expenseDays = new Set<string>();
       for (const item of items) {
         if (!clinicIdsFor(item.clinic_id)) continue;
         const point = points.get(bucketOf(item.service_date));
@@ -523,12 +519,44 @@ export function createSampleWorkspace() {
         point.material_cost += accrued * materialRate;
         point.appointments += 1;
         if (attendedStates.has(item.status)) { point.attended += 1; point.visits += 1; point.work_minutes += 30; }
-        const expenseKey = bucketOf(item.service_date) + "|" + item.clinic_id + "|" + item.service_date;
-        if (!expenseDays.has(expenseKey)) {
-          expenseDays.add(expenseKey);
-          point.operating_cost += dayExpense[item.clinic_id] ?? 200;
-        }
       }
+      const expenseCategoriesByName = new Map<string, number>();
+      const expensePeriods = new Map<string, Period>();
+      const dayMs = 86400000;
+      const dayTime = (day: string) => Date.parse(day + "T00:00:00Z");
+      const weekStart = dayTime(from);
+      const weekEnd = dayTime(to) + dayMs;
+      const operatingDetails = expenses.flatMap(expense => {
+        if (!clinicIdsFor(expense.clinic_id)) return [];
+        const period = periods.find(row => row.period_id === expense.period_id);
+        if (!period) return [];
+        const quarterStart = Date.UTC(period.year, (period.quarter - 1) * 3, 1);
+        const quarterEnd = Date.UTC(period.year, period.quarter * 3, 1);
+        const first = Math.max(quarterStart, weekStart), end = Math.min(quarterEnd, weekEnd);
+        if (end <= first) return [];
+        const active = allItems.filter(item => item.clinic_id === expense.clinic_id && attendedStates.has(item.status));
+        const share = !selectedDentists.length ? 1 : expense.scope === "DIRECT"
+          ? Number(selectedDentists.includes(String(expense.dentist_id)))
+          : active.length ? active.filter(item => selectedDentists.includes(item.dentist_id ?? "")).length / active.length : 0;
+        const slices = new Map<string, number>();
+        for (let day = first; day < end; day += dayMs) {
+          add(slices, bucketOf(new Date(day).toISOString().slice(0, 10)), dayMs);
+        }
+        let allocated = 0;
+        for (const [key, duration] of slices) {
+          const amount = Math.round(100 * Number(expense.amount) * share * duration / (quarterEnd - quarterStart)) / 100;
+          points.get(key)!.operating_cost += amount;
+          allocated += amount;
+        }
+        if (!allocated) return [];
+        add(operating, expense.clinic_id, allocated);
+        add(expenseCategoriesByName, expense.expense_category, allocated);
+        expensePeriods.set(period.period_id, period);
+        return [{...expense, clinic_name: clinicName(expense.clinic_id), period: period.year + " 年第 " + period.quarter + " 季度",
+          recorded_amount: expense.amount, amount: moneyValue(allocated)}];
+      });
+      const revenueTotal = total(revenue), materialTotal = total(material), operatingTotal = total(operating);
+      const netProfit = revenueTotal - materialTotal - operatingTotal;
       for (const point of points.values()) point.net_profit = point.revenue - point.material_cost - point.operating_cost;
       const clinics = clinicIds.map(clinic => {
         const dayCount = daysByClinic.get(clinic)?.size ?? 0;
@@ -578,10 +606,6 @@ export function createSampleWorkspace() {
       }));
       const materialDetails = revenueDetails.map(row => ({...row, material_name: "综合耗材", quantity: "1.000",
         unit_cost: moneyValue(Number(row.amount) * materialRate), amount: moneyValue(Number(row.amount) * materialRate)}));
-      const operatingDetails = clinicIds.flatMap(clinic => [...(daysByClinic.get(clinic) ?? [])].map(day => ({
-        clinic_id: clinic, clinic_name: clinicName(clinic), period: day, expense_category: "日摊经营费用",
-        scope: "SHARED", recorded_amount: moneyValue(dayExpense[clinic] ?? 200),
-        amount: moneyValue(dayExpense[clinic] ?? 200)})));
       const visitDetails = items.filter(item => attendedStates.has(item.status)).map(item => ({
         visit_id: item.visit_id ?? "V-" + item.appointment_no, clinic_id: item.clinic_id, clinic_name: clinicName(item.clinic_id),
         dentist_id: item.dentist_id ?? "", dentist_name: dentistName(item.dentist_id ?? "1"),
@@ -590,22 +614,13 @@ export function createSampleWorkspace() {
       const workDetails = visitDetails.map(row => ({work_id: "W-" + row.visit_id, visit_id: row.visit_id,
         clinic_id: row.clinic_id, clinic_name: row.clinic_name, dentist_id: row.dentist_id, dentist_name: row.dentist_name,
         started_at: row.ended_at, minutes: "30.00"}));
-      const categories = ["租赁", "设备维护", "院感耗材", "行政支持"];
-      const weights = [0.4, 0.24, 0.2, 0.16];
-      const expenseCategories = categories.map((category, index) => ({category, amount: moneyValue(operatingTotal * weights[index])}));
-      const quarters = new Set<string>();
-      const cursor = new Date(Date.parse(from.slice(0, 7) + "-01T00:00:00Z"));
-      while (cursor.toISOString().slice(0, 10) <= to) {
-        quarters.add(cursor.getUTCFullYear() + "-" + (Math.floor(cursor.getUTCMonth() / 3) + 1));
-        cursor.setUTCMonth(cursor.getUTCMonth() + 1);
-      }
+      const expenseCategories = [...expenseCategoriesByName].map(([category, amount]) => ({category, amount: moneyValue(amount)}));
       const report = {
         operations: {revenue: moneyValue(revenueTotal), net_received: moneyValue(total(net)),
           material_cost: moneyValue(materialTotal), operating_cost: moneyValue(operatingTotal),
           net_profit: moneyValue(netProfit), profit_margin: rateData(netProfit, revenueTotal),
           expense_categories: expenseCategories,
-          expense_periods: [...quarters].map(key => ({period_id: "synthetic-" + key, year: Number(key.slice(0, 4)),
-            quarter: Number(key.slice(5))}))},
+          expense_periods: [...expensePeriods.values()]},
         workload: {total_minutes: total(workMinutes).toFixed(0), total_hours: (total(workMinutes) / 60).toFixed(2),
           dentists: workloadList},
         resources: {
@@ -625,7 +640,7 @@ export function createSampleWorkspace() {
           revenue: moneyValue(point.revenue), material_cost: moneyValue(point.material_cost),
           operating_cost: moneyValue(point.operating_cost), net_profit: moneyValue(point.net_profit),
           work_minutes: point.work_minutes.toFixed(0)}))},
-        sources: {operations: "合成收入按主单应计，耗材按固定比例估算，经营费用按开放日摊入。",
+        sources: {operations: "合成收入按主单应计，耗材按固定比例估算，登记费用按季度自然日摊入。",
           workload: "合成牙医实际计时。", resources: "合成牙椅、班次与预约占用。"},
         details: {revenue: revenueDetails, material_cost: materialDetails, operating_cost: operatingDetails,
           net_profit: clinics.map(row => ({clinic_id: row.clinic_id, clinic_name: row.clinic_name,
@@ -983,7 +998,7 @@ export function createSampleWorkspace() {
           && capability("HQ_OPERATIONS_QUERY",branch.clinic_id)).map(branch=>branch.clinic_id);
         const inWindow = (date:string, clinic:string) => selectedClinics.includes(clinic)
           && date >= date_from && date <= date_to;
-        const historical: ReportItem[] = dentist_ids.length ? [] : dailyFacts.flatMap(day=>{
+        const historical: ReportItem[] = dailyFacts.flatMap(day=>{
           const date = "2026-"+day.day;
           if (date >= sampleDate || !inWindow(date,day.clinic)) return [];
           const doctors = day.clinic === "central" ? ["1","2"] : ["3","13"];
@@ -993,15 +1008,15 @@ export function createSampleWorkspace() {
             status:i<day.arrived?"COMPLETED":i<day.arrived+day.unresolved?"CONFIRMED":"NO_SHOW",
             ...(i<day.arrived ? {received:dayTotal/day.arrived,accrued:dayTotal/day.arrived} : {})}));
         });
-        const current: ReportItem[] = previewAppointments.filter(row=>inWindow(row.date,row.clinic)
-          && (!dentist_ids.length || dentist_ids.includes(doctorId(row)))).map(row=>{
+        const current: ReportItem[] = previewAppointments.filter(row=>inWindow(row.date,row.clinic)).map(row=>{
           const bill = row.invoice ? bills[row.invoice] : undefined;
-          return {appointment_no:row.id,clinic_id:row.clinic,dentist_id:doctorId(row),service_date:row.date,minutes:30,
+          return {appointment_no:row.id,clinic_id:row.clinic,dentist_id:doctorId(row),service_date:row.date,minutes:row.minutes ?? 30,
             status:appointmentStates[row.status],visit_id:clinical.visitIdForAppointment(row.id),
             ...(bill ? {invoice_no:row.invoice,accrued:bill.due,received:bill.received,refunded:bill.refunded,outstanding:bill.outstanding} : {})};
         });
-        const items = [...historical,...current];
-        const operating = operatingMetrics(items, date_from, date_to, selectedClinics);
+        const allItems = [...historical,...current];
+        const items = dentist_ids.length ? allItems.filter(item => dentist_ids.includes(item.dentist_id ?? "")) : allItems;
+        const operating = operatingMetrics(items, allItems, date_from, date_to, selectedClinics, dentist_ids);
         const {details: operatingDetails, ...operatingReport} = operating;
         const count = (rows:ReportItem[], states:string[]) => rows.filter(item=>states.includes(item.status)).length;
         const counts = (rows:ReportItem[]) => ({attended:count(rows,["COMPLETED","IN_TREATMENT"]),

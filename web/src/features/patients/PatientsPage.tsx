@@ -6,6 +6,7 @@ import { useRead } from "../../shared/useRead";
 import { RegisterPatient, type Patient } from "../schedule/BookingForm";
 import { invoiceStates } from "../billing/billingTypes";
 import { visitStates } from "../clinical/clinicalTypes";
+import type { Visit } from "../clinical/clinicalTypes";
 import { appointmentStates } from "../schedule/appointmentTypes";
 import "./patients.css";
 
@@ -34,11 +35,31 @@ function PersonMark({ name }: { name: string }) {
   return <span className="patient-mark" aria-hidden="true">{Array.from(name)[0]}</span>;
 }
 
+function VisitSummary({ id, close }: { id: string; close: () => void }) {
+  const read = useRead<Visit>("/visits/" + id);
+  return <section className="patient-card" aria-label="就诊摘要">
+    <div className="patient-heading">
+      <h2>就诊摘要</h2><button className="button" onClick={close}>收起就诊摘要</button>
+    </div>
+    {read.loading && <p role="status">正在读取就诊摘要…</p>}
+    {read.fault && <p role="alert">{read.fault}</p>}
+    {read.data && <>
+      <p>{visitStates[read.data.status] ?? read.data.status} · 开始于 {dateTime(read.data.started_at)}
+        {read.data.ended_at && <> · 结束于 {dateTime(read.data.ended_at)}</>}</p>
+      {!!read.data.treatment_items.length && <ul className="compact-list">
+        {read.data.treatment_items.map(item => <li key={item.item_id}>{item.name} · {item.units} {item.unit}</li>)}
+      </ul>}
+      {!read.data.treatment_items.length && <p>尚无实际治疗项目。</p>}
+    </>}
+  </section>;
+}
+
 function PatientRecord({ clinic, id, open, directory }: {
   clinic: string; id: string; open: WorkArea["open"]; directory: () => void;
 }) {
   const [page, setPage] = useState(1);
   const [refresh, setRefresh] = useState(0);
+  const [visitId, setVisitId] = useState<string>();
   const read = useRead<Profile>("/clinics/" + clinic + "/patients/" + id + "?page=" + page, refresh);
   const patient = read.data?.patient;
   return <section className="patient-page">
@@ -76,7 +97,8 @@ function PatientRecord({ clinic, id, open, directory }: {
               <button className="patient-link" onClick={() => open("/schedule/appointments/" + row.appointment_id + "?" +
                 new URLSearchParams({ clinic, date: localDay(new Date(row.start_at)) }))}>查看预约详情 ›</button>
               {row.visit && <>
-                <span>就诊 {row.visit.visit_id} · {visitStates[row.visit.status] ?? row.visit.status}</span>
+                <button className="patient-link" aria-expanded={visitId === row.visit.visit_id}
+                  onClick={() => setVisitId(row.visit!.visit_id)}>查看就诊详情 · {visitStates[row.visit.status] ?? row.visit.status} ›</button>
                 {row.invoice ? <button className="patient-link" onClick={() => open("/billing/invoices/" + row.invoice!.invoice_id)}>
                   {invoiceStates[row.invoice.status] ?? row.invoice.status} · {row.invoice.invoice_no} · 应计 {money(row.invoice.accrued)}
                   · 实收 {money(row.invoice.net_received)} · 待收 {money(row.invoice.outstanding)} ›
@@ -84,6 +106,7 @@ function PatientRecord({ clinic, id, open, directory }: {
                   onClick={() => open("/billing/visits/" + row.visit!.visit_id)}>查看待开单 ›</button>}
               </>}
             </div>
+            {row.visit && visitId === row.visit.visit_id && <VisitSummary key={visitId} id={visitId} close={() => setVisitId(undefined)} />}
           </li>)}</ol><Pager result={read.data} choose={setPage} />
         </section>
       </div>

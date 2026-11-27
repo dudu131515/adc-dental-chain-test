@@ -1,84 +1,67 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1240" viewBox="0 0 1600 1240"><rect x="0" y="0" width="1600" height="1240" rx="0" fill="white" stroke="none" stroke-width="1.65" /><rect x="45" y="50" width="485" height="364" rx="0" fill="#ffffff" stroke="#252525" stroke-width="2" />
-<text x="65" y="80" fill="#181818" font-family="SimSun,宋体,serif" font-size="25" font-weight="bold" text-anchor="start" dominant-baseline="central">组织、资质、牙椅与排班</text>
-<text x="65" y="119" fill="#181818" font-family="SimSun,宋体,serif" font-size="24" font-weight="normal" text-anchor="start" dominant-baseline="central">employee</text>
-<text x="65" y="150" fill="#181818" font-family="SimSun,宋体,serif" font-size="24" font-weight="normal" text-anchor="start" dominant-baseline="central">clinic</text>
-<text x="65" y="181" fill="#181818" font-family="SimSun,宋体,serif" font-size="24" font-weight="normal" text-anchor="start" dominant-baseline="central">qualification</text>
-<text x="65" y="212" fill="#181818" font-family="SimSun,宋体,serif" font-size="24" font-weight="normal" text-anchor="start" dominant-baseline="central">employee_qualification</text>
-<text x="65" y="243" fill="#181818" font-family="SimSun,宋体,serif" font-size="24" font-weight="normal" text-anchor="start" dominant-baseline="central">shift_demand</text>
-<text x="65" y="274" fill="#181818" font-family="SimSun,宋体,serif" font-size="24" font-weight="normal" text-anchor="start" dominant-baseline="central">shift</text>
-<text x="65" y="305" fill="#181818" font-family="SimSun,宋体,serif" font-size="24" font-weight="normal" text-anchor="start" dominant-baseline="central">dental_chair</text>
-<rect x="563" y="50" width="485" height="364" rx="0" fill="#ffffff" stroke="#252525" stroke-width="2" />
-<text x="583" y="80" fill="#181818" font-family="SimSun,宋体,serif" font-size="25" font-weight="bold" text-anchor="start" dominant-baseline="central">患者、预约与资金</text>
-<text x="583" y="119" fill="#181818" font-family="SimSun,宋体,serif" font-size="24" font-weight="normal" text-anchor="start" dominant-baseline="central">patient</text>
-<text x="583" y="150" fill="#181818" font-family="SimSun,宋体,serif" font-size="24" font-weight="normal" text-anchor="start" dominant-baseline="central">patient_allergy</text>
-<text x="583" y="181" fill="#181818" font-family="SimSun,宋体,serif" font-size="24" font-weight="normal" text-anchor="start" dominant-baseline="central">slot_claim</text>
-<text x="583" y="212" fill="#181818" font-family="SimSun,宋体,serif" font-size="24" font-weight="normal" text-anchor="start" dominant-baseline="central">deposit_payment</text>
-<text x="583" y="243" fill="#181818" font-family="SimSun,宋体,serif" font-size="24" font-weight="normal" text-anchor="start" dominant-baseline="central">appointment</text>
-<text x="583" y="274" fill="#181818" font-family="SimSun,宋体,serif" font-size="24" font-weight="normal" text-anchor="start" dominant-baseline="central">appointment_change</text>
-<text x="583" y="305" fill="#181818" font-family="SimSun,宋体,serif" font-size="24" font-weight="normal" text-anchor="start" dominant-baseline="central">deposit_refund</text>
-<text x="583" y="336" fill="#181818" font-family="SimSun,宋体,serif" font-size="24" font-weight="normal" text-anchor="start" dominant-baseline="central">appointment_requested_treatment</text>
-<rect x="1081" y="50" width="485" height="364" rx="0" fill="#ffffff" stroke="#252525" stroke-width="2" />
-<text x="1101" y="80" fill="#181818" font-family="SimSun,宋体,serif" font-size="25" font-weight="bold" text-anchor="start" dominant-baseline="central">就诊、标准、耗材与使用</text>
-<text x="1101" y="119" fill="#181818" font-family="SimSun,宋体,serif" font-size="24" font-weight="normal" text-anchor="start" dominant-baseline="central">visit</text>
-<text x="1101" y="150" fill="#181818" font-family="SimSun,宋体,serif" font-size="24" font-weight="normal" text-anchor="start" dominant-baseline="central">chair_usage</text>
-<text x="1101" y="181" fill="#181818" font-family="SimSun,宋体,serif" font-size="24" font-weight="normal" text-anchor="start" dominant-baseline="central">dentist_work_session</text>
-<text x="1101" y="212" fill="#181818" font-family="SimSun,宋体,serif" font-size="24" font-weight="normal" text-anchor="start" dominant-baseline="central">treatment_type</text>
-<text x="1101" y="243" fill="#181818" font-family="SimSun,宋体,serif" font-size="24" font-weight="normal" text-anchor="start" dominant-baseline="central">treatment_price</text>
-<text x="1101" y="274" fill="#181818" font-family="SimSun,宋体,serif" font-size="24" font-weight="normal" text-anchor="start" dominant-baseline="central">treatment_item</text>
-<text x="1101" y="305" fill="#181818" font-family="SimSun,宋体,serif" font-size="24" font-weight="normal" text-anchor="start" dominant-baseline="central">material</text>
-<text x="1101" y="336" fill="#181818" font-family="SimSun,宋体,serif" font-size="24" font-weight="normal" text-anchor="start" dominant-baseline="central">material_usage</text>
-<rect x="45" y="441" width="485" height="364" rx="0" fill="#ffffff" stroke="#252525" stroke-width="2" />
-<text x="65" y="471" fill="#181818" font-family="SimSun,宋体,serif" font-size="25" font-weight="bold" text-anchor="start" dominant-baseline="central">结算、资金与更正</text>
-<text x="65" y="510" fill="#181818" font-family="SimSun,宋体,serif" font-size="24" font-weight="normal" text-anchor="start" dominant-baseline="central">invoice</text>
-<text x="65" y="541" fill="#181818" font-family="SimSun,宋体,serif" font-size="24" font-weight="normal" text-anchor="start" dominant-baseline="central">invoice_line</text>
-<text x="65" y="572" fill="#181818" font-family="SimSun,宋体,serif" font-size="24" font-weight="normal" text-anchor="start" dominant-baseline="central">invoice_payment</text>
-<text x="65" y="603" fill="#181818" font-family="SimSun,宋体,serif" font-size="24" font-weight="normal" text-anchor="start" dominant-baseline="central">treatment_correction</text>
-<text x="65" y="634" fill="#181818" font-family="SimSun,宋体,serif" font-size="24" font-weight="normal" text-anchor="start" dominant-baseline="central">correction_approval</text>
-<text x="65" y="665" fill="#181818" font-family="SimSun,宋体,serif" font-size="24" font-weight="normal" text-anchor="start" dominant-baseline="central">invoice_adjustment</text>
-<rect x="563" y="441" width="485" height="364" rx="0" fill="#ffffff" stroke="#252525" stroke-width="2" />
-<text x="583" y="471" fill="#181818" font-family="SimSun,宋体,serif" font-size="25" font-weight="bold" text-anchor="start" dominant-baseline="central">运营费用与绩效</text>
-<text x="583" y="510" fill="#181818" font-family="SimSun,宋体,serif" font-size="24" font-weight="normal" text-anchor="start" dominant-baseline="central">performance_period</text>
-<text x="583" y="541" fill="#181818" font-family="SimSun,宋体,serif" font-size="24" font-weight="normal" text-anchor="start" dominant-baseline="central">operating_expense</text>
-<text x="583" y="572" fill="#181818" font-family="SimSun,宋体,serif" font-size="24" font-weight="normal" text-anchor="start" dominant-baseline="central">expense_allocation</text>
-<text x="583" y="603" fill="#181818" font-family="SimSun,宋体,serif" font-size="24" font-weight="normal" text-anchor="start" dominant-baseline="central">dentist_performance</text>
-<text x="583" y="634" fill="#181818" font-family="SimSun,宋体,serif" font-size="24" font-weight="normal" text-anchor="start" dominant-baseline="central">company_performance</text>
-<rect x="1081" y="441" width="485" height="364" rx="0" fill="#ffffff" stroke="#252525" stroke-width="2" />
-<text x="1101" y="471" fill="#181818" font-family="SimSun,宋体,serif" font-size="25" font-weight="bold" text-anchor="start" dominant-baseline="central">角色、账号与审计</text>
-<text x="1101" y="510" fill="#181818" font-family="SimSun,宋体,serif" font-size="24" font-weight="normal" text-anchor="start" dominant-baseline="central">app_role</text>
-<text x="1101" y="541" fill="#181818" font-family="SimSun,宋体,serif" font-size="24" font-weight="normal" text-anchor="start" dominant-baseline="central">employee_role</text>
-<text x="1101" y="572" fill="#181818" font-family="SimSun,宋体,serif" font-size="24" font-weight="normal" text-anchor="start" dominant-baseline="central">user_account</text>
-<text x="1101" y="603" fill="#181818" font-family="SimSun,宋体,serif" font-size="24" font-weight="normal" text-anchor="start" dominant-baseline="central">audit_log</text>
-<text x="45" y="846" fill="#181818" font-family="SimSun,宋体,serif" font-size="26" font-weight="bold" text-anchor="start" dominant-baseline="central">跨分区外键汇总（父表所在分区 → 子表所在分区）</text>
-<rect x="45" y="877" width="745" height="44" rx="7" fill="#ffffff" stroke="#252525" stroke-width="2" />
-<text x="58" y="899" fill="#181818" font-family="SimSun,宋体,serif" font-size="19" font-weight="normal" text-anchor="start" dominant-baseline="central">5-2  组织、资质、牙椅与排班  →  5-3  患者、预约与资金</text>
-<text x="775" y="899" fill="#181818" font-family="SimSun,宋体,serif" font-size="20" font-weight="bold" text-anchor="end" dominant-baseline="central">4</text>
-<rect x="825" y="877" width="745" height="44" rx="7" fill="#ffffff" stroke="#252525" stroke-width="2" />
-<text x="838" y="899" fill="#181818" font-family="SimSun,宋体,serif" font-size="19" font-weight="normal" text-anchor="start" dominant-baseline="central">5-2  组织、资质、牙椅与排班  →  5-4  就诊、标准、耗材与使用</text>
-<text x="1555" y="899" fill="#181818" font-family="SimSun,宋体,serif" font-size="20" font-weight="bold" text-anchor="end" dominant-baseline="central">5</text>
-<rect x="45" y="931" width="745" height="44" rx="7" fill="#ffffff" stroke="#252525" stroke-width="2" />
-<text x="58" y="953" fill="#181818" font-family="SimSun,宋体,serif" font-size="19" font-weight="normal" text-anchor="start" dominant-baseline="central">5-2  组织、资质、牙椅与排班  →  5-5  结算、资金与更正</text>
-<text x="775" y="953" fill="#181818" font-family="SimSun,宋体,serif" font-size="20" font-weight="bold" text-anchor="end" dominant-baseline="central">2</text>
-<rect x="825" y="931" width="745" height="44" rx="7" fill="#ffffff" stroke="#252525" stroke-width="2" />
-<text x="838" y="953" fill="#181818" font-family="SimSun,宋体,serif" font-size="19" font-weight="normal" text-anchor="start" dominant-baseline="central">5-2  组织、资质、牙椅与排班  →  5-6  运营费用与绩效</text>
-<text x="1555" y="953" fill="#181818" font-family="SimSun,宋体,serif" font-size="20" font-weight="bold" text-anchor="end" dominant-baseline="central">6</text>
-<rect x="45" y="985" width="745" height="44" rx="7" fill="#ffffff" stroke="#252525" stroke-width="2" />
-<text x="58" y="1007" fill="#181818" font-family="SimSun,宋体,serif" font-size="19" font-weight="normal" text-anchor="start" dominant-baseline="central">5-2  组织、资质、牙椅与排班  →  5-7  角色、账号与审计</text>
-<text x="775" y="1007" fill="#181818" font-family="SimSun,宋体,serif" font-size="20" font-weight="bold" text-anchor="end" dominant-baseline="central">3</text>
-<rect x="825" y="985" width="745" height="44" rx="7" fill="#ffffff" stroke="#252525" stroke-width="2" />
-<text x="838" y="1007" fill="#181818" font-family="SimSun,宋体,serif" font-size="19" font-weight="normal" text-anchor="start" dominant-baseline="central">5-3  患者、预约与资金  →  5-4  就诊、标准、耗材与使用</text>
-<text x="1555" y="1007" fill="#181818" font-family="SimSun,宋体,serif" font-size="20" font-weight="bold" text-anchor="end" dominant-baseline="central">2</text>
-<rect x="45" y="1039" width="745" height="44" rx="7" fill="#ffffff" stroke="#252525" stroke-width="2" />
-<text x="58" y="1061" fill="#181818" font-family="SimSun,宋体,serif" font-size="19" font-weight="normal" text-anchor="start" dominant-baseline="central">5-3  患者、预约与资金  →  5-7  角色、账号与审计</text>
-<text x="775" y="1061" fill="#181818" font-family="SimSun,宋体,serif" font-size="20" font-weight="bold" text-anchor="end" dominant-baseline="central">1</text>
-<rect x="825" y="1039" width="745" height="44" rx="7" fill="#ffffff" stroke="#252525" stroke-width="2" />
-<text x="838" y="1061" fill="#181818" font-family="SimSun,宋体,serif" font-size="19" font-weight="normal" text-anchor="start" dominant-baseline="central">5-4  就诊、标准、耗材与使用  →  5-3  患者、预约与资金</text>
-<text x="1555" y="1061" fill="#181818" font-family="SimSun,宋体,serif" font-size="20" font-weight="bold" text-anchor="end" dominant-baseline="central">2</text>
-<rect x="45" y="1093" width="745" height="44" rx="7" fill="#ffffff" stroke="#252525" stroke-width="2" />
-<text x="58" y="1115" fill="#181818" font-family="SimSun,宋体,serif" font-size="19" font-weight="normal" text-anchor="start" dominant-baseline="central">5-4  就诊、标准、耗材与使用  →  5-5  结算、资金与更正</text>
-<text x="775" y="1115" fill="#181818" font-family="SimSun,宋体,serif" font-size="20" font-weight="bold" text-anchor="end" dominant-baseline="central">3</text>
-<text x="65" y="336" fill="#181818" font-family="SimSun,宋体,serif" font-size="24" font-weight="normal" text-anchor="start" dominant-baseline="central">dental_chair_unavailability</text>
-<text x="583" y="665" fill="#181818" font-family="SimSun,宋体,serif" font-size="24" font-weight="normal" text-anchor="start" dominant-baseline="central">performance_revision</text>
-<rect x="825" y="1093" width="745" height="44" rx="7" fill="#ffffff" stroke="#252525" stroke-width="2" />
-<text x="838" y="1115" fill="#181818" font-family="SimSun,宋体,serif" font-size="19" font-weight="normal" text-anchor="start" dominant-baseline="central">5-5  结算、资金与更正  →  5-6  运营费用与绩效</text>
-<text x="1555" y="1115" fill="#181818" font-family="SimSun,宋体,serif" font-size="20" font-weight="bold" text-anchor="end" dominant-baseline="central">1</text>
+<svg xmlns="http://www.w3.org/2000/svg" width="1510" height="1120" viewBox="0 0 1510 1120">
+<rect x="26" y="18" width="465" height="358" fill="#f1f6fb" stroke="#25374a" stroke-width="3"/>
+<text x="45.0" y="67" font-family="Microsoft YaHei, sans-serif" font-size="36" fill="#182c40">1. 组织与排班</text>
+<text x="50.0" y="107" font-family="Microsoft YaHei, sans-serif" font-size="24" fill="#182c40">employee</text>
+<text x="50.0" y="138" font-family="Microsoft YaHei, sans-serif" font-size="24" fill="#182c40">clinic</text>
+<text x="50.0" y="169" font-family="Microsoft YaHei, sans-serif" font-size="24" fill="#182c40">qualification</text>
+<text x="50.0" y="200" font-family="Microsoft YaHei, sans-serif" font-size="24" fill="#182c40">employee_qualification</text>
+<text x="50.0" y="231" font-family="Microsoft YaHei, sans-serif" font-size="24" fill="#182c40">shift_demand</text>
+<text x="50.0" y="262" font-family="Microsoft YaHei, sans-serif" font-size="24" fill="#182c40">shift</text>
+<text x="50.0" y="293" font-family="Microsoft YaHei, sans-serif" font-size="24" fill="#182c40">dental_chair</text>
+<text x="50.0" y="324" font-family="Microsoft YaHei, sans-serif" font-size="24" fill="#182c40">dental_chair_unavailability</text>
+<rect x="519" y="18" width="465" height="358" fill="#f1f6fb" stroke="#25374a" stroke-width="3"/>
+<text x="538.0" y="67" font-family="Microsoft YaHei, sans-serif" font-size="36" fill="#182c40">2. 患者与预约金</text>
+<text x="543.0" y="107" font-family="Microsoft YaHei, sans-serif" font-size="24" fill="#182c40">patient</text>
+<text x="543.0" y="138" font-family="Microsoft YaHei, sans-serif" font-size="24" fill="#182c40">patient_allergy</text>
+<text x="543.0" y="169" font-family="Microsoft YaHei, sans-serif" font-size="24" fill="#182c40">slot_claim</text>
+<text x="543.0" y="200" font-family="Microsoft YaHei, sans-serif" font-size="24" fill="#182c40">deposit_payment</text>
+<text x="543.0" y="231" font-family="Microsoft YaHei, sans-serif" font-size="24" fill="#182c40">appointment</text>
+<text x="543.0" y="262" font-family="Microsoft YaHei, sans-serif" font-size="24" fill="#182c40">appointment_change</text>
+<text x="543.0" y="293" font-family="Microsoft YaHei, sans-serif" font-size="24" fill="#182c40">deposit_refund</text>
+<text x="543.0" y="324" font-family="Microsoft YaHei, sans-serif" font-size="24" fill="#182c40">appointment_requested_treatment</text>
+<rect x="1012" y="18" width="465" height="358" fill="#f1f6fb" stroke="#25374a" stroke-width="3"/>
+<text x="1031.0" y="67" font-family="Microsoft YaHei, sans-serif" font-size="36" fill="#182c40">3. 诊疗与目录</text>
+<text x="1036.0" y="107" font-family="Microsoft YaHei, sans-serif" font-size="24" fill="#182c40">visit</text>
+<text x="1036.0" y="138" font-family="Microsoft YaHei, sans-serif" font-size="24" fill="#182c40">chair_usage</text>
+<text x="1036.0" y="169" font-family="Microsoft YaHei, sans-serif" font-size="24" fill="#182c40">dentist_work_session</text>
+<text x="1036.0" y="200" font-family="Microsoft YaHei, sans-serif" font-size="24" fill="#182c40">treatment_type</text>
+<text x="1036.0" y="231" font-family="Microsoft YaHei, sans-serif" font-size="24" fill="#182c40">treatment_price</text>
+<text x="1036.0" y="262" font-family="Microsoft YaHei, sans-serif" font-size="24" fill="#182c40">treatment_item</text>
+<text x="1036.0" y="293" font-family="Microsoft YaHei, sans-serif" font-size="24" fill="#182c40">material</text>
+<text x="1036.0" y="324" font-family="Microsoft YaHei, sans-serif" font-size="24" fill="#182c40">material_cost</text>
+<text x="1036.0" y="355" font-family="Microsoft YaHei, sans-serif" font-size="24" fill="#182c40">material_usage</text>
+<rect x="26" y="402" width="465" height="358" fill="#f1f6fb" stroke="#25374a" stroke-width="3"/>
+<text x="45.0" y="451" font-family="Microsoft YaHei, sans-serif" font-size="36" fill="#182c40">4. 结算和更正</text>
+<text x="50.0" y="491" font-family="Microsoft YaHei, sans-serif" font-size="24" fill="#182c40">invoice</text>
+<text x="50.0" y="522" font-family="Microsoft YaHei, sans-serif" font-size="24" fill="#182c40">invoice_line</text>
+<text x="50.0" y="553" font-family="Microsoft YaHei, sans-serif" font-size="24" fill="#182c40">invoice_payment</text>
+<text x="50.0" y="584" font-family="Microsoft YaHei, sans-serif" font-size="24" fill="#182c40">treatment_correction</text>
+<text x="50.0" y="615" font-family="Microsoft YaHei, sans-serif" font-size="24" fill="#182c40">correction_approval</text>
+<text x="50.0" y="646" font-family="Microsoft YaHei, sans-serif" font-size="24" fill="#182c40">invoice_adjustment</text>
+<rect x="519" y="402" width="465" height="358" fill="#f1f6fb" stroke="#25374a" stroke-width="3"/>
+<text x="538.0" y="451" font-family="Microsoft YaHei, sans-serif" font-size="36" fill="#182c40">5. 运营与绩效</text>
+<text x="543.0" y="491" font-family="Microsoft YaHei, sans-serif" font-size="24" fill="#182c40">performance_period</text>
+<text x="543.0" y="522" font-family="Microsoft YaHei, sans-serif" font-size="24" fill="#182c40">operating_expense</text>
+<text x="543.0" y="553" font-family="Microsoft YaHei, sans-serif" font-size="24" fill="#182c40">expense_allocation</text>
+<text x="543.0" y="584" font-family="Microsoft YaHei, sans-serif" font-size="24" fill="#182c40">dentist_performance</text>
+<text x="543.0" y="615" font-family="Microsoft YaHei, sans-serif" font-size="24" fill="#182c40">company_performance</text>
+<text x="543.0" y="646" font-family="Microsoft YaHei, sans-serif" font-size="24" fill="#182c40">performance_revision</text>
+<rect x="1012" y="402" width="465" height="358" fill="#f1f6fb" stroke="#25374a" stroke-width="3"/>
+<text x="1031.0" y="451" font-family="Microsoft YaHei, sans-serif" font-size="36" fill="#182c40">6. 授权与审计</text>
+<text x="1036.0" y="491" font-family="Microsoft YaHei, sans-serif" font-size="24" fill="#182c40">app_role</text>
+<text x="1036.0" y="522" font-family="Microsoft YaHei, sans-serif" font-size="24" fill="#182c40">employee_role</text>
+<text x="1036.0" y="553" font-family="Microsoft YaHei, sans-serif" font-size="24" fill="#182c40">user_account</text>
+<text x="1036.0" y="584" font-family="Microsoft YaHei, sans-serif" font-size="24" fill="#182c40">audit_log</text>
+<text x="30.0" y="833" font-family="Microsoft YaHei, sans-serif" font-size="33" fill="#182c40">分区间外键（目标分区 → 引用分区），区内约束见分区图及数据字典</text>
+<text x="29.0" y="888" font-family="Microsoft YaHei, sans-serif" font-size="26" fill="#182c40">1 → 2    4 条</text>
+<text x="524.0" y="888" font-family="Microsoft YaHei, sans-serif" font-size="26" fill="#182c40">1 → 3    5 条</text>
+<text x="1019.0" y="888" font-family="Microsoft YaHei, sans-serif" font-size="26" fill="#182c40">1 → 4    2 条</text>
+<text x="29.0" y="936" font-family="Microsoft YaHei, sans-serif" font-size="26" fill="#182c40">1 → 5    6 条</text>
+<text x="524.0" y="936" font-family="Microsoft YaHei, sans-serif" font-size="26" fill="#182c40">1 → 6    3 条</text>
+<text x="1019.0" y="936" font-family="Microsoft YaHei, sans-serif" font-size="26" fill="#182c40">2 → 3    2 条</text>
+<text x="29.0" y="984" font-family="Microsoft YaHei, sans-serif" font-size="26" fill="#182c40">2 → 6    1 条</text>
+<text x="524.0" y="984" font-family="Microsoft YaHei, sans-serif" font-size="26" fill="#182c40">3 → 2    2 条</text>
+<text x="1019.0" y="984" font-family="Microsoft YaHei, sans-serif" font-size="26" fill="#182c40">3 → 4    3 条</text>
+<text x="29.0" y="1032" font-family="Microsoft YaHei, sans-serif" font-size="26" fill="#182c40">4 → 5    1 条</text>
+<text x="30.0" y="1090" font-family="Microsoft YaHei, sans-serif" font-size="30" fill="#182c40">业务库 41 张表 · 72 条物理外键（含区内外键）</text>
 </svg>

@@ -234,3 +234,15 @@ class OperationsContractTests(TestCase):
             "report_token": data["report_token"], "metric": "appointments",
         })
         self.assertEqual(appointments.json()["data"]["total"], 1)
+
+        Shift.objects.create(
+            clinic_id=1, dentist_id=2, start_at=start, end_at=start + timedelta(hours=2), status="PUBLISHED",
+        )
+        with patch("adc.reporting.operations_api.now", return_value=cutoff):
+            filtered = client.get("/api/v1/reports/operations", {
+                "date_from": "2031-06-03", "date_to": "2031-06-03", "clinic_ids": "1", "dentist_ids": "1",
+            })
+        self.assertEqual(filtered.status_code, 200, filtered.content)
+        resources = filtered.json()["data"]["resources"]
+        self.assertEqual(resources["dentist_utilization"]["denominator"], 240)
+        self.assertEqual(resources["chair_utilization"]["denominator"], 240)

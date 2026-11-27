@@ -147,6 +147,8 @@ def collect(first, last, start, end, cutoff, clinics, dentists, as_of_date):
         visit__ended_at__gte=start, visit__ended_at__lt=end, visit__ended_at__lte=cutoff,
         visit__appointment__claim__clinic_id__in=clinic_ids,
     )
+    if dentists:
+        treatment_query = treatment_query.filter(performing_dentist_id__in=dentists)
     treatment_rows = list(treatment_query.values(
         "performing_dentist_id", "visit__appointment__claim__clinic_id",
     ).annotate(total=Count("item_id")))
@@ -434,6 +436,8 @@ def collect(first, last, start, end, cutoff, clinics, dentists, as_of_date):
         })
     dentist_keys = set(shift_by_dentist) | set(booked_by_dentist) | set(work_by_dentist)
     for clinic, dentist in sorted(dentist_keys):
+        if dentists and dentist not in dentists:
+            continue
         dentist_utilization.append({
             "clinic_id": str(clinic), "clinic_name": clinic_name(clinic),
             "dentist_id": str(dentist), "dentist_name": dentist_name(dentist),
@@ -444,7 +448,9 @@ def collect(first, last, start, end, cutoff, clinics, dentists, as_of_date):
             "work_utilization": rate(work_by_dentist[(clinic, dentist)], shift_by_dentist[(clinic, dentist)]),
         })
 
-    total_shift = sum(shift_by_clinic.values(), ZERO)
+    total_shift = sum(
+        (minutes for (_, dentist), minutes in shift_by_dentist.items() if not dentists or dentist in dentists), ZERO,
+    )
     total_booked = sum(booked_by_clinic.values(), ZERO)
     total_work = sum(work_by_clinic.values(), ZERO)
     total_capacity = sum(capacity_by_clinic.values(), ZERO)

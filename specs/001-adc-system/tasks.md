@@ -53,7 +53,7 @@ description: "ADC 完整系统的统一开发任务、依赖与验收追踪"
   - **测试方法** 执行 `npm --prefix web ci`、`npm --prefix web run build`；开发环境验证代理，构建物无需写入真实凭据。
   - **执行证据** Node 22 执行 `npm ci --offline` 复现锁文件，Vite 代理配置测试通过，TypeScript 检查及 Vite 生产构建通过。
 
-- [ ] T003 [P] 建立微信原生小程序工程，范围 `mini-program/app.js`、`mini-program/app.json`、`mini-program/project.config.json`
+- [x] T003 [P] 建立微信原生小程序工程，范围 `mini-program/app.js`、`mini-program/app.json`、`mini-program/project.config.json`
 
   - **依据与前置** FR-001、FR-004、FR-006、FR-008。依赖 无。
   - **完成标准** 原生 WXML／WXSS／JS 工程可导入；一级 Tab 采用审核稿与 Plan 对应的两个页面路径；隔离环境按配置选择。
@@ -153,7 +153,7 @@ description: "ADC 完整系统的统一开发任务、依赖与验收追踪"
 
   </details>
 
-- [ ] T006 [P] 编写认证及共用 HTTP 契约测试，范围 `backend/tests/contract/test_identity.py`、`backend/tests/contract/test_common.py`
+- [x] T006 [P] 编写认证及共用 HTTP 契约测试，范围 `backend/tests/contract/test_identity.py`、`backend/tests/contract/test_common.py`
 
   - **依据与前置** FR-001 至 FR-005、FR-007、FR-008、FR-201。依赖 T004。
   - **完成标准** 覆盖六条认证方法／路径、两类会话、状态及错误体、字段权限、十进制字符串、范围游标、同键同载荷与不同载荷。
@@ -184,13 +184,13 @@ description: "ADC 完整系统的统一开发任务、依赖与验收追踪"
   - **完成标准** 适配器根据隔离配置产生成功、失败和延迟；仅业务提交后唤醒，领用既有义务标识。回执由调用领域核对，不形成额外账本；补跑可暂停。
   - **测试方法** 测试业务回滚时不派发，模拟源、目标及金额校验，未知结果先查及重放键稳定。预约金与诊疗端到端用例分别在 US2、US4 验收。
 
-- [ ] T011 [P] 实现网站登录、统一布局、请求层与视觉组件，范围 `web/src/shared/AppShell.tsx`、`web/src/shared/api.ts`、`web/src/shared/theme.css`、`web/src/features/login/LoginPage.tsx`、`web/tests/shell.test.tsx`
+- [x] T011 [P] 实现网站登录、统一布局、请求层与视觉组件，范围 `web/src/shared/AppShell.tsx`、`web/src/shared/api.ts`、`web/src/shared/theme.css`、`web/src/features/login/LoginPage.tsx`、`web/tests/shell.test.tsx`
 
   - **依据与前置** FR-001 至 FR-004、FR-008。依赖 T002、T008、T009。
   - **完成标准** 按批准的五个区域、默认日程或首个可办理页实现 `AppShell`，会话 Context 及范围变更清缓存。实现 URL 筛选、错误／结果未知恢复、颜色令牌、键盘焦点及侧栏共用组件。
   - **测试方法** 运行 `npm --prefix web run test`，覆盖授权导航、会话失效、字段错误、焦点返回、窄屏响应及同键重试。
 
-- [ ] T012 [P] 实现小程序会话、请求层与原生共用组件，范围 `mini-program/services/session.js`、`mini-program/services/api.js`、`mini-program/app.wxss`、`mini-program/components/appointment-summary/index.wxml`
+- [x] T012 [P] 实现小程序会话、请求层与原生共用组件，范围 `mini-program/services/session.js`、`mini-program/services/api.js`、`mini-program/app.wxss`、`mini-program/components/appointment-summary/index.wxml`
 
   - **依据与前置** FR-001 至 FR-004、FR-006、FR-008。依赖 T003、T008、T009。
   - **完成标准** 统一 `wx.login`、bearer、超时与未知结果核对，失效清理且页面只传业务编号。采用批准色板、状态文字、44 像素触控与安全区。
@@ -486,7 +486,7 @@ description: "ADC 完整系统的统一开发任务、依赖与验收追踪"
 
   </details>
 
-- [ ] T025 [P] [US2] 实现本人档案、代办范围和预约基础读取，范围 `backend/adc/booking/patient_api.py`、`backend/adc/booking/appointment_query.py`
+- [x] T025 [P] [US2] 实现本人档案、代办范围和预约基础读取，范围 `backend/adc/booking/patient_api.py`、`backend/adc/booking/appointment_query.py`
 
   - **依据与前置** FR-001、FR-002、FR-004、FR-201、FR-204。依赖 T009、T016、T023、T024。
   - **完成标准** 实现本人档案、本店代办患者以及预约列表与详情。患者、前台、牙医、主管及总部协调按其动作投影，正式预约含预约号、改期截止、预约及原款引用。
@@ -498,7 +498,7 @@ description: "ADC 完整系统的统一开发任务、依赖与验收追踪"
   - **完成标准** 共用匹配相互重叠的连通组和整段同椅可行性，以服务时间及锁重查合资格发布班次。授权代办才可引用牙医估时证据。建立 10 分钟 HOLD 与 50 元原款待付，支持释放及查看。 首次创建回执丢失按 D04 以同一动作键核对。
   - **测试方法** AC-02-01 至 AC-02-03、AC-02-10：测试初诊／洁牙 30／60 分钟、专用椅被占、区间中断及并发，旧候选提交失败给备选。
 
-- [ ] T027 [US2] 实现预约金确认、补偿和原业务键重试，范围 `backend/adc/booking/deposit_service.py`、`backend/adc/booking/deposit_api.py`
+- [x] T027 [US2] 实现预约金确认、补偿和原业务键重试，范围 `backend/adc/booking/deposit_service.py`、`backend/adc/booking/deposit_api.py`
 
   - **依据与前置** FR-003、FR-005、FR-008、FR-203 至 FR-205、FR-210、FR-304。依赖 T010、T023、T026。
   - **完成标准** 锁内按原占位、主体、金额及稳定 token 核回执。有效首次成功形成唯一正式预约；未转正已失效或重查无法履约时保留成功款、释放、登记唯一全退并回显进度。授权重试复用原退金义务。
@@ -552,7 +552,7 @@ description: "ADC 完整系统的统一开发任务、依赖与验收追踪"
   - **完成标准** 覆盖签到、分椅／换椅、临床上下文、开始与就诊读取、追加决定、耗材、实做治疗和结束命令。
   - **测试方法** 运行 AC-03-01 至 AC-03-04、AC-X-08；覆盖无预约、椅池竞争、重复开始、拒绝追加、无治疗完成或中止。
 
-- [ ] T035 [P] [US3] 映射临床、过敏、椅位使用及计时事实，范围 `backend/adc/clinical/models.py`
+- [x] T035 [P] [US3] 映射临床、过敏、椅位使用及计时事实，范围 `backend/adc/clinical/models.py`
 
   - **依据与前置** FR-002、FR-005、FR-007、FR-301 至 FR-308。依赖 T013、T020、T024。
   - **完成标准** 映射 A.11、A.17–A.19、A.22–A.24，保留唯一就诊、椅位不重叠、开始结束条件、同意与计价约束。
@@ -641,7 +641,7 @@ description: "ADC 完整系统的统一开发任务、依赖与验收追踪"
 
   </details>
 
-- [ ] T036 [US3] 实现前台签到、同店分椅与换椅，范围 `backend/adc/clinical/checkin_service.py`、`backend/adc/clinical/checkin_api.py`
+- [x] T036 [US3] 实现前台签到、同店分椅与换椅，范围 `backend/adc/clinical/checkin_service.py`、`backend/adc/clinical/checkin_api.py`
 
   - **依据与前置** FR-002、FR-003、FR-207、FR-301、FR-302。依赖 T026、T029、T034、T035。
   - **完成标准** 核验身份和当前预约，单独保存签到时点；共享整段匹配固定候选椅后复验其余占位。不可分时保留签到并返回同店替代或协调。
@@ -659,7 +659,7 @@ description: "ADC 完整系统的统一开发任务、依赖与验收追踪"
   - **完成标准** 记录患者同意或拒绝，实做追加引用同意证据。根据实际实施时间锁定项目、单位、有效价、实际用量及成本凭据；缺证据反馈，暂计金额可追溯。
   - **测试方法** AC-03-03、AC-05-01：先同意后实做、拒绝无计费、更换有效价格只影响以后实际治疗、耗材缺证据不生成不完整事实。
 
-- [ ] T039 [US3] 实现完成或中止、释放资源与结算交接，范围 `backend/adc/clinical/visit_close.py`、`backend/adc/clinical/visit_close_api.py`
+- [x] T039 [US3] 实现完成或中止、释放资源与结算交接，范围 `backend/adc/clinical/visit_close.py`、`backend/adc/clinical/visit_close_api.py`
 
   - **依据与前置** FR-003 至 FR-005、FR-307、FR-308、FR-401、FR-403、FR-702。依赖 T013、T034、T038。
   - **完成标准** 正常结束须有实做项；中止留因并保留已有事实。按季度及资源锁序结束接诊、关闭计时、保存实际分钟、释放椅位和占位；输出可结算投影。
@@ -689,7 +689,7 @@ description: "ADC 完整系统的统一开发任务、依赖与验收追踪"
   - **完成标准** 建立队列、开单、明细、模拟收款及查询、申请／审批／入账、逐笔退款及重试方法的正反例；核对原单唯一、资金和审计证据。
   - **测试方法** 运行 AC-04-01 至 AC-04-07；使用两连接测重复开单／差额与同原款限额，覆盖 120/60、双原款和晚到冲突。
 
-- [ ] T043 [P] [US4] 映射结算原单、收退和临床更正，范围 `backend/adc/billing/models.py`
+- [x] T043 [P] [US4] 映射结算原单、收退和临床更正，范围 `backend/adc/billing/models.py`
 
   - **依据与前置** FR-005、FR-007、FR-401 至 FR-408、FR-706。依赖 T013、T035。
   - **完成标准** 映射 A.25–A.27、A.33–A.35；保留唯一主单、每治疗项唯一明细、原收款自关联、更正关联和差额精度。
@@ -805,7 +805,7 @@ description: "ADC 完整系统的统一开发任务、依赖与验收追踪"
   - **完成标准** 为费用、期间读写、计算、版本读取、复核及确认方法准备证据及不同授权测试。
   - **测试方法** 按 AC-07-01 至 AC-07-05 复算两店、跨季、零分钟、负利润、分位尾差与前后差额；对照越序、缺证据和权限拒绝。
 
-- [ ] T050 [P] [US7] 映射费用、分摊、牙医和公司结果，范围 `backend/adc/reporting/models/ledger.py`
+- [x] T050 [P] [US7] 映射费用、分摊、牙医和公司结果，范围 `backend/adc/reporting/models/ledger.py`
 
   - **依据与前置** FR-005、FR-007、FR-701 至 FR-707。依赖 T013。
   - **完成标准** 映射 A.29–A.32，和 A.28／A.40 组合关联。保持归属条件、金额及分钟精度，按两个版本键连接业务结果，不替换单列主键。
@@ -868,13 +868,13 @@ description: "ADC 完整系统的统一开发任务、依赖与验收追踪"
 
   </details>
 
-- [ ] T051 [US7] 实现运营费用、归期与季度试算，范围 `backend/adc/reporting/expenses_api.py`、`backend/adc/reporting/quarter_calculation.py`、`backend/adc/reporting/calculation_api.py`
+- [x] T051 [US7] 实现运营费用、归期与季度试算，范围 `backend/adc/reporting/expenses_api.py`、`backend/adc/reporting/quarter_calculation.py`、`backend/adc/reporting/calculation_api.py`
 
   - **依据与前置** FR-002、FR-003、FR-008、FR-701 至 FR-705。依赖 T039、T044、T045、T049、T050。
   - **完成标准** 本店费用凭据、期间及直接／共同校验。按 Visit 结束取本店应计、成本和全段分钟；每笔共同费用按分钟份额向下保留到分，尾差或零分钟留未分配。公司费用闭合，正利 10% 四舍五入，非正为零。缺项待补。
   - **测试方法** AC-07-01、AC-07-02、AC-07-05；核对 0.02 元三人和跨年 30 分钟、缺证据转待补、分钱闭合、基金精度。
 
-- [ ] T052 [US7] 实现季度复核、冻结、修订及正式版读取，范围 `backend/adc/reporting/quarter_versions.py`、`backend/adc/reporting/version_api.py`
+- [x] T052 [US7] 实现季度复核、冻结、修订及正式版读取，范围 `backend/adc/reporting/quarter_versions.py`、`backend/adc/reporting/version_api.py`
 
   - **依据与前置** FR-002 至 FR-005、FR-605、FR-705 至 FR-707。依赖 T045、T049、T051。
   - **完成标准** 分开试算、复核与确认权限。确认后冻结输入和结果；按获批差额原季逐版确认及回查。越序拒绝，原版、差额与最新确认版分别可读。
@@ -898,13 +898,13 @@ description: "ADC 完整系统的统一开发任务、依赖与验收追踪"
   - **完成标准** 测试范围、时间筛选、指标及同次快照权限、分页、缺项和已确认版本；以合成事实校对不写业务记录。
   - **测试方法** 执行 AC-06-01 至 AC-06-04、AC-X-08，覆盖异店、范围变化和旧快照、跨期改期、逐单欠款。
 
-- [ ] T055 [P] [US6] 实现四类事实视图的读取和报告快照，范围 `backend/adc/reporting/fact_queries.py`、`backend/adc/reporting/snapshots.py`
+- [x] T055 [P] [US6] 实现四类事实视图的读取和报告快照，范围 `backend/adc/reporting/fact_queries.py`、`backend/adc/reporting/snapshots.py`
 
   - **依据与前置** FR-002 至 FR-005、FR-007、FR-601 至 FR-605。依赖 T004、T008、T050、T054。
   - **完成标准** 复用活动 SQL 四个视图，按业务号关联。一次一致读内捕获 as_of、聚合输入及可见明细；快照短期绑定请求人、范围、筛选和排序，使用技术库。
   - **测试方法** 在并发改期或退款后检查同快照分母和下钻一致；过期或权限范围变化要求重查。业务库读取对照 SQL 并无写入。
 
-- [ ] T056 [US6] 实现经营聚合、明细及已确认季度展示 API，范围 `backend/adc/reporting/operations_service.py`、`backend/adc/reporting/operations_api.py`
+- [x] T056 [US6] 实现经营聚合、明细及已确认季度展示 API，范围 `backend/adc/reporting/operations_service.py`、`backend/adc/reporting/operations_api.py`
 
   - **依据与前置** FR-002、FR-008、FR-601 至 FR-605。依赖 T048、T052、T054、T055。
   - **完成标准** 按最终本地时段日期及结束截止取正式预约，共享分母四分类，诊所取消另列；计算技能、治疗量、标准覆盖、应计和逐单欠款，授权合并最新确认季度和差额。

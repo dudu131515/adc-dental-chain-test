@@ -53,6 +53,21 @@ async function lookupHold(request: ReturnType<typeof useApiRequest>, attempt: Ho
 
 export function RegisterPatient({ clinic, onSaved, expanded = false }: { clinic: string; onSaved: (row: Patient) => void; expanded?: boolean }) {
   const action = useAction();
+  const [name, setName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [lookup, setLookup] = useState({ name: "", phone: "" });
+  useEffect(() => {
+    const timer = window.setTimeout(() => setLookup({ name: name.trim(), phone: phone.trim() }), 250);
+    return () => window.clearTimeout(timer);
+  }, [name, phone]);
+  const matchesPath = (term: string) => "/clinics/" + clinic + "/patients?" + new URLSearchParams({ q: term });
+  const byName = useRead<{items: Patient[]}>(lookup.name.length >= 2 ? matchesPath(lookup.name) : undefined);
+  const byPhone = useRead<{items: Patient[]}>(lookup.phone.length >= 7 ? matchesPath(lookup.phone) : undefined);
+  const matches = new Map([...(byName.data?.items ?? []), ...(byPhone.data?.items ?? [])]
+    .filter(row => row.full_name === name.trim() || row.phone === phone.trim())
+    .map(row => [row.patient_id, row]));
+  const checking = name.trim().length >= 2 && name.trim() !== lookup.name ||
+    phone.trim().length >= 7 && phone.trim() !== lookup.phone || byName.loading || byPhone.loading;
   const fields = [
     ["full_name", "患者姓名", "text"], ["birth_date", "出生日期", "date"], ["phone", "联系电话", "tel"],
     ["billing_address", "账单地址", "text"], ["email", "电子邮箱（选填）", "email"],
@@ -70,10 +85,21 @@ export function RegisterPatient({ clinic, onSaved, expanded = false }: { clinic:
     <form className="schedule-form" onSubmit={save}>
       <fieldset className="record-fields" disabled={action.busy || action.unknown}>
         {fields.map(([id, title, kind]) => <label key={id}>
-          {title}<input name={id} type={kind} required={id !== "email"} />
+          {title}<input name={id} type={kind} required={id !== "email"}
+            onChange={id === "full_name" ? event => setName(event.target.value)
+              : id === "phone" ? event => setPhone(event.target.value) : undefined} />
         </label>)}
       </fieldset>
-      <button className="button" disabled={action.busy || action.unknown}>保存患者档案</button>
+      {checking && <p role="status">正在核对本店档案…</p>}
+      {(byName.fault || byPhone.fault) && <p role="status">暂时无法查重。请先在患者名册核对身份。</p>}
+      {!!matches.size && <div className="compact-list">
+        <p role="status">找到可能重复的本店档案，请核对患者编号、出生日期和电话。不同患者可分别建档。</p>
+        {[...matches.values()].slice(0, 5).map(row => <button key={row.patient_id} type="button" className="button"
+          onClick={() => onSaved(row)}>使用现有档案 · {row.full_name} · {row.patient_no} · {row.birth_date} · 尾号 {row.phone.slice(-4)}</button>)}
+      </div>}
+      <button className="button" disabled={action.busy || action.unknown || checking}>
+        {matches.size ? "已核对为不同患者，保存新档案" : "保存患者档案"}
+      </button>
     </form>
   </details>;
 }
